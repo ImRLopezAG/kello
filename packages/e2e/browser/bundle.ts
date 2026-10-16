@@ -30,12 +30,13 @@ export async function browserBundle(
       "@tanstack/query-core",
       "@orpc/client",
       "@orpc/tanstack-query",
+      "@neon/realtime",
     ]) {
       await mkdir(join(directory, "node_modules", dependency, ".."), { recursive: true });
       await symlink(
         await realpath(
           new URL(
-            dependency === "@tanstack/query-core"
+            dependency === "@tanstack/query-core" || dependency === "@neon/realtime"
               ? `../../../apps/kello/node_modules/${dependency}`
               : `../node_modules/${dependency}`,
             import.meta.url,
