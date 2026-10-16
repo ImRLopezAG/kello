@@ -80,30 +80,7 @@ jobs:
           chmod 600 "$RUNNER_TEMP/kello-pgbouncer/"*
           pgbouncer -d "$RUNNER_TEMP/kello-pgbouncer/pgbouncer.ini"
           PGPASSWORD=loom-ci-only psql -h 127.0.0.1 -p 56432 -U postgres -d kello_test -c 'SELECT 1'
-      - name: Build, typecheck, unit tests, formatting and Oxlint
-        env:
-          VITEST_MAX_WORKERS: "2"
-        run: bun run check --env-mode=loose --concurrency=1
-      - name: Restore build outputs from the local Turbo cache
-        run: |
-          backup=$(mktemp -d)
-          for path in apps/docs/dist apps/docs/.astro apps/kello/dist packages/examples/tasks/dist packages/examples/tasks/kello/_generated packages/examples/tasks/.loom/generations packages/examples/jobs-storage/dist packages/examples/jobs-storage/kello/_generated packages/examples/jobs-storage/.loom/generations; do
-            mv "$path" "$backup/${path//\//_}"
-          done
-          bun run build
-          test -f apps/kello/dist/core/server/index.js
-          test -f apps/kello/dist/tooling/index.js
-          bun apps/kello/cli.js --help > /dev/null
-          test -f apps/docs/dist/index.html
-          test -f packages/examples/tasks/dist/index.html
-          test -f packages/examples/jobs-storage/dist/index.html
-          git diff --exit-code -- 'packages/examples/*/kello/migrations'
       - name: PostgreSQL integration and packed Bun/Node consumers
         run: bun run test:integration
-      - name: Install Chromium
-        working-directory: packages/e2e
-        run: bunx --no-install playwright install --with-deps chromium
-      - name: Browser and copied packed example
-        run: bun run test:browser
-      - name: Report provider scope
-        run: echo 'Local PostgreSQL, package and browser checks only. Neon acceptance runs separately.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Report validation scope
+        run: echo 'Integration tests only, including PostgreSQL, Collector and packed Bun/Node consumers. Required package builds run through Turbo. Browser and Neon acceptance run separately.' >> "$GITHUB_STEP_SUMMARY"

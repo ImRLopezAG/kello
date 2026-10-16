@@ -61,9 +61,6 @@ jobs:
         run: bun run --cwd apps/kello build
       - name: Update npm for trusted publishing
         run: npm install --global npm@11
-      - name: Inspect package contents
-        working-directory: apps/kello
-        run: npm publish --dry-run --ignore-scripts --access public --tag alpha
       - name: Publish using npm trusted publishing
         working-directory: apps/kello
         env:

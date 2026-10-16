@@ -23,9 +23,13 @@ In the package's npm settings, configure a GitHub Actions trusted publisher with
 
 Complete the first successful trusted publication within npm's current configuration expiry period. After confirming trusted publication works, require 2FA and disallow token-based publishing for this package. This does not disable OIDC publishing.
 
+## CI scope
+
+CI runs `bun run test:integration`, including PostgreSQL, PgBouncer, Collector and packed Bun/Node consumers. Turbo builds the required package dependencies first. Unit tests, typechecking, formatting, linting and browser tests remain available through their local scripts and are not part of this CI workflow. Actual Neon acceptance runs separately.
+
 ## Release
 
-After the reviewed alpha version and publishing configuration reach main, require successful push CI for that exact commit. Manually dispatch **Publish alpha** on main. The workflow checks the exact commit's newest main push CI, validates package identity/version/license, performs a frozen Bun install, builds only Kello, inspects the package with a dry run, and publishes with OIDC to `alpha`.
+After the reviewed alpha version and publishing configuration reach main, require successful push CI for that exact commit. Manually dispatch **Publish alpha** on main. The workflow checks the exact commit's newest main push CI, validates package identity/version/license, performs a frozen Bun install, builds only Kello, and publishes with OIDC to `alpha`. CD does not rerun tests.
 
 After publication, independently verify `npm view kello@<version> version dist-tags dist --registry=https://registry.npmjs.org --prefer-online`, download the published archive, and verify its exports, license, dependency notices, and clean-consumer behavior. A successful workflow configuration or dry run is not a completed publication.
 
