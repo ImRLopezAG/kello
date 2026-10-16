@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "bun:test";
 import pg from "pg";
-import { bootstrapDatabase, frameworkMigrations } from "../../../apps/loom/src/tooling/migrations/bootstrap";
+import { bootstrapDatabase, frameworkMigrations } from "../../../apps/kello/src/tooling/migrations/bootstrap";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 if (!connectionString) throw new Error("Rate-limit schema acceptance requires disposable PostgreSQL 18");

@@ -1,7 +1,7 @@
 import { expect, test, vi } from "vite-plus/test";
-import { createNeonAuthMount } from "../../../apps/loom/src/core/adapters/neon/neon-auth-http";
-import { neonAuth, neonAuthHosting } from "../../../apps/loom/src/core/adapters/neon/auth";
-import { createAuthHttpApp } from "../../../apps/loom/src/core/adapters/neon/auth-http";
+import { createNeonAuthMount } from "../../../apps/kello/src/core/adapters/neon/neon-auth-http";
+import { neonAuth, neonAuthHosting } from "../../../apps/kello/src/core/adapters/neon/auth";
+import { createAuthHttpApp } from "../../../apps/kello/src/core/adapters/neon/auth-http";
 
 test("managed SDK proxy preserves redirect and cancellation while excluding forged forwarding headers", async () => {
   const abort = new AbortController();

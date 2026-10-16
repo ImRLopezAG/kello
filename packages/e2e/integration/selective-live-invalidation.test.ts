@@ -23,23 +23,23 @@ import {
   defineComponent,
   defineRpcAuth,
   runFunctionTransaction,
-} from "../../../apps/loom/src/core/server/index";
-import { createDependencyRegistry } from "../../../apps/loom/src/core/server/realtime/dependencies";
-import { listenForRevisions } from "../../../apps/loom/src/core/server/realtime/notifications";
-import { createRevisionCoordinator } from "../../../apps/loom/src/core/server/realtime/coordinator";
+} from "../../../apps/kello/src/core/server/index";
+import { createDependencyRegistry } from "../../../apps/kello/src/core/server/realtime/dependencies";
+import { listenForRevisions } from "../../../apps/kello/src/core/server/realtime/notifications";
+import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
 import {
   acceptSnapshotAttempt,
   evaluateSnapshot,
   registerSnapshotSegment,
   runSnapshotAttempt,
-} from "../../../apps/loom/src/core/server/rpc/snapshot";
-import { bindRuntimeGraph } from "../../../apps/loom/src/core/server/rpc/runtime-graph";
-import { getDatabasePolicy } from "../../../apps/loom/src/core/server/rpc/database";
-import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
-import { evaluateLiveSnapshot } from "../../../apps/loom/src/core/server/rpc/live-context";
-import { createEffectRuntime, Invocation } from "../../../apps/loom/src/core/server/effect/runtime";
-import { bootstrapDatabase } from "../../../apps/loom/src/tooling/migrations/bootstrap";
-import { installRevisionTracking } from "../../../apps/loom/src/tooling/migrations/revisions";
+} from "../../../apps/kello/src/core/server/rpc/snapshot";
+import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
+import { getDatabasePolicy } from "../../../apps/kello/src/core/server/rpc/database";
+import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
+import { evaluateLiveSnapshot } from "../../../apps/kello/src/core/server/rpc/live-context";
+import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
+import { bootstrapDatabase } from "../../../apps/kello/src/tooling/migrations/bootstrap";
+import { installRevisionTracking } from "../../../apps/kello/src/tooling/migrations/revisions";
 
 async function bounded<T>(promise: Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;

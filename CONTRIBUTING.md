@@ -42,4 +42,4 @@ If Astro reports an existing docs server, open its printed URL. From `apps/docs`
 
 Run `bunx turbo run build typecheck --filter=@kello/docs` and `bunx vp lint apps/docs` for documentation changes. Check desktop and mobile layouts when changing UI.
 
-For a deployed documentation site, set `LOOM_DOCS_SITE_URL` to its public origin when building. Astro uses this for canonical URLs and absolute social-preview image URLs. No production hostname is assumed in local builds.
+For a deployed documentation site, set `KELLO_DOCS_SITE_URL` to its public origin when building. Astro uses this for canonical URLs and absolute social-preview image URLs. No production hostname is assumed in local builds.

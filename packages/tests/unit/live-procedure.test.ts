@@ -4,20 +4,20 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { and, defineRelations, eq, gt, sql } from "drizzle-orm";
 import pg from "pg";
 import { pgTable, text } from "drizzle-orm/pg-core";
-import { oc, defineContract, resolveContract } from "../../../apps/loom/src/core/contract";
-import "../../../apps/loom/src/core/server/realtime/procedure";
+import { oc, defineContract, resolveContract } from "../../../apps/kello/src/core/contract";
+import "../../../apps/kello/src/core/server/realtime/procedure";
 import {
   defineApplication,
   prepareApplicationEnvironment,
-} from "../../../apps/loom/src/core/server/application/definition";
-import { liveRowsSource } from "../../../apps/loom/src/tooling/codegen/live-query";
-import { applicationClientArtifacts } from "../../../apps/loom/src/tooling/codegen/application";
-import { discoverProcedures } from "../../../apps/loom/src/tooling/codegen/procedures";
-import { generateRpcOpenAPI } from "../../../apps/loom/src/core/server/rpc/openapi";
-import { bindRpcDatabaseProcedure } from "../../../apps/loom/src/core/server/rpc/database";
-import { rpcErrorBoundary } from "../../../apps/loom/src/core/server/rpc/procedure";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/rpc/procedure";
-import { rpcContext } from "../../../apps/loom/src/core/adapters/neon/rpc-context";
+} from "../../../apps/kello/src/core/server/application/definition";
+import { liveRowsSource } from "../../../apps/kello/src/tooling/codegen/live-query";
+import { applicationClientArtifacts } from "../../../apps/kello/src/tooling/codegen/application";
+import { discoverProcedures } from "../../../apps/kello/src/tooling/codegen/procedures";
+import { generateRpcOpenAPI } from "../../../apps/kello/src/core/server/rpc/openapi";
+import { bindRpcDatabaseProcedure } from "../../../apps/kello/src/core/server/rpc/database";
+import { rpcErrorBoundary } from "../../../apps/kello/src/core/server/rpc/procedure";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/rpc/procedure";
+import { rpcContext } from "../../../apps/kello/src/core/adapters/neon/rpc-context";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";

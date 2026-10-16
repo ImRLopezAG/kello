@@ -1,9 +1,9 @@
 import { expect, test } from "vite-plus/test";
 import { useMemo, useState } from "react";
-import type { IssuedNeonQuery, NeonMutationResult } from "../../../apps/loom/src/core/client/realtime";
+import type { IssuedNeonQuery, NeonMutationResult } from "../../../apps/kello/src/core/client/realtime";
 import { renderToString } from "react-dom/server";
-import { useNeonLiveQuery } from "../../../apps/loom/src/core/react/realtime";
-import { createNeonLiveClient } from "../../../apps/loom/src/core/client/realtime";
+import { useNeonLiveQuery } from "../../../apps/kello/src/core/react/realtime";
+import { createNeonLiveClient } from "../../../apps/kello/src/core/client/realtime";
 import { exampleAuthority, taskRows } from "../fixtures/neon-realtime";
 
 test("SSR neither issues nor subscribes and cannot serialize a capability", () => {

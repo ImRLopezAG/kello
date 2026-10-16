@@ -3,17 +3,17 @@ import {
   createProjectContext,
   createProjectProcedures,
   createRpcRuntime,
-} from "../../../apps/loom/src/core/server/index";
-import { oc } from "../../../apps/loom/src/core/contract/index";
+} from "../../../apps/kello/src/core/server/index";
+import { oc } from "../../../apps/kello/src/core/contract/index";
 import { searchSchema, searchRelations } from "../fixtures/search-schema";
-import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
-import { searchOrdering, searchKeyset, searchOrderSQL } from "../../../apps/loom/src/core/search/ordering";
-import { createSearchCursor, searchCursorBinding } from "../../../apps/loom/src/core/search/cursor";
+import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
+import { searchOrdering, searchKeyset, searchOrderSQL } from "../../../apps/kello/src/core/search/ordering";
+import { createSearchCursor, searchCursorBinding } from "../../../apps/kello/src/core/search/cursor";
 import { PgDialect } from "drizzle-orm/pg-core";
 import {
   applicationEnvironmentSources,
   resolveReleaseEnvironment,
-} from "../../../apps/loom/src/tooling/deploy/neon/environment";
+} from "../../../apps/kello/src/tooling/deploy/neon/environment";
 import * as v from "valibot";
 import { EncryptJWT, jwtDecrypt } from "jose";
 

@@ -4,8 +4,8 @@ import {
   defineRateLimits,
   isRateLimitDefinitions,
   rateLimitPolicyFingerprint,
-} from "../../../apps/loom/src/core/server/rate-limits/policy";
-import { createRateLimitKey } from "../../../apps/loom/src/core/server/rate-limits/key";
+} from "../../../apps/kello/src/core/server/rate-limits/policy";
+import { createRateLimitKey } from "../../../apps/kello/src/core/server/rate-limits/key";
 
 const quota = { version: 1, mode: "quota", scope: "user", limit: 10, windowMs: 60_000 } as const;
 const base = {
@@ -29,7 +29,7 @@ describe("rate limit definitions", () => {
     expect(Object.isFrozen(definitions.policies.createItem)).toBe(true);
     // A distinct module evaluation has its own module-local objects and functions.
     // @ts-expect-error Vite's query suffix creates a second evaluation; it is not a TypeScript module path.
-    const independent = await import("../../../apps/loom/src/core/server/rate-limits/policy?independent");
+    const independent = await import("../../../apps/kello/src/core/server/rate-limits/policy?independent");
     expect(independent.defineRateLimits).not.toBe(defineRateLimits);
     expect(isRateLimitDefinitions(independent.defineRateLimits({ createItem: quota }))).toBe(true);
     expect(independent.isRateLimitDefinitions(definitions)).toBe(true);

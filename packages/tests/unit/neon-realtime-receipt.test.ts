@@ -2,8 +2,8 @@ import { expect, test } from "vite-plus/test";
 import * as v from "valibot";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { SQL, AnyRelations } from "drizzle-orm";
-import type { DatabaseConnection } from "../../../apps/loom/src/core/server/database/connection";
-import { runNeonMutation } from "../../../apps/loom/src/core/server/realtime/neon";
+import type { DatabaseConnection } from "../../../apps/kello/src/core/server/database/connection";
+import { runNeonMutation } from "../../../apps/kello/src/core/server/realtime/neon";
 
 // DB-free transaction boundary double; exercises real replay/serialization and
 // wrapper control flow. Native PostgreSQL atomicity is a separate required gate.

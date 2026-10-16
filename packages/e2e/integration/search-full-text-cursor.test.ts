@@ -16,18 +16,18 @@ import {
   defineSchema,
   defineTable,
   Invocation,
-} from "../../../apps/loom/src/core/server/index";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/index";
-import { evaluateLiveSnapshot, withLiveInvocation } from "../../../apps/loom/src/core/server/rpc/live-context";
-import { fields } from "../../../apps/loom/src/core/schema/fields";
-import { createSearchValidators } from "../../../apps/loom/src/core/search/contract";
-import { searchErrors } from "../../../apps/loom/src/core/search/errors";
-import { searchSchemaMetadata } from "../../../apps/loom/src/core/search/metadata";
-import type { SearchRuntimeDescriptor } from "../../../apps/loom/src/core/search/metadata";
-import { createSearchCursor } from "../../../apps/loom/src/core/search/cursor";
-import { resolveFullText } from "../../../apps/loom/src/core/search/full-text";
+} from "../../../apps/kello/src/core/server/index";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/index";
+import { evaluateLiveSnapshot, withLiveInvocation } from "../../../apps/kello/src/core/server/rpc/live-context";
+import { fields } from "../../../apps/kello/src/core/schema/fields";
+import { createSearchValidators } from "../../../apps/kello/src/core/search/contract";
+import { searchErrors } from "../../../apps/kello/src/core/search/errors";
+import { searchSchemaMetadata } from "../../../apps/kello/src/core/search/metadata";
+import type { SearchRuntimeDescriptor } from "../../../apps/kello/src/core/search/metadata";
+import { createSearchCursor } from "../../../apps/kello/src/core/search/cursor";
+import { resolveFullText } from "../../../apps/kello/src/core/search/full-text";
 import { fullTextLocalTarget } from "./full-text-local-target";
-import { defaultSearchBudgets } from "../../../apps/loom/src/core/search/public";
+import { defaultSearchBudgets } from "../../../apps/kello/src/core/search/public";
 
 // Authored source-only: execution requires the parent's local PG18 resource grant.
 // No helper pagination oracle, replaced executor, or production test hook is used.

@@ -3,7 +3,7 @@ import pg from "pg";
 import { and, asc, desc, defineRelations, eq, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { createFullTextFixture, fullTextRank, fullTextVector } from "../fixtures/search-full-text";
-import { exactRankFloat4 } from "../../../apps/loom/src/core/search/rank";
+import { exactRankFloat4 } from "../../../apps/kello/src/core/search/rank";
 import * as v from "valibot";
 import assert from "node:assert/strict";
 import { EncryptJWT, jwtDecrypt } from "jose";

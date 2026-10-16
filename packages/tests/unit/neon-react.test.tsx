@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vite-plus/test";
 import { renderToString } from "react-dom/server";
-import { createKelloNeonReact } from "../../../apps/loom/src/core/react/neon";
+import { createKelloNeonReact } from "../../../apps/kello/src/core/react/neon";
 
 test("Neon bindings expose official SDK methods and render without opening authenticated connections", () => {
   const createClient = vi.fn(() => {

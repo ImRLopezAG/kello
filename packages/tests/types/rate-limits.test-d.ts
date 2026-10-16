@@ -3,7 +3,7 @@ import {
   isRateLimitDefinitions,
   type RateLimitDefinitions,
   type RateLimitPolicyNames,
-} from "../../../apps/loom/src/core/server/rate-limits/policy";
+} from "../../../apps/kello/src/core/server/rate-limits/policy";
 
 const definitions = defineRateLimits({
   createItem: { version: 1, mode: "quota", scope: "userInTenant", limit: 100, windowMs: 60_000 },
@@ -43,7 +43,7 @@ export function narrowDefinitions(value: RateLimitDefinitions | undefined): Rate
   return undefined;
 }
 
-import type { InvocationRateLimits } from "../../../apps/loom/src/core/server/rate-limits/service";
+import type { InvocationRateLimits } from "../../../apps/kello/src/core/server/rate-limits/service";
 export function verifyRateLimitMethods(limits: InvocationRateLimits) {
   const quota: Promise<void> = limits.quotaPromise(definitions, "createItem");
   const attempt: Promise<void> = limits.attemptPromise(definitions, "sensitiveAttempt");

@@ -7,11 +7,11 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
 import pg from "pg";
-import { initializeProject as initializeSourceProject } from "../../../apps/loom/src/tooling/project/initialize";
-import { prepareProject as prepareSourceProject } from "../../../apps/loom/src/tooling/codegen/generate";
-import { synchronizeDevelopment as synchronizeSourceDevelopment } from "../../../apps/loom/src/tooling/dev/sync";
-import type { DevelopmentDatabaseProvider as SourceDevelopmentDatabaseProvider } from "../../../apps/loom/src/tooling/dev/connection";
-import type { DiagnosticsRecord as SourceDiagnosticsRecord } from "../../../apps/loom/src/tooling/diagnostics/types";
+import { initializeProject as initializeSourceProject } from "../../../apps/kello/src/tooling/project/initialize";
+import { prepareProject as prepareSourceProject } from "../../../apps/kello/src/tooling/codegen/generate";
+import { synchronizeDevelopment as synchronizeSourceDevelopment } from "../../../apps/kello/src/tooling/dev/sync";
+import type { DevelopmentDatabaseProvider as SourceDevelopmentDatabaseProvider } from "../../../apps/kello/src/tooling/dev/connection";
+import type { DiagnosticsRecord as SourceDiagnosticsRecord } from "../../../apps/kello/src/tooling/diagnostics/types";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 
@@ -91,8 +91,8 @@ test("real CLI composition recovers a failed edit while its owned JSONL stream c
         port: 0,
       }),
     );
-    const cliPath = fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url));
-    const neonPath = fileURLToPath(new URL("../../../apps/loom/src/tooling/neon/api.ts", import.meta.url));
+    const cliPath = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
+    const neonPath = fileURLToPath(new URL("../../../apps/kello/src/tooling/neon/api.ts", import.meta.url));
     const runner = join(root, ".loom/cli-runner.ts");
     await writeFile(
       runner,

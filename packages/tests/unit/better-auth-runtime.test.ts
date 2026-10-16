@@ -1,13 +1,13 @@
 import { expect, test } from "vite-plus/test";
 import { betterAuth } from "better-auth";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { defineBetterAuth } from "../../../apps/loom/src/core/better-auth/definition";
-import { resolveBetterAuthSchema } from "../../../apps/loom/src/core/better-auth/resolve";
-import { initializeBetterAuth } from "../../../apps/loom/src/core/better-auth/runtime";
+import { defineBetterAuth } from "../../../apps/kello/src/core/better-auth/definition";
+import { resolveBetterAuthSchema } from "../../../apps/kello/src/core/better-auth/resolve";
+import { initializeBetterAuth } from "../../../apps/kello/src/core/better-auth/runtime";
 import {
   defineApplication,
   prepareApplicationEnvironment,
-} from "../../../apps/loom/src/core/server/application/definition";
+} from "../../../apps/kello/src/core/server/application/definition";
 
 test("runtime admits only planned native schemas and binds services once per scope", async () => {
   let creations = 0;

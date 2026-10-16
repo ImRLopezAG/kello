@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 import * as v from "valibot";
-import { exactRankFloat4 } from "../../../apps/loom/src/core/search/rank";
+import { exactRankFloat4 } from "../../../apps/kello/src/core/search/rank";
 
 const exactValues = [
   { bits: "00000000", value: 0 },

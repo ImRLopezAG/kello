@@ -71,7 +71,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
   try {
     await run(
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
-      join(workspace, "apps/loom"),
+      join(workspace, "apps/kello"),
     );
     await write(
       join(root, "package.json"),

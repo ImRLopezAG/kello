@@ -6,27 +6,27 @@ import type { RouterClient } from "@orpc/server";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/websocket";
 import { RPCHandler } from "@orpc/server/websocket";
-import { createRpcHttpApp } from "../../../apps/loom/src/core/adapters/neon/rpc-http";
-import { rpcProtocolVersion } from "../../../apps/loom/src/core/server/rpc/serialization";
-import { rpcTransportSerializer } from "../../../apps/loom/src/core/adapters/neon/rpc-context";
+import { createRpcHttpApp } from "../../../apps/kello/src/core/adapters/neon/rpc-http";
+import { rpcProtocolVersion } from "../../../apps/kello/src/core/server/rpc/serialization";
+import { rpcTransportSerializer } from "../../../apps/kello/src/core/adapters/neon/rpc-context";
 import { Context } from "effect";
 import { defineRelations, sql } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { connectDatabase } from "../../../apps/loom/src/core/server/database/connection";
-import { createProjectProcedures } from "../../../apps/loom/src/core/server/rpc/procedure";
-import { bindRpcDatabaseProcedure, createDatabaseMiddleware } from "../../../apps/loom/src/core/server/rpc/database";
-import { Invocation } from "../../../apps/loom/src/core/server/effect/runtime";
-import { defineRateLimits } from "../../../apps/loom/src/core/server/rate-limits/policy";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { connectDatabase } from "../../../apps/kello/src/core/server/database/connection";
+import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
+import { bindRpcDatabaseProcedure, createDatabaseMiddleware } from "../../../apps/kello/src/core/server/rpc/database";
+import { Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
+import { defineRateLimits } from "../../../apps/kello/src/core/server/rate-limits/policy";
 import {
   RateLimits,
   invocationRateLimits,
   withInvocationRateLimits,
-} from "../../../apps/loom/src/core/server/rate-limits/service";
-import type { RateLimitScope } from "../../../apps/loom/src/core/server/rate-limits/service";
-import { RateLimitExceeded, RateLimitUnavailable } from "../../../apps/loom/src/core/server/rate-limits/errors";
-import { bootstrapDatabase } from "../../../apps/loom/src/tooling/migrations/bootstrap";
+} from "../../../apps/kello/src/core/server/rate-limits/service";
+import type { RateLimitScope } from "../../../apps/kello/src/core/server/rate-limits/service";
+import { RateLimitExceeded, RateLimitUnavailable } from "../../../apps/kello/src/core/server/rate-limits/errors";
+import { bootstrapDatabase } from "../../../apps/kello/src/tooling/migrations/bootstrap";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 if (!connectionString)
@@ -370,13 +370,13 @@ test("quota refuses mismatched limiter and database invocation authorities", asy
 
 test("equivalent definitions and distinct scope bindings route to their registered store", async () => {
   const bundle = await Bun.build({
-    entrypoints: [fileURLToPath(new URL("../../../apps/loom/src/core/server/rate-limits/policy.ts", import.meta.url))],
+    entrypoints: [fileURLToPath(new URL("../../../apps/kello/src/core/server/rate-limits/policy.ts", import.meta.url))],
     target: "node",
   });
   expect(bundle.success).toBe(true);
   const independentPath =
     "data:text/javascript;base64," + Buffer.from(await bundle.outputs[0]!.text()).toString("base64");
-  const independent: typeof import("../../../apps/loom/src/core/server/rate-limits/policy") = await import(
+  const independent: typeof import("../../../apps/kello/src/core/server/rate-limits/policy") = await import(
     independentPath
   );
   expect(independent.defineRateLimits).not.toBe(defineRateLimits);

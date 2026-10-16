@@ -21,7 +21,7 @@ test("documented authoring examples compile and validate through a packed public
   try {
     await run(
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
-      fileURLToPath(new URL("../../../apps/loom/", import.meta.url)),
+      fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
     await cp(examples, join(root, "examples"), {
       recursive: true,

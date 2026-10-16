@@ -529,7 +529,7 @@ client.tasks.secret();
     await rm(join(root, "kello/functions/tasks"), { recursive: true });
     expect((await generateProject(root)).version).toBe(first.version);
 
-    const cli = fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url));
+    const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
     const doctor = Bun.spawn([process.execPath, cli, "doctor", "--cwd", root, "--json"], {
       stdout: "pipe",
       stderr: "pipe",
@@ -608,7 +608,7 @@ client.tasks.secret();
 
 test("CLI produces matching structured/human failures without leaking executable config errors", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-doctor-"));
-  const cli = fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url));
+  const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
   try {
     await writeFile(
       join(root, "kello.config.ts"),

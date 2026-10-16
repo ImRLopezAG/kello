@@ -1,9 +1,9 @@
 import { defineRelations } from "drizzle-orm";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { defineTable } from "../../../apps/loom/src/core/schema/table";
-import { fields } from "../../../apps/loom/src/core/schema/fields";
-import { createSearchValidators } from "../../../apps/loom/src/core/search/contract";
-import type { SearchSelection, SearchLiveSelection, SearchRow } from "../../../apps/loom/src/core/search/types";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { defineTable } from "../../../apps/kello/src/core/schema/table";
+import { fields } from "../../../apps/kello/src/core/schema/fields";
+import { createSearchValidators } from "../../../apps/kello/src/core/search/contract";
+import type { SearchSelection, SearchLiveSelection, SearchRow } from "../../../apps/kello/src/core/search/types";
 
 const schema = defineSchema(() => ({
   articles: defineTable(

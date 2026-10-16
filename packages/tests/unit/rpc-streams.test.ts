@@ -3,7 +3,7 @@ import { AsyncIteratorClass, call, eventIterator, ORPCError } from "@orpc/server
 import { Context } from "effect";
 import * as v from "valibot";
 import { createProjectProcedures, defineSchema, Invocation } from "kello/server";
-import { rpcOutput, validateRpcOutput } from "../../../apps/loom/src/core/server/rpc/stream";
+import { rpcOutput, validateRpcOutput } from "../../../apps/kello/src/core/server/rpc/stream";
 
 const { procedure } = createProjectProcedures(defineSchema(() => ({})));
 const invocation = { identity: null, requestId: "streams", signal: new AbortController().signal };

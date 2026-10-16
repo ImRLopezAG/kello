@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Writable } from "node:stream";
-import * as diagnosticsOutput from "../../../apps/loom/src/tooling/diagnostics/output";
+import * as diagnosticsOutput from "../../../apps/kello/src/tooling/diagnostics/output";
 
-const cli = fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url));
+const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
 
 async function runDiagnosticsCli(root: string, args: string[], env?: Record<string, string | undefined>) {
   const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
@@ -590,7 +590,7 @@ test("runCli keeps diagnostics in the owning child through failed edits and both
 
 test("development CLI validates declarations and keeps failed initial edits watchable until shutdown", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-dev-cli-"));
-  const cli = fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url));
+  const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
   const env = {
     ...process.env,
     LOOM_TEST_DEV_TOKEN: "a".repeat(64),

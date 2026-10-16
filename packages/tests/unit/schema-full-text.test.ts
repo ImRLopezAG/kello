@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vite-plus/test";
 import { SQL } from "drizzle-orm";
 import { alias, getTableConfig, PgDialect } from "drizzle-orm/pg-core";
-import { bindSchemaNamespace, defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { defineTable, TableDefinition } from "../../../apps/loom/src/core/schema/table";
-import { compile } from "../../../apps/loom/src/core/schema/compile";
-import { fullTextVector } from "../../../apps/loom/src/core/schema/full-text";
-import type { FullTextDeclarations, FullTextDocument } from "../../../apps/loom/src/core/schema/full-text";
-import { fields } from "../../../apps/loom/src/core/schema/fields";
+import { bindSchemaNamespace, defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { defineTable, TableDefinition } from "../../../apps/kello/src/core/schema/table";
+import { compile } from "../../../apps/kello/src/core/schema/compile";
+import { fullTextVector } from "../../../apps/kello/src/core/schema/full-text";
+import type { FullTextDeclarations, FullTextDocument } from "../../../apps/kello/src/core/schema/full-text";
+import { fields } from "../../../apps/kello/src/core/schema/fields";
 
 const document = {
   config: "pg_catalog.english",

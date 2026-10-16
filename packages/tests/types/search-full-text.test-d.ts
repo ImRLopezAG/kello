@@ -1,10 +1,10 @@
 import { defineRelations } from "drizzle-orm";
 import type { BuildQueryResult } from "drizzle-orm";
-import { compile } from "../../../apps/loom/src/core/schema/compile";
-import { bindSchemaNamespace, defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { fields } from "../../../apps/loom/src/core/schema/fields";
-import { defineTable } from "../../../apps/loom/src/core/schema/table";
-import { fullTextVector } from "../../../apps/loom/src/core/schema/full-text";
+import { compile } from "../../../apps/kello/src/core/schema/compile";
+import { bindSchemaNamespace, defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { fields } from "../../../apps/kello/src/core/schema/fields";
+import { defineTable } from "../../../apps/kello/src/core/schema/table";
+import { fullTextVector } from "../../../apps/kello/src/core/schema/full-text";
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Assert<T extends true> = T;

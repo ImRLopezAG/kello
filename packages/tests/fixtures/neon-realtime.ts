@@ -1,17 +1,17 @@
 import { os, ORPCError } from "@orpc/server";
-import type { TrustedLogin } from "../../../apps/loom/src/core/server/auth/login";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/rpc/procedure";
+import type { TrustedLogin } from "../../../apps/kello/src/core/server/auth/login";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/rpc/procedure";
 import { and, eq, exists } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import * as v from "valibot";
 import type { AnyRelations } from "drizzle-orm";
-import type { DatabaseConnection } from "../../../apps/loom/src/core/server/database/connection";
-import type { VerifiedSession } from "../../../apps/loom/src/core/server/auth/verify";
+import type { DatabaseConnection } from "../../../apps/kello/src/core/server/database/connection";
+import type { VerifiedSession } from "../../../apps/kello/src/core/server/auth/verify";
 import {
   createNeonLiveQuery,
   createNeonQueryIssuer,
   runNeonMutation,
-} from "../../../apps/loom/src/core/server/realtime/neon";
+} from "../../../apps/kello/src/core/server/realtime/neon";
 
 const tasks = pgTable("neon_example_tasks", {
   id: text().primaryKey(),
@@ -35,7 +35,7 @@ const updateInput = v.strictObject({
 /** Trusted server session-store lookup after credential verification. The existing
  * JWT/ticket verifier does not establish this login-generation ID. Absence is an
  * unsupported integration, never a subject/request/client-label fallback. */
-export type { TrustedLogin } from "../../../apps/loom/src/core/server/auth/login";
+export type { TrustedLogin } from "../../../apps/kello/src/core/server/auth/login";
 export function exampleAuthority(verified: VerifiedSession, login: TrustedLogin | undefined, signal: AbortSignal) {
   if (
     !login ||

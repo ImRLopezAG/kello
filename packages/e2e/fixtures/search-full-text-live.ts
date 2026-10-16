@@ -5,10 +5,10 @@ import {
   createProjectProcedures,
   defineSchema,
   defineTable,
-} from "../../../apps/loom/src/core/server/index";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/index";
-import { searchErrors } from "../../../apps/loom/src/core/search/errors";
-import { defaultSearchBudgets } from "../../../apps/loom/src/core/search/public";
+} from "../../../apps/kello/src/core/server/index";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/index";
+import { searchErrors } from "../../../apps/kello/src/core/search/errors";
+import { defaultSearchBudgets } from "../../../apps/kello/src/core/search/public";
 
 /** Native source fixture: the runtime, not this fixture, owns live evaluation. */
 export function fullTextLiveFixture(namespace: string, fullTextTimeoutMs = 30000) {

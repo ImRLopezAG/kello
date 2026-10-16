@@ -2,8 +2,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { AsyncIteratorClass } from "@orpc/server";
 import { expect, test } from "vite-plus/test";
 import * as v from "valibot";
-import { createStreamLifetime } from "../../../apps/loom/src/core/server/rpc/stream-lifetime";
-import { rpcOutput } from "../../../apps/loom/src/core/server/rpc/stream";
+import { createStreamLifetime } from "../../../apps/kello/src/core/server/rpc/stream-lifetime";
+import { rpcOutput } from "../../../apps/kello/src/core/server/rpc/stream";
 
 test("iterator work restores the application scope, including cancellation cleanup", async () => {
   const application = new AsyncLocalStorage<string>();

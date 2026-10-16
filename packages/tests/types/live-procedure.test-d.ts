@@ -5,10 +5,10 @@ import type { RouterClient } from "@orpc/server";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgTable, text, integer } from "drizzle-orm/pg-core";
 import * as v from "valibot";
-import { oc } from "../../../apps/loom/src/core/contract";
-import "../../../apps/loom/src/core/server/realtime/procedure";
-import type { LiveQueryHooks } from "../../../apps/loom/src/core/react/live-query";
-import type { OrdinaryLiveRouter } from "../../../apps/loom/src/core/client/realtime";
+import { oc } from "../../../apps/kello/src/core/contract";
+import "../../../apps/kello/src/core/server/realtime/procedure";
+import type { LiveQueryHooks } from "../../../apps/kello/src/core/react/live-query";
+import type { OrdinaryLiveRouter } from "../../../apps/kello/src/core/client/realtime";
 
 const contract = {
   list: oc

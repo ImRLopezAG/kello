@@ -4,7 +4,7 @@ import * as v from "valibot";
 import {
   applicationEnvironmentSources,
   resolveReleaseEnvironment,
-} from "../../../apps/loom/src/tooling/deploy/neon/environment";
+} from "../../../apps/kello/src/tooling/deploy/neon/environment";
 
 test("application environment forwards declared custom variables and preserves provider injection", async () => {
   const declaration = {
@@ -57,7 +57,7 @@ test("deployment validates effective custom values without exposing credentials"
 
 test("component deployment includes only unbound mounted declarations and validates shared sources", async () => {
   const { defineApplication, defineComponent, sealComponentGraph } = await import("kello/server");
-  const { componentEnvironmentDeclarations } = await import("../../../apps/loom/src/tooling/deploy/neon/environment");
+  const { componentEnvironmentDeclarations } = await import("../../../apps/kello/src/tooling/deploy/neon/environment");
   const component = defineComponent({ name: "sdk", env: { KEY: v.string(), OPTIONAL: v.optional(v.string()) } });
   const app = defineApplication({ env: { CUSTOMER_KEY: v.string() }, rpc: ({ os }) => ({ os }) });
   app.use(component, { env: { KEY: app.env.CUSTOMER_KEY } });

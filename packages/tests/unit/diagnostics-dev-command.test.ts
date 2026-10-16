@@ -4,18 +4,18 @@ import { mkdtemp, open, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
-import { startDiagnostics } from "../../../apps/loom/src/tooling/diagnostics/session";
-import { createFileOutput } from "../../../apps/loom/src/tooling/diagnostics/output";
+import { startDiagnostics } from "../../../apps/kello/src/tooling/diagnostics/session";
+import { createFileOutput } from "../../../apps/kello/src/tooling/diagnostics/output";
 
 const startup = vi.hoisted(() => ({ start: vi.fn() }));
 vi.mock("kello/tooling", async () => ({
-  startDiagnostics: (await import("../../../apps/loom/src/tooling/diagnostics/session")).startDiagnostics,
+  startDiagnostics: (await import("../../../apps/kello/src/tooling/diagnostics/session")).startDiagnostics,
   startProjectDevelopment: startup.start,
 }));
-vi.mock("../../../apps/loom/src/tooling/dev/project", () => ({
+vi.mock("../../../apps/kello/src/tooling/dev/project", () => ({
   startProjectDevelopmentWithOwnedOutput: startup.start,
 }));
-import { devCommandWithOwnedOutput } from "../../../apps/loom/src/commands/dev";
+import { devCommandWithOwnedOutput } from "../../../apps/kello/src/commands/dev";
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   for (const doubleFailure of [false, true]) {

@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test";
 import { defineRelations, sql } from "drizzle-orm";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { connectDatabase, captureInvocationGuard } from "../../../apps/loom/src/core/server/database/connection";
-import { runFunctionTransaction } from "../../../apps/loom/src/core/server/transactions";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { connectDatabase, captureInvocationGuard } from "../../../apps/kello/src/core/server/database/connection";
+import { runFunctionTransaction } from "../../../apps/kello/src/core/server/transactions";
 import {
   evaluateLiveSnapshot,
   withLiveInvocation,
   liveSnapshot,
-} from "../../../apps/loom/src/core/server/rpc/live-context";
-import { withSearchDeadline } from "../../../apps/loom/src/core/search/deadline";
+} from "../../../apps/kello/src/core/server/rpc/live-context";
+import { withSearchDeadline } from "../../../apps/kello/src/core/search/deadline";
 
 test("full-text deadlines retain owned read snapshots and restore only on success", async () => {
   const connectionString = process.env.LOOM_TEST_DATABASE_URL;

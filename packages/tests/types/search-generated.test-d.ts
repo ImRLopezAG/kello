@@ -1,10 +1,10 @@
-import { createProjectContext } from "../../../apps/loom/src/core/server/index";
-import { oc } from "../../../apps/loom/src/core/contract/index";
-import type { RouterContractClient } from "../../../apps/loom/src/core/contract/index";
-import type { SearchRouterClient, SearchRouterUtils } from "../../../apps/loom/src/core/client/index";
-import type { RpcCallContext } from "../../../apps/loom/src/core/client/index";
+import { createProjectContext } from "../../../apps/kello/src/core/server/index";
+import { oc } from "../../../apps/kello/src/core/contract/index";
+import type { RouterContractClient } from "../../../apps/kello/src/core/contract/index";
+import type { SearchRouterClient, SearchRouterUtils } from "../../../apps/kello/src/core/client/index";
+import type { RpcCallContext } from "../../../apps/kello/src/core/client/index";
 import type { Client } from "@orpc/client";
-import type { Id } from "../../../apps/loom/src/core/server/index";
+import type { Id } from "../../../apps/kello/src/core/server/index";
 import {
   QueryClient,
   useQuery,

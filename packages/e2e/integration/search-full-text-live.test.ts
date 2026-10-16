@@ -9,9 +9,9 @@ import { RPCLink } from "@orpc/client/websocket";
 import { RPCHandler } from "@orpc/server/websocket";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
-import { createRpcRuntime, defineRpcAuth, Invocation } from "../../../apps/loom/src/core/server/index";
-import type { JsonValue, ProcedureContext } from "../../../apps/loom/src/core/server/index";
-import { bootstrapDatabase, installRevisionTracking } from "../../../apps/loom/src/tooling/index";
+import { createRpcRuntime, defineRpcAuth, Invocation } from "../../../apps/kello/src/core/server/index";
+import type { JsonValue, ProcedureContext } from "../../../apps/kello/src/core/server/index";
+import { bootstrapDatabase, installRevisionTracking } from "../../../apps/kello/src/tooling/index";
 import { fullTextLiveFixture } from "../fixtures/search-full-text-live";
 import { fullTextLocalTarget } from "./full-text-local-target";
 

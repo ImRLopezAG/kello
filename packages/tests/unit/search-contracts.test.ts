@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { createProjectContext, generateRpcOpenAPI, defineSchema } from "../../../apps/loom/src/core/server/index";
+import { createProjectContext, generateRpcOpenAPI, defineSchema } from "../../../apps/kello/src/core/server/index";
 import { sql, defineRelations } from "drizzle-orm";
 import {
   defineContract,
@@ -7,14 +7,14 @@ import {
   oc,
   eventIterator,
   searchErrors,
-} from "../../../apps/loom/src/core/contract/index";
+} from "../../../apps/kello/src/core/contract/index";
 import { implement } from "@orpc/server";
 import { Schema } from "effect";
 import * as v from "valibot";
 import { z } from "zod";
 import { searchSchema, searchRelations, nestedSelection } from "../fixtures/search-schema";
-import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
-import type { SearchScope } from "../../../apps/loom/src/core/search/types";
+import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
+import type { SearchScope } from "../../../apps/kello/src/core/search/types";
 
 const { validators } = createProjectContext(searchSchema, searchRelations);
 const policy = {

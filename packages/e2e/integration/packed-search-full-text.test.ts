@@ -282,7 +282,7 @@ test("packed generated full-text search preserves native inference and public bo
   }
 
   try {
-    const packageRoot = fileURLToPath(new URL("../../../apps/loom/", import.meta.url));
+    const packageRoot = fileURLToPath(new URL("../../../apps/kello/", import.meta.url));
     const tarball = join(root, "kello.tgz");
     await succeed(["bun", "pm", "pack", "--filename", tarball, "--ignore-scripts"], packageRoot);
     const bytes = await readFile(tarball);

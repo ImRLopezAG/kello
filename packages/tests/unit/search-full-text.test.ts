@@ -1,19 +1,19 @@
 import { createHash } from "node:crypto";
 import { describe, expect, test } from "vite-plus/test";
 import * as v from "valibot";
-import type { SearchBudgets, SearchPolicy } from "../../../apps/loom/src/core/search/types";
+import type { SearchBudgets, SearchPolicy } from "../../../apps/kello/src/core/search/types";
 import { defineRelations } from "drizzle-orm";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { defineTable } from "../../../apps/loom/src/core/schema/table";
-import { fields } from "../../../apps/loom/src/core/schema/fields";
-import { createSearchValidators, searchPublicNode } from "../../../apps/loom/src/core/search/contract";
-import { searchSchemaMetadata } from "../../../apps/loom/src/core/search/metadata";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { defineTable } from "../../../apps/kello/src/core/schema/table";
+import { fields } from "../../../apps/kello/src/core/schema/fields";
+import { createSearchValidators, searchPublicNode } from "../../../apps/kello/src/core/search/contract";
+import { searchSchemaMetadata } from "../../../apps/kello/src/core/search/metadata";
 import {
   acceptsSearchOutput,
   defaultSearchBudgets,
   validSearchSelection,
-} from "../../../apps/loom/src/core/search/public";
-import { searchJsonSchemas } from "../../../apps/loom/src/core/search/json-schema";
+} from "../../../apps/kello/src/core/search/public";
+import { searchJsonSchemas } from "../../../apps/kello/src/core/search/json-schema";
 
 const document = {
   config: "pg_catalog.english",

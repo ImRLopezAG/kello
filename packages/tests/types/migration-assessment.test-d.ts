@@ -1,7 +1,7 @@
-import { assessMigration } from "../../../apps/loom/src/tooling/migrations/assessment";
-import type { MigrationAssessment, BlockingGinOperation } from "../../../apps/loom/src/tooling/migrations/assessment";
-import type { MigrationPlan } from "../../../apps/loom/src/tooling/migrations/planner";
-import type { ApplyMigrationsOptions } from "../../../apps/loom/src/tooling/migrations/runner";
+import { assessMigration } from "../../../apps/kello/src/tooling/migrations/assessment";
+import type { MigrationAssessment, BlockingGinOperation } from "../../../apps/kello/src/tooling/migrations/assessment";
+import type { MigrationPlan } from "../../../apps/kello/src/tooling/migrations/planner";
+import type { ApplyMigrationsOptions } from "../../../apps/kello/src/tooling/migrations/runner";
 
 declare const plan: MigrationPlan;
 const assessed: Promise<MigrationAssessment> = assessMigration(plan);

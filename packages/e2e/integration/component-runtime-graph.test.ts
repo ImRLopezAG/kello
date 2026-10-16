@@ -6,7 +6,7 @@ import { Context, Layer } from "effect";
 import * as v from "valibot";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { bindRuntimeGraph } from "../../../apps/loom/src/core/server/rpc/runtime-graph";
+import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
 import { createEffectRuntime, createRevisionCoordinator, Invocation } from "kello/server";
 import type { ProcedureContext } from "kello/server";
 

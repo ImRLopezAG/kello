@@ -1,6 +1,6 @@
 import { expect, spyOn, test } from "bun:test";
 import pg from "pg";
-import { withMigrationConnection } from "../../../apps/loom/src/tooling/migrations/connection";
+import { withMigrationConnection } from "../../../apps/kello/src/tooling/migrations/connection";
 
 test("listener setup failure still ends the constructed migration client exactly once", async () => {
   for (const primary of [undefined, null, false, new Error("listener setup failed")]) {

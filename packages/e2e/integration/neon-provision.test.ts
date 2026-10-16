@@ -76,7 +76,7 @@ globalThis.fetch = (input, init) => {
 `,
     );
     async function runCli(dryRun: boolean, exitCode: number) {
-      const cli = fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url));
+      const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
       const child = Bun.spawn(
         [
           process.execPath,

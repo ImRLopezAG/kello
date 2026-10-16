@@ -9,13 +9,13 @@ import * as v from "valibot";
 import { bootstrapDatabase } from "kello/tooling";
 // The graph is an internal module; use its source dependencies so middleware
 // capability registries are the same module instances as the graph under test.
-import { bindRuntimeGraph } from "../../../apps/loom/src/core/server/rpc/runtime-graph";
-import { createProjectProcedures } from "../../../apps/loom/src/core/server/rpc/procedure";
-import { createDatabaseMiddleware } from "../../../apps/loom/src/core/server/rpc/database";
-import { createEffectRuntime, Invocation } from "../../../apps/loom/src/core/server/effect/runtime";
-import { createRevisionCoordinator } from "../../../apps/loom/src/core/server/realtime/coordinator";
-import { connectDatabase } from "../../../apps/loom/src/core/server/database/connection";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
+import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
+import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
+import { createDatabaseMiddleware } from "../../../apps/kello/src/core/server/rpc/database";
+import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
+import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
+import { connectDatabase } from "../../../apps/kello/src/core/server/database/connection";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

@@ -19,9 +19,9 @@ import {
   defineSchema,
   defineTable,
   Invocation,
-} from "../../../apps/loom/src/core/server/index";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/index";
-import { searchErrors } from "../../../apps/loom/src/core/search/errors";
+} from "../../../apps/kello/src/core/server/index";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/index";
+import { searchErrors } from "../../../apps/kello/src/core/search/errors";
 import { fullTextLocalTarget } from "./full-text-local-target";
 
 type NativeQueryCallback = (error: Error, result: pg.QueryResult | pg.QueryArrayResult<unknown[]>) => void;

@@ -1,16 +1,16 @@
 import { expect, test, vi } from "vite-plus/test";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as v from "valibot";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { createDependencyRegistry } from "../../../apps/loom/src/core/server/realtime/dependencies";
-import type { RevisionReader } from "../../../apps/loom/src/core/server/realtime/revisions";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { createDependencyRegistry } from "../../../apps/kello/src/core/server/realtime/dependencies";
+import type { RevisionReader } from "../../../apps/kello/src/core/server/realtime/revisions";
 import {
   acceptSnapshotAttempt,
   evaluateSnapshot,
   markSnapshotUnknown,
   registerSnapshotSegment,
   runSnapshotAttempt,
-} from "../../../apps/loom/src/core/server/rpc/snapshot";
+} from "../../../apps/kello/src/core/server/rpc/snapshot";
 
 const key = (namespace: string, table = "task_items") => JSON.stringify([namespace, table]);
 const scopes = ["app_root", "app_left", "app_right"].map((namespace) => ({

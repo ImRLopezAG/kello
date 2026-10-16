@@ -1,4 +1,4 @@
-import { fields } from "../../../apps/loom/src/core/schema/fields";
+import { fields } from "../../../apps/kello/src/core/schema/fields";
 import { call, ORPCError } from "@orpc/server";
 import type { InferSchemaInput } from "@orpc/server";
 import { Context } from "effect";
@@ -12,11 +12,11 @@ import {
   defineSchema,
   defineTable,
   Invocation,
-} from "../../../apps/loom/src/core/server/index";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/index";
-import { searchErrors } from "../../../apps/loom/src/core/search/errors";
-import { searchSchemaMetadata } from "../../../apps/loom/src/core/search/metadata";
-import { evaluateLiveSnapshot, withLiveInvocation } from "../../../apps/loom/src/core/server/rpc/live-context";
+} from "../../../apps/kello/src/core/server/index";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/index";
+import { searchErrors } from "../../../apps/kello/src/core/search/errors";
+import { searchSchemaMetadata } from "../../../apps/kello/src/core/search/metadata";
+import { evaluateLiveSnapshot, withLiveInvocation } from "../../../apps/kello/src/core/server/rpc/live-context";
 
 interface RankFixtureExtraFields {
   added?: ReturnType<typeof fields.text>;

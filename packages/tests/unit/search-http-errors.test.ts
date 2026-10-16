@@ -1,12 +1,12 @@
 import { expect, test } from "vite-plus/test";
 import { ORPCError, ValidationError } from "@orpc/server";
 import { defineRelations } from "drizzle-orm";
-import { createRpcHttpApp, createRpcOpenApiApp } from "../../../apps/loom/src/core/adapters/neon/rpc-http";
-import { createProjectProcedures } from "../../../apps/loom/src/core/server/rpc/procedure";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { defineTable } from "../../../apps/loom/src/core/schema/table";
-import { fields } from "../../../apps/loom/src/core/schema/fields";
-import { searchErrors } from "../../../apps/loom/src/core/search/errors";
+import { createRpcHttpApp, createRpcOpenApiApp } from "../../../apps/kello/src/core/adapters/neon/rpc-http";
+import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { defineTable } from "../../../apps/kello/src/core/schema/table";
+import { fields } from "../../../apps/kello/src/core/schema/fields";
+import { searchErrors } from "../../../apps/kello/src/core/search/errors";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import * as v from "valibot";
 

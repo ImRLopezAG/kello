@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vite-plus/test";
-import { createRevisionCoordinator } from "../../../apps/loom/src/core/server/realtime/coordinator";
-import type { TableRevisions } from "../../../apps/loom/src/core/server/realtime/revisions";
+import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
+import type { TableRevisions } from "../../../apps/kello/src/core/server/realtime/revisions";
 type Evaluation = { value: string; revisions: { tasks: string } };
 
 const session = () => ({

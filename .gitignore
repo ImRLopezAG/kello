@@ -61,7 +61,7 @@ next-env.d.ts
 bin/
 bins/
 _generated/
-/apps/loom/src/**/*.d.ts
+/apps/kello/src/**/*.d.ts
 *.log
 
 # disposable extension-worker handoffs and scratch integration diffs

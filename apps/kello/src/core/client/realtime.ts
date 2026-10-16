@@ -264,7 +264,7 @@ export function createNeonLiveClient(
             };
             const cancel = () => settle("unknown");
             pending.add(cancel);
-            // SDK resolution guarantees its materialization, but Loom must also
+            // SDK resolution guarantees its materialization, but Kello must also
             // finish its runtime projection before confirming installed rows.
             void wire
               .awaitTxId(txid, timeoutMs)

@@ -10,16 +10,16 @@ import { bigint, index, pgSchema, text, uuid } from "drizzle-orm/pg-core";
 import pg from "pg";
 import { fullTextLocalTarget } from "./full-text-local-target";
 import * as v from "valibot";
-import { emptySnapshot, inspectSnapshot, snapshotHash } from "../../../apps/loom/src/tooling/migrations/adapter";
-import type { MigrationSnapshot } from "../../../apps/loom/src/tooling/migrations/adapter";
-import { assessMigration } from "../../../apps/loom/src/tooling/migrations/assessment";
-import { withMigrationConnection } from "../../../apps/loom/src/tooling/migrations/connection";
-import { catalogFingerprint } from "../../../apps/loom/src/tooling/migrations/drift";
-import { readMigrations, validateMigration, writeMigration } from "../../../apps/loom/src/tooling/migrations/history";
-import { migrationHash, planMigration } from "../../../apps/loom/src/tooling/migrations/planner";
-import type { MigrationPlan } from "../../../apps/loom/src/tooling/migrations/planner";
-import { applyMigrationsOnConnection } from "../../../apps/loom/src/tooling/migrations/runner";
-import { inspectHistory, ormHistoryTable } from "../../../apps/loom/src/tooling/migrations/state";
+import { emptySnapshot, inspectSnapshot, snapshotHash } from "../../../apps/kello/src/tooling/migrations/adapter";
+import type { MigrationSnapshot } from "../../../apps/kello/src/tooling/migrations/adapter";
+import { assessMigration } from "../../../apps/kello/src/tooling/migrations/assessment";
+import { withMigrationConnection } from "../../../apps/kello/src/tooling/migrations/connection";
+import { catalogFingerprint } from "../../../apps/kello/src/tooling/migrations/drift";
+import { readMigrations, validateMigration, writeMigration } from "../../../apps/kello/src/tooling/migrations/history";
+import { migrationHash, planMigration } from "../../../apps/kello/src/tooling/migrations/planner";
+import type { MigrationPlan } from "../../../apps/kello/src/tooling/migrations/planner";
+import { applyMigrationsOnConnection } from "../../../apps/kello/src/tooling/migrations/runner";
+import { inspectHistory, ormHistoryTable } from "../../../apps/kello/src/tooling/migrations/state";
 
 function fixture(
   namespace: string,

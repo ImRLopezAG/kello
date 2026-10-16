@@ -2,13 +2,13 @@ import { describe, expect, it } from "vite-plus/test";
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { createProjectContext } from "../../../apps/loom/src/core/server/index";
-import { oc } from "../../../apps/loom/src/core/contract/index";
+import { createProjectContext } from "../../../apps/kello/src/core/server/index";
+import { oc } from "../../../apps/kello/src/core/contract/index";
 import { searchSchema, searchRelations, nestedSelection } from "../fixtures/search-schema";
-import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
-import { prepareSearchPage } from "../../../apps/loom/src/core/search/pagination";
-import { compileSearch } from "../../../apps/loom/src/core/search/compiler";
-import type { SearchScope } from "../../../apps/loom/src/core/search/types";
+import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
+import { prepareSearchPage } from "../../../apps/kello/src/core/search/pagination";
+import { compileSearch } from "../../../apps/kello/src/core/search/compiler";
+import type { SearchScope } from "../../../apps/kello/src/core/search/types";
 
 const { validators } = createProjectContext(searchSchema, searchRelations);
 const search = validators.tables.tasks.search({

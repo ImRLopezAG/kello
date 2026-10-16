@@ -1,7 +1,7 @@
-/// <reference types="../apps/loom/node_modules/@types/node" />
+/// <reference types="../apps/kello/node_modules/@types/node" />
 import { createRequire } from "node:module";
 
-const require = createRequire(new URL("../apps/loom/package.json", import.meta.url));
+const require = createRequire(new URL("../apps/kello/package.json", import.meta.url));
 
 interface MaintenanceOutput {
   status: "RATE_LIMIT_CLEANUP_FAILED" | "RATE_LIMIT_CLEANUP_BACKLOG" | "RATE_LIMIT_CLEANUP_OK";

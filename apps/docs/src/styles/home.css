@@ -1,4 +1,4 @@
-.loom-home {
+.kello-home {
   --home-ink: var(--color-fd-foreground);
   --home-blue: var(--color-fd-primary);
   max-width: 1240px;
@@ -87,7 +87,7 @@
   border-block: 1px solid var(--color-fd-border);
   padding: 36px 0;
 }
-.loom-home .home-stack-section h2 {
+.kello-home .home-stack-section h2 {
   font-size: 24px;
   margin-bottom: 10px;
 }
@@ -101,7 +101,7 @@
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-.loom-home .home-integrations a:focus-visible {
+.kello-home .home-integrations a:focus-visible {
   outline-offset: -4px;
   border-radius: 0;
 }
@@ -112,7 +112,7 @@
   align-items: center;
   padding: 110px 0 80px;
 }
-.loom-home h2 {
+.kello-home h2 {
   font-size: clamp(30px, 3.4vw, 44px);
   line-height: 1.15;
   letter-spacing: -0.04em;
@@ -236,13 +236,13 @@
   gap: 20px;
   margin-left: auto;
 }
-.loom-home a:focus-visible {
+.kello-home a:focus-visible {
   outline: 3px solid #3577c7;
   outline-offset: 5px;
   border-radius: 4px;
 }
 @media (max-width: 900px) {
-  .loom-home {
+  .kello-home {
     padding: 0 24px;
   }
   .home-hero {

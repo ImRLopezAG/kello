@@ -1,7 +1,7 @@
-import { createSnapshotStream } from "../../../apps/loom/src/core/server/rpc/snapshot-stream";
-import { evaluateSnapshot } from "../../../apps/loom/src/core/server/rpc/snapshot";
+import { createSnapshotStream } from "../../../apps/kello/src/core/server/rpc/snapshot-stream";
+import { evaluateSnapshot } from "../../../apps/kello/src/core/server/rpc/snapshot";
 import { eventIterator } from "kello/contract";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server";
 import assert from "node:assert/strict";
 import { test, expect } from "bun:test";
 import { call, os, ORPCError } from "@orpc/server";
@@ -23,7 +23,7 @@ import {
   Invocation,
   createRevisionCoordinator,
   createRevisionReader,
-} from "../../../apps/loom/src/core/server";
+} from "../../../apps/kello/src/core/server";
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "native live iterators preserve snapshot revisions, authorization and cancellation over WebSocket",

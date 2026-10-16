@@ -2,7 +2,7 @@ import { createRouterClient, os } from "@orpc/server";
 import { defineRelations } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import * as v from "valibot";
-import { withLiveDependencies } from "../../../apps/loom/src/core/server/index";
+import { withLiveDependencies } from "../../../apps/kello/src/core/server/index";
 
 const tasks = pgTable("tasks", { title: text().notNull() });
 const permissions = pgTable("permissions", { role: text().notNull() });

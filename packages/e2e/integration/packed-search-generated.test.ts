@@ -27,7 +27,7 @@ test("packed generated search infers selected results through native options", a
     console.info(JSON.stringify({ proof: "search-generated-root-created", root }));
     await succeed(
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
-      fileURLToPath(new URL("../../../apps/loom/", import.meta.url)),
+      fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
     await writeFile(
       join(root, "package.json"),

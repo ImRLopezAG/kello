@@ -7,12 +7,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
-import { initializeProject } from "../../../apps/loom/src/tooling/project/initialize";
-import { prepareProject, activateProject } from "../../../apps/loom/src/tooling/codegen/generate";
-import { watchDevelopmentWithOwnedOutput } from "../../../apps/loom/src/tooling/dev/watcher";
-import { startDiagnostics } from "../../../apps/loom/src/tooling/diagnostics/session";
-import { createFileOutput } from "../../../apps/loom/src/tooling/diagnostics/output";
-import type { DiagnosticsRecord } from "../../../apps/loom/src/tooling/diagnostics/types";
+import { initializeProject } from "../../../apps/kello/src/tooling/project/initialize";
+import { prepareProject, activateProject } from "../../../apps/kello/src/tooling/codegen/generate";
+import { watchDevelopmentWithOwnedOutput } from "../../../apps/kello/src/tooling/dev/watcher";
+import { startDiagnostics } from "../../../apps/kello/src/tooling/diagnostics/session";
+import { createFileOutput } from "../../../apps/kello/src/tooling/diagnostics/output";
+import type { DiagnosticsRecord } from "../../../apps/kello/src/tooling/diagnostics/types";
 
 async function until(check: () => boolean | Promise<boolean>): Promise<void> {
   const deadline = Date.now() + 3000;

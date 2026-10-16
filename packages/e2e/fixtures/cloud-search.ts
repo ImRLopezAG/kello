@@ -8,7 +8,7 @@ export async function prepareCloudSearch(root: string, namespace: string) {
   await mkdir(join(root, "node_modules/kello"), { recursive: true });
   const archive = join(root, "kello.tgz");
   const packed = Bun.spawnSync(["bun", "pm", "pack", "--filename", archive, "--ignore-scripts"], {
-    cwd: fileURLToPath(new URL("../../../apps/loom/", import.meta.url)),
+    cwd: fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -19,7 +19,7 @@ export async function prepareCloudSearch(root: string, namespace: string) {
   );
   assert.equal(unpacked.exitCode, 0, "Public package extraction failed");
   await symlink(
-    fileURLToPath(new URL("../../../apps/loom/node_modules/", import.meta.url)),
+    fileURLToPath(new URL("../../../apps/kello/node_modules/", import.meta.url)),
     join(root, "node_modules/kello/node_modules"),
   );
   for (const name of ["valibot", "effect", "drizzle-orm"])

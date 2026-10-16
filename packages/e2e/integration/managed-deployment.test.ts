@@ -3,7 +3,7 @@ import { test, expect } from "bun:test";
 import pg from "pg";
 import { bootstrapDatabase, defineConfig } from "kello/tooling";
 import type { DeploymentDatabaseProvider } from "kello/tooling";
-import { resolveManagedDeploymentCredentials } from "../../../apps/loom/src/tooling/deploy/neon/managed-credentials";
+import { resolveManagedDeploymentCredentials } from "../../../apps/kello/src/tooling/deploy/neon/managed-credentials";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

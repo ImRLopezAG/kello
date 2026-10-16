@@ -5,23 +5,23 @@ import { defineRelations } from "drizzle-orm";
 import { drizzle, NodePgTransaction } from "drizzle-orm/node-postgres";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { Pool } from "pg";
-import { createRpcHttpApp } from "../../../apps/loom/src/core/adapters/neon/rpc-http";
-import { createRpcSocketSession } from "../../../apps/loom/src/core/adapters/neon/rpc-session";
-import { createEffectRuntime, Invocation } from "../../../apps/loom/src/core/server/effect/runtime";
-import { createProjectProcedures } from "../../../apps/loom/src/core/server/rpc/procedure";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/rpc/procedure";
-import { createDatabaseMiddleware } from "../../../apps/loom/src/core/server/rpc/database";
-import { bindRuntimeGraph } from "../../../apps/loom/src/core/server/rpc/runtime-graph";
-import * as databaseConnection from "../../../apps/loom/src/core/server/database/connection";
-import { rememberDatabaseAdapter } from "../../../apps/loom/src/core/server/database/context";
-import { createRevisionCoordinator } from "../../../apps/loom/src/core/server/realtime/coordinator";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
+import { createRpcHttpApp } from "../../../apps/kello/src/core/adapters/neon/rpc-http";
+import { createRpcSocketSession } from "../../../apps/kello/src/core/adapters/neon/rpc-session";
+import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
+import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/rpc/procedure";
+import { createDatabaseMiddleware } from "../../../apps/kello/src/core/server/rpc/database";
+import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
+import * as databaseConnection from "../../../apps/kello/src/core/server/database/connection";
+import { rememberDatabaseAdapter } from "../../../apps/kello/src/core/server/database/context";
+import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import {
   composeInvocationSignals,
   constrainInvocationDeadline,
   invocationRemainingMs,
   timedInvocationSignal,
-} from "../../../apps/loom/src/core/server/invocation-deadline";
+} from "../../../apps/kello/src/core/server/invocation-deadline";
 
 afterEach(() => {
   vi.restoreAllMocks();

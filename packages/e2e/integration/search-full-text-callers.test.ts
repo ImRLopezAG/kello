@@ -57,7 +57,7 @@ test("public CLI and development admission use current assessment without changi
 export default defineSchema((s) => ({tasks: defineTable({title:s.text().notNull(), body:s.text()}, {
 publicFields:["_id","title"], ${fullText ? 'fullText:{content:{config:"pg_catalog.simple",fields:[{field:"title",weight:"A"},{field:"body",weight:"D"}],version:"1"}}' : ""}
 })}),{namespace:${JSON.stringify(namespace)}});`;
-  const cli = fileURLToPath(new URL("../../../apps/loom/cli.js", import.meta.url));
+  const cli = fileURLToPath(new URL("../../../apps/kello/cli.js", import.meta.url));
   const run = async (args: string[]) => {
     const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
       stdout: "pipe",

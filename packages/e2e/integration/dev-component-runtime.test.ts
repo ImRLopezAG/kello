@@ -1,4 +1,4 @@
-import { startDevelopmentRuntime } from "../../../apps/loom/src/tooling/dev/runtime";
+import { startDevelopmentRuntime } from "../../../apps/kello/src/tooling/dev/runtime";
 import { initializeProject } from "kello/tooling";
 import assert from "node:assert/strict";
 import { callExample } from "../fixtures/rpc-call";

@@ -24,7 +24,7 @@ test("packed generated search-shaped contracts expose the native dependent-outpu
   try {
     await succeed(
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
-      fileURLToPath(new URL("../../../apps/loom/", import.meta.url)),
+      fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
     await writeFile(
       join(root, "package.json"),
@@ -60,13 +60,17 @@ await saveResolvedProject("./app", {
     );
     // The appended policy-authoring probe uses the internal schema fixture;
     // this consumer retains the complete native projection-gap probe preceding it.
-    const policyBoundary = '\nimport { createProjectContext } from "../../../apps/loom/src/core/server/rpc/procedure";';
+    const policyBoundary =
+      '\nimport { createProjectContext } from "../../../apps/kello/src/core/server/rpc/procedure";';
     assert.equal(internalSource.split(policyBoundary).length, 2, "one internal policy probe boundary is required");
     const source = internalSource
       .split(policyBoundary)[0]!
-      .replaceAll(/from "\.\.\/\.\.\/\.\.\/apps\/loom\/src\/core\/(server|client|contract)\/index"/g, 'from "kello/$1"')
+      .replaceAll(
+        /from "\.\.\/\.\.\/\.\.\/apps\/kello\/src\/core\/(server|client|contract)\/index"/g,
+        'from "kello/$1"',
+      )
       .replace(/^const contract = resolveContract\(.*\);\n/m, "");
-    assert.doesNotMatch(source, /apps\/loom\/src/, "packed consumer must use public package imports");
+    assert.doesNotMatch(source, /apps\/kello\/src/, "packed consumer must use public package imports");
     const boundary = "declare const client: RouterContractClient<typeof contract>;";
     assert.equal(source.split(boundary).length, 2, "proof must have one generated-client substitution point");
     await writeFile(

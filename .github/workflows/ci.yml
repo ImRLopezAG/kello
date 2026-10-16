@@ -87,13 +87,13 @@ jobs:
       - name: Restore build outputs from the local Turbo cache
         run: |
           backup=$(mktemp -d)
-          for path in apps/docs/dist apps/docs/.astro apps/loom/dist packages/examples/tasks/dist packages/examples/tasks/kello/_generated packages/examples/tasks/.loom/generations packages/examples/jobs-storage/dist packages/examples/jobs-storage/kello/_generated packages/examples/jobs-storage/.loom/generations; do
+          for path in apps/docs/dist apps/docs/.astro apps/kello/dist packages/examples/tasks/dist packages/examples/tasks/kello/_generated packages/examples/tasks/.loom/generations packages/examples/jobs-storage/dist packages/examples/jobs-storage/kello/_generated packages/examples/jobs-storage/.loom/generations; do
             mv "$path" "$backup/${path//\//_}"
           done
           bun run build
-          test -f apps/loom/dist/core/server/index.js
-          test -f apps/loom/dist/tooling/index.js
-          bun apps/loom/cli.js --help > /dev/null
+          test -f apps/kello/dist/core/server/index.js
+          test -f apps/kello/dist/tooling/index.js
+          bun apps/kello/cli.js --help > /dev/null
           test -f apps/docs/dist/index.html
           test -f packages/examples/tasks/dist/index.html
           test -f packages/examples/jobs-storage/dist/index.html

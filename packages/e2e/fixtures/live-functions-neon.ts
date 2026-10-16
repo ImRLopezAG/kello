@@ -15,7 +15,7 @@ import {
 } from "kello/server";
 import { createRpcHttpApp } from "kello/neon";
 import { initializeProject, generateProject, loadProject, createKelloNeonApi } from "kello/tooling";
-import { createKelloNeonClient } from "../../../apps/loom/src/tooling/neon/api";
+import { createKelloNeonClient } from "../../../apps/kello/src/tooling/neon/api";
 import * as v from "valibot";
 
 const projectId = "late-moon-69483649";

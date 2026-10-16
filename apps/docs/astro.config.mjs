@@ -6,7 +6,7 @@ import { unified } from "@astrojs/markdown-remark";
 import { rehypeCode, remarkHeading } from "fumadocs-core/mdx-plugins";
 
 export default defineConfig({
-  site: process.env.LOOM_DOCS_SITE_URL,
+  site: process.env.KELLO_DOCS_SITE_URL ?? process.env.LOOM_DOCS_SITE_URL,
   markdown: {
     processor: unified({ syntaxHighlight: false, remarkPlugins: [remarkHeading], rehypePlugins: [rehypeCode] }),
   },

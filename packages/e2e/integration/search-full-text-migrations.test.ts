@@ -15,16 +15,16 @@ import {
   inspectSnapshot,
   migrationStatements,
   snapshotHash,
-} from "../../../apps/loom/src/tooling/migrations/adapter";
-import { classifyMigration } from "../../../apps/loom/src/tooling/migrations/classifier";
-import { planMigration } from "../../../apps/loom/src/tooling/migrations/planner";
-import { readMigrations, validateMigration, writeMigration } from "../../../apps/loom/src/tooling/migrations/history";
-import { applyMigrations } from "../../../apps/loom/src/tooling/migrations/runner";
-import { migrationStatus } from "../../../apps/loom/src/tooling/migrations/status";
-import { migrationHash } from "../../../apps/loom/src/tooling/migrations/planner";
-import type { MigrationPlan } from "../../../apps/loom/src/tooling/migrations/planner";
-import type { MigrationSnapshot } from "../../../apps/loom/src/tooling/migrations/adapter";
-import { normalizeFullTextIndexes } from "../../../apps/loom/src/tooling/migrations/expressions";
+} from "../../../apps/kello/src/tooling/migrations/adapter";
+import { classifyMigration } from "../../../apps/kello/src/tooling/migrations/classifier";
+import { planMigration } from "../../../apps/kello/src/tooling/migrations/planner";
+import { readMigrations, validateMigration, writeMigration } from "../../../apps/kello/src/tooling/migrations/history";
+import { applyMigrations } from "../../../apps/kello/src/tooling/migrations/runner";
+import { migrationStatus } from "../../../apps/kello/src/tooling/migrations/status";
+import { migrationHash } from "../../../apps/kello/src/tooling/migrations/planner";
+import type { MigrationPlan } from "../../../apps/kello/src/tooling/migrations/planner";
+import type { MigrationSnapshot } from "../../../apps/kello/src/tooling/migrations/adapter";
+import { normalizeFullTextIndexes } from "../../../apps/kello/src/tooling/migrations/expressions";
 
 // Private native spike: deliberately independent of the rank worker's shared fixture.
 function fixture(

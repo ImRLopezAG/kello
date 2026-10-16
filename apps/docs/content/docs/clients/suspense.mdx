@@ -15,7 +15,7 @@ Mount the Suspense boundary inside the authenticated Kello provider. The provide
 
 ```tsx
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useKello } from "./loom-client";
+import { useKello } from "./kello-client";
 
 function Tasks() {
   const { rpc } = useKello();
@@ -30,7 +30,7 @@ function Tasks() {
 }
 ```
 
-Here `loom-client` is the application binding from [client-only React](/clients/react). The first stream snapshot reveals the UI. Later snapshots update it without a second finite query. A finite read can use `useSuspenseQuery(rpc.tasks.greeting.queryOptions({ input: { name: "Ada" } }))` instead.
+Here `kello-client` is the application binding from [client-only React](/clients/react). The first stream snapshot reveals the UI. Later snapshots update it without a second finite query. A finite read can use `useSuspenseQuery(rpc.tasks.greeting.queryOptions({ input: { name: "Ada" } }))` instead.
 
 Do not use `enabled` as an authentication switch for Suspense queries. Mount the query component only when its input and authenticated provider are ready. Keep ordinary `useQuery` when the UI needs an explicitly disabled state.
 

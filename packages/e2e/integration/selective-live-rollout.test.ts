@@ -15,12 +15,12 @@ import {
   defineRpcAuth,
   defineSchema,
   withLiveDependencies,
-} from "../../../apps/loom/src/core/server/index";
-import { Invocation } from "../../../apps/loom/src/core/server/effect/runtime";
-import { evaluateSnapshot } from "../../../apps/loom/src/core/server/rpc/snapshot";
-import { evaluateLiveSnapshot } from "../../../apps/loom/src/core/server/rpc/live-context";
-import { bootstrapDatabase } from "../../../apps/loom/src/tooling/migrations/bootstrap";
-import { installRevisionTracking } from "../../../apps/loom/src/tooling/migrations/revisions";
+} from "../../../apps/kello/src/core/server/index";
+import { Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
+import { evaluateSnapshot } from "../../../apps/kello/src/core/server/rpc/snapshot";
+import { evaluateLiveSnapshot } from "../../../apps/kello/src/core/server/rpc/live-context";
+import { bootstrapDatabase } from "../../../apps/kello/src/tooling/migrations/bootstrap";
+import { installRevisionTracking } from "../../../apps/kello/src/tooling/migrations/revisions";
 
 async function bounded<T>(work: Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;

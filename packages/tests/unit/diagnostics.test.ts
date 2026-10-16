@@ -1,17 +1,17 @@
 import { channel } from "node:diagnostics_channel";
 import { Schema } from "effect";
-import { startDiagnostics } from "../../../apps/loom/src/tooling/diagnostics/index";
-import type { DiagnosticsSession } from "../../../apps/loom/src/tooling/diagnostics/types";
+import { startDiagnostics } from "../../../apps/kello/src/tooling/diagnostics/index";
+import type { DiagnosticsSession } from "../../../apps/kello/src/tooling/diagnostics/types";
 import { afterEach, beforeEach, describe, expect, expectTypeOf, test, vi } from "vite-plus/test";
-import type { RuntimeMetric } from "../../../apps/loom/src/core/server/observability";
-import type { DeploymentMetric } from "../../../apps/loom/src/tooling/deploy/observability";
-import { projectDeploymentMetric, projectRuntimeMetric } from "../../../apps/loom/src/tooling/diagnostics/project";
+import type { RuntimeMetric } from "../../../apps/kello/src/core/server/observability";
+import type { DeploymentMetric } from "../../../apps/kello/src/tooling/deploy/observability";
+import { projectDeploymentMetric, projectRuntimeMetric } from "../../../apps/kello/src/tooling/diagnostics/project";
 import type {
   DiagnosticsDeploymentEvent,
   DiagnosticsRecord,
   DiagnosticsRuntimeEvent,
   DiagnosticsStats,
-} from "../../../apps/loom/src/tooling/diagnostics/types";
+} from "../../../apps/kello/src/tooling/diagnostics/types";
 
 const runtime = {
   "rpc.procedure": { type: "rpc.procedure", mode: "finite", status: "success", durationMs: 0.5 },
@@ -761,7 +761,7 @@ describe("owned diagnostics session", () => {
     const first = await startDiagnostics({ output: { format: "jsonl", write: () => {} } });
     try {
       vi.resetModules();
-      const duplicate = await import("../../../apps/loom/src/tooling/diagnostics/index");
+      const duplicate = await import("../../../apps/kello/src/tooling/diagnostics/index");
       await expect(duplicate.startDiagnostics({ output: { format: "jsonl", write: () => {} } })).rejects.toThrow(
         "DIAGNOSTICS_ALREADY_ACTIVE",
       );

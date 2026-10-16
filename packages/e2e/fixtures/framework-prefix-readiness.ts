@@ -5,10 +5,10 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { generateRelease, initializeProject } from "kello/tooling";
 import type { DeploymentDatabaseProvider } from "kello/tooling";
-import { loadProject } from "../../../apps/loom/src/tooling/project/load";
-import { quoteIdentifier } from "../../../apps/loom/src/tooling/migrations/connection";
-import { ormHistoryTable } from "../../../apps/loom/src/tooling/migrations/state";
-import { planProjectRelease } from "../../../apps/loom/src/tooling/deploy/neon/plan-release";
+import { loadProject } from "../../../apps/kello/src/tooling/project/load";
+import { quoteIdentifier } from "../../../apps/kello/src/tooling/migrations/connection";
+import { ormHistoryTable } from "../../../apps/kello/src/tooling/migrations/state";
+import { planProjectRelease } from "../../../apps/kello/src/tooling/deploy/neon/plan-release";
 
 async function prepareFixture(root: string, url: string, admin: pg.Client, runtimeRole: string) {
   const address = new URL(url);

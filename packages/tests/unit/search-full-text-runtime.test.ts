@@ -1,15 +1,15 @@
 import { describe, expect, test } from "vite-plus/test";
 import { defineRelations, sql } from "drizzle-orm";
 import { alias, PgDialect } from "drizzle-orm/pg-core";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { defineTable } from "../../../apps/loom/src/core/schema/table";
-import { fields } from "../../../apps/loom/src/core/schema/fields";
-import { createSearchValidators } from "../../../apps/loom/src/core/search/contract";
-import { searchSchemaMetadata } from "../../../apps/loom/src/core/search/metadata";
-import { compileSearch, searchColumn } from "../../../apps/loom/src/core/search/compiler";
-import { resolveFullText, fullTextPreflightSQL } from "../../../apps/loom/src/core/search/full-text";
-import { prepareSearchPage, finishSearchPage } from "../../../apps/loom/src/core/search/pagination";
-import { createSearchCursor } from "../../../apps/loom/src/core/search/cursor";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { defineTable } from "../../../apps/kello/src/core/schema/table";
+import { fields } from "../../../apps/kello/src/core/schema/fields";
+import { createSearchValidators } from "../../../apps/kello/src/core/search/contract";
+import { searchSchemaMetadata } from "../../../apps/kello/src/core/search/metadata";
+import { compileSearch, searchColumn } from "../../../apps/kello/src/core/search/compiler";
+import { resolveFullText, fullTextPreflightSQL } from "../../../apps/kello/src/core/search/full-text";
+import { prepareSearchPage, finishSearchPage } from "../../../apps/kello/src/core/search/pagination";
+import { createSearchCursor } from "../../../apps/kello/src/core/search/cursor";
 import { EncryptJWT, jwtDecrypt } from "jose";
 
 const schema = defineSchema(() => ({

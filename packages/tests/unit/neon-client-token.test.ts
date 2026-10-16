@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vite-plus/test";
 import { createAuthClient } from "@neondatabase/auth/next";
-import { neonClientToken } from "../../../apps/loom/src/core/client/neon-token";
+import { neonClientToken } from "../../../apps/kello/src/core/client/neon-token";
 
 test("proxy credentials use the signed token endpoint and reject a different provider session", async () => {
   let tokenRequests = 0;

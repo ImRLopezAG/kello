@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
-import { validateOtlpConfig } from "../../../apps/loom/src/tooling/diagnostics/config";
+import { validateOtlpConfig } from "../../../apps/kello/src/tooling/diagnostics/config";
 
 describe("private telemetry configuration", () => {
   test.each([

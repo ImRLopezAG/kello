@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 
 const execute = promisify(execFile);
 const testsDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const sourceDirectory = resolve(testsDirectory, "../../apps/loom/src");
+const sourceDirectory = resolve(testsDirectory, "../../apps/kello/src");
 
 // Bundle the real loader with source server imports. The fixture's local kello
 // package routes authored/virtual imports to those same source modules.

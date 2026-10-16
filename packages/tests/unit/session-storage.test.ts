@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vite-plus/test";
-import { createSessionStorage } from "../../../apps/loom/src/core/client/session-storage";
+import { createSessionStorage } from "../../../apps/kello/src/core/client/session-storage";
 
 test("storage cannot expose a delayed old-session response or run after teardown", async () => {
   const shutdown = new AbortController();

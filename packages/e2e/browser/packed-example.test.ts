@@ -37,7 +37,7 @@ test.skipIf(!connectionString)(
       for (const name of ["kello", "ts-config"])
         await run(
           ["bun", "pm", "pack", "--filename", join(root, `${name}.tgz`), "--ignore-scripts"],
-          fileURLToPath(new URL(name === "kello" ? "../../../apps/loom/" : `../../${name}/`, import.meta.url)),
+          fileURLToPath(new URL(name === "kello" ? "../../../apps/kello/" : `../../${name}/`, import.meta.url)),
         );
       await cp(fileURLToPath(new URL("../../examples/tasks/", import.meta.url)), example, {
         recursive: true,

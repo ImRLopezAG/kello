@@ -6,26 +6,26 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 test("fresh workspace installation links the CLI before compiled output exists", async () => {
-  const source = fileURLToPath(new URL("../../../apps/loom/", import.meta.url));
+  const source = fileURLToPath(new URL("../../../apps/kello/", import.meta.url));
   const manifest = await Bun.file(join(source, "package.json")).json();
   const workspaceLock = await readFile(new URL("../../../bun.lock", import.meta.url), "utf8");
   assert.match(workspaceLock, /"bin":\s*\{\s*"kello": "\.\/cli\.js"/);
   const root = await mkdtemp(join(tmpdir(), "loom-workspace-bin-"));
   try {
-    await mkdir(join(root, "apps/loom"), { recursive: true });
+    await mkdir(join(root, "apps/kello"), { recursive: true });
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({ private: true, workspaces: ["apps/*"], dependencies: { kello: "workspace:*" } }),
     );
     await writeFile(
-      join(root, "apps/loom/package.json"),
+      join(root, "apps/kello/package.json"),
       JSON.stringify({ name: manifest.name, version: manifest.version, bin: manifest.bin, type: "module" }),
     );
     // Copy committed package files, with no prebuilt dist output.
     if (!manifest.bin.kello.startsWith("./bin/")) {
-      await cp(join(source, manifest.bin.kello), join(root, "apps/loom", manifest.bin.kello));
+      await cp(join(source, manifest.bin.kello), join(root, "apps/kello", manifest.bin.kello));
     }
-    assert.equal(await Bun.file(join(root, "apps/loom/bin/kello.js")).exists(), false);
+    assert.equal(await Bun.file(join(root, "apps/kello/bin/kello.js")).exists(), false);
     const child = Bun.spawn(["bun", "install", "--ignore-scripts"], {
       cwd: root,
       stdout: "pipe",
@@ -39,14 +39,14 @@ test("fresh workspace installation links the CLI before compiled output exists",
     ]);
     assert.equal(code, 0, `${stdout}\n${stderr}`);
     await access(join(root, "node_modules/.bin/kello"));
-    assert.equal(await Bun.file(join(root, "apps/loom/dist/cli.js")).exists(), false);
+    assert.equal(await Bun.file(join(root, "apps/kello/dist/cli.js")).exists(), false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("packed tooling preserves migration and bucket privacy patches without consumer configuration", async () => {
-  const publicManifest = await Bun.file(new URL("../../../apps/loom/package.json", import.meta.url)).json();
+  const publicManifest = await Bun.file(new URL("../../../apps/kello/package.json", import.meta.url)).json();
   assert.equal(publicManifest.name, "kello");
   assert.equal(publicManifest.version, "0.0.0");
   assert.equal(publicManifest.bin.kello, "./cli.js");
@@ -65,7 +65,7 @@ test("packed tooling preserves migration and bucket privacy patches without cons
   try {
     await run(
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
-      fileURLToPath(new URL("../../../apps/loom/", import.meta.url)),
+      fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
     const entries = (await run(["tar", "-tzf", join(root, "kello.tgz")])).trim().split("\n");
     assert(

@@ -1,11 +1,11 @@
 import { expect, test, vi } from "vite-plus/test";
 import { defineRelations } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
-import type { DatabaseSchema } from "../../../apps/loom/src/core/server/database/connection";
-import * as relations from "../../../apps/loom/src/core/server/database/relations";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { createDependencyRegistry } from "../../../apps/loom/src/core/server/realtime/dependencies";
-import { createRevisionReader } from "../../../apps/loom/src/core/server/realtime/revisions";
+import type { DatabaseSchema } from "../../../apps/kello/src/core/server/database/connection";
+import * as relations from "../../../apps/kello/src/core/server/database/relations";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { createDependencyRegistry } from "../../../apps/kello/src/core/server/realtime/dependencies";
+import { createRevisionReader } from "../../../apps/kello/src/core/server/realtime/revisions";
 
 test("registry resolves logical names to qualified physical keys across mounts", () => {
   const root = defineSchema((f) => ({ taskItems: { title: f.text() } }), { namespace: "app_root" });

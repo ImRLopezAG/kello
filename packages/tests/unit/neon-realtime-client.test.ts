@@ -6,8 +6,12 @@ import type {
   RealtimeClient,
   SealedLiveQuery,
 } from "@neon/realtime/client";
-import { createNeonLiveClient } from "../../../apps/loom/src/core/client/realtime";
-import type { IssuedNeonQuery, NeonMutationResult, NeonObservation } from "../../../apps/loom/src/core/client/realtime";
+import { createNeonLiveClient } from "../../../apps/kello/src/core/client/realtime";
+import type {
+  IssuedNeonQuery,
+  NeonMutationResult,
+  NeonObservation,
+} from "../../../apps/kello/src/core/client/realtime";
 
 type Row = { id: string; title: string };
 const scope = { database: "test", deployment: "test" };

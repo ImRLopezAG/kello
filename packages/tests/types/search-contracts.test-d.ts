@@ -1,7 +1,7 @@
-import { createTanstackQueryUtils } from "../../../apps/loom/src/core/client/index";
-import { defineContract, eventIterator, oc, resolveContract } from "../../../apps/loom/src/core/contract/index";
-import type { RouterContractClient } from "../../../apps/loom/src/core/contract/index";
-import type { Id } from "../../../apps/loom/src/core/server/index";
+import { createTanstackQueryUtils } from "../../../apps/kello/src/core/client/index";
+import { defineContract, eventIterator, oc, resolveContract } from "../../../apps/kello/src/core/contract/index";
+import type { RouterContractClient } from "../../../apps/kello/src/core/contract/index";
+import type { Id } from "../../../apps/kello/src/core/server/index";
 import {
   QueryClient,
   skipToken,
@@ -174,13 +174,13 @@ export function useGenericSearchSelection() {
 
 // Internal authoring proof uses the source graph consistently; public consumer
 // projection checks above continue to cover package exports independently.
-import { createProjectContext } from "../../../apps/loom/src/core/server/rpc/procedure";
+import { createProjectContext } from "../../../apps/kello/src/core/server/rpc/procedure";
 import type {
   SearchScope,
   SearchPolicy,
   InferSearchProjector,
   SearchProjection,
-} from "../../../apps/loom/src/core/search/types";
+} from "../../../apps/kello/src/core/search/types";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { searchSchema, searchRelations } from "../fixtures/search-schema";
 import { sql } from "drizzle-orm";

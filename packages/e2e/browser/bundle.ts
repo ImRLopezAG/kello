@@ -10,7 +10,7 @@ export async function browserBundle(
   try {
     const archive = join(directory, "kello.tgz");
     const packed = Bun.spawn([process.execPath, "pm", "pack", "--filename", archive, "--quiet", "--ignore-scripts"], {
-      cwd: new URL("../../../apps/loom", import.meta.url).pathname,
+      cwd: new URL("../../../apps/kello", import.meta.url).pathname,
       stdout: "ignore",
       stderr: "pipe",
     });
@@ -36,7 +36,7 @@ export async function browserBundle(
         await realpath(
           new URL(
             dependency === "@tanstack/query-core"
-              ? `../../../apps/loom/node_modules/${dependency}`
+              ? `../../../apps/kello/node_modules/${dependency}`
               : `../node_modules/${dependency}`,
             import.meta.url,
           ),

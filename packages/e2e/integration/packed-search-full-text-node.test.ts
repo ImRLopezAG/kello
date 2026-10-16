@@ -394,7 +394,7 @@ test("packed public full-text consumer executes under independently pinned Node 
     assert.equal(await realpath(preflight.execPath), nodeExecutable);
     await emit(preflight, errors);
     requireNoErrors(errors, "Node preflight receipt failed");
-    const packageRoot = fileURLToPath(new URL("../../../apps/loom/", import.meta.url));
+    const packageRoot = fileURLToPath(new URL("../../../apps/kello/", import.meta.url));
     const tarball = join(root, "kello.tgz");
     await run(
       "pack-built-public-package",

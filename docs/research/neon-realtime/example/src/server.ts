@@ -3,7 +3,7 @@
 import { createRealtime, rawSql } from "@neon/realtime/server";
 import type { RawSqlParameter, RawSqlQuery, RealtimeServer, SealedLiveQuery } from "@neon/realtime/server";
 
-/** Mirrors `InvocationIdentity` in apps/loom/src/core/server/auth/context.ts. */
+/** Mirrors `InvocationIdentity` in apps/kello/src/core/server/auth/context.ts. */
 export interface Identity {
   readonly issuer: string;
   readonly subject: string;

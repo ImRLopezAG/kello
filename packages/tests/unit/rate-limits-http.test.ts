@@ -1,9 +1,9 @@
 import { expect, test } from "vite-plus/test";
 import { ORPCError, os } from "@orpc/server";
 import * as v from "valibot";
-import { createRpcHttpApp, createRpcOpenApiApp } from "../../../apps/loom/src/core/adapters/neon/rpc-http";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/rpc/procedure";
-import { rpcTransportSerializer } from "../../../apps/loom/src/core/adapters/neon/rpc-context";
+import { createRpcHttpApp, createRpcOpenApiApp } from "../../../apps/kello/src/core/adapters/neon/rpc-http";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/rpc/procedure";
+import { rpcTransportSerializer } from "../../../apps/kello/src/core/adapters/neon/rpc-context";
 
 const version = "a".repeat(64);
 const origin = "https://app.example.test";
