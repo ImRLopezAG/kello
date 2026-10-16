@@ -2,6 +2,7 @@ import { Context, Effect, Exit, Layer, ManagedRuntime, Scope } from "effect";
 import type { InvocationContext } from "../auth/context";
 import { captureJobInvocation } from "../auth/context";
 import { publishRuntimeMetric } from "../observability";
+import { composeInvocationSignals } from "../invocation-deadline";
 
 export class Invocation extends Context.Service<Invocation, InvocationContext>()("kello/Invocation") {}
 export class Diagnostics extends Context.Service<Diagnostics, typeof publishRuntimeMetric>()("kello/Diagnostics") {}
@@ -53,7 +54,7 @@ export function createEffectRuntime<Services, Failure>(layer: Layer.Layer<Servic
     signal?: AbortSignal,
   ): Promise<Value> {
     if (stopped) return Promise.reject(new globalThis.Error("Runtime stopped"));
-    const current = signal ? AbortSignal.any([signal, shutdown.signal]) : shutdown.signal;
+    const current = signal ? composeInvocationSignals([signal, shutdown.signal]) : shutdown.signal;
     const context: InvocationContext = Object.freeze({
       identity: input.identity ? Object.freeze({ ...input.identity }) : null,
       requestId: input.requestId,

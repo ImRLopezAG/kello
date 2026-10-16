@@ -28,3 +28,14 @@ export type { KelloHydration } from "./server-session";
 
 export { createTokenAuth } from "./token-auth";
 export type { TokenAuthOptions } from "./token-auth";
+
+export { createNeonLiveClient } from "./realtime";
+export type {
+  IssuedNeonQuery,
+  NeonScope,
+  NeonMutationResult,
+  NeonConfirmation,
+  NeonObservation,
+  NeonLiveSubscription,
+  OrdinaryLiveRouter,
+} from "./realtime";

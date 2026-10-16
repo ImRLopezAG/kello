@@ -5,7 +5,10 @@ import { originPolicy } from "../../core/server/auth/policy";
 
 type NativeRuntime = Awaited<ReturnType<typeof createRpcRuntime>>;
 export interface DevelopmentServerRuntime {
-  readonly auth: Pick<Parameters<typeof createRpcHttpApp>[0], "verify" | "origins" | "allowAnonymous">;
+  readonly auth: Pick<
+    Parameters<typeof createRpcHttpApp>[0],
+    "verify" | "origins" | "allowAnonymous" | "resolveLogin" | "liveQueries"
+  >;
   readonly router: NativeRuntime["router"];
   readonly snapshots: NativeRuntime["snapshots"];
   readonly version: string;

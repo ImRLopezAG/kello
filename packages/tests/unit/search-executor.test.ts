@@ -5,7 +5,7 @@ import {
   validateSearchHandlerOutput,
 } from "../../../apps/loom/src/core/search/executor";
 import { createSearchValidators } from "../../../apps/loom/src/core/search/contract";
-import { oc } from "kello/contract";
+import { oc } from "../../../apps/loom/src/core/contract/index";
 import { searchSchema, searchRelations } from "../fixtures/search-schema";
 import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
 

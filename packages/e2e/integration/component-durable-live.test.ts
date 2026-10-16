@@ -5,7 +5,12 @@ import * as v from "valibot";
 import type { RpcJobCall } from "../../../apps/loom/src/core/server/jobs/rpc-contracts";
 import { createRpcScheduler } from "../../../apps/loom/src/core/server/jobs/rpc-scheduler";
 import { compileJobMigrations } from "../../../apps/loom/src/core/server/jobs/rpc-migrations";
-import { captureSnapshotRevisions, evaluateSnapshot } from "../../../apps/loom/src/core/server/rpc/snapshot";
+import {
+  acceptSnapshotAttempt,
+  evaluateSnapshot,
+  registerSnapshotSegment,
+  runSnapshotAttempt,
+} from "../../../apps/loom/src/core/server/rpc/snapshot";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
@@ -45,11 +50,13 @@ test("live snapshots retain the union of mount-qualified child revisions", async
   const db = drizzle({ client: pool });
   try {
     const result = await evaluateSnapshot(async () => {
-      await Promise.all([
-        captureSnapshotRevisions(db, async () => ({ "left/items": "1" })),
-        captureSnapshotRevisions(db, async () => ({ "app/items": "2" })),
-      ]);
-      return "snapshot";
+      const candidate = await runSnapshotAttempt(db, undefined, false, async () => {
+        registerSnapshotSegment({ reader: async () => ({ "left/items": "1" }) });
+        registerSnapshotSegment({ reader: async () => ({ "app/items": "2" }) });
+        return "snapshot";
+      });
+      acceptSnapshotAttempt(candidate);
+      return candidate.value;
     });
     expect(result.revisions).toEqual({ "left/items": "1", "app/items": "2" });
   } finally {

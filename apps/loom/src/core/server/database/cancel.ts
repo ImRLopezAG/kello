@@ -19,8 +19,12 @@ const transportSchema = v.object({
   cancel: v.custom<(processID: number, secretKey: number) => void>((value) => v.is(v.function(), value)),
 });
 
-/** Cancel while the original socket still owns its pooler's backend mapping. */
-export async function cancelDatabaseStatement(client: pg.PoolClient): Promise<void> {
+/** Cancel while the original socket still owns its pooler's backend mapping.
+ * Internal callers may shorten the default 2000ms transport budget. */
+export async function cancelDatabaseStatement(client: pg.Client, maxDurationMs = 2000): Promise<void> {
+  if (!Number.isFinite(maxDurationMs) || maxDurationMs <= 0)
+    throw new Error("PostgreSQL cancellation transport failed");
+  const deadline = performance.now() + Math.min(maxDurationMs, 2000);
   // These BackendKeyData fields are absent from @types/pg. Validate the pinned
   // driver's boundary rather than casting an unchecked client or using SQL PIDs.
   const parsed = v.safeParse(backendSchema, client);
@@ -45,12 +49,23 @@ export async function cancelDatabaseStatement(client: pg.PoolClient): Promise<vo
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
-      connection.stream.destroy();
-      if (failed) reject(new Error("PostgreSQL cancellation transport failed"));
+      try {
+        connection.stream.destroy();
+      } catch {
+        // Settlement owns destruction too. Reentrant events see settled, while
+        // a throwing transport cannot strand the caller or escape its timer.
+        failed = true;
+      }
+      if (failed || performance.now() >= deadline) reject(new Error("PostgreSQL cancellation transport failed"));
       else resolve();
     };
-    const timeout = setTimeout(() => finish(true), 2000);
+    const timeout = setTimeout(() => finish(true), Math.max(0, deadline - performance.now()));
     const send = () => {
+      if (settled) return;
+      if (performance.now() >= deadline) {
+        finish(true);
+        return;
+      }
       try {
         cancel(processID, secretKey);
         sent = true;
@@ -62,6 +77,7 @@ export async function cancelDatabaseStatement(client: pg.PoolClient): Promise<vo
     connection.on("end", () => finish(!sent));
     connection.on("sslconnect", send);
     connection.on("connect", () => {
+      if (settled) return;
       if (!ssl) send();
       else if (sslNegotiation === "postgres") {
         try {

@@ -1,7 +1,7 @@
-import { createTanstackQueryUtils } from "kello/client";
-import { defineContract, eventIterator, oc, resolveContract } from "kello/contract";
-import type { RouterContractClient } from "kello/contract";
-import type { Id } from "kello/server";
+import { createTanstackQueryUtils } from "../../../apps/loom/src/core/client/index";
+import { defineContract, eventIterator, oc, resolveContract } from "../../../apps/loom/src/core/contract/index";
+import type { RouterContractClient } from "../../../apps/loom/src/core/contract/index";
+import type { Id } from "../../../apps/loom/src/core/server/index";
 import {
   QueryClient,
   skipToken,
@@ -171,3 +171,118 @@ export function useGenericSearchSelection() {
     void title;
   }
 }
+
+// Internal authoring proof uses the source graph consistently; public consumer
+// projection checks above continue to cover package exports independently.
+import { createProjectContext } from "../../../apps/loom/src/core/server/rpc/procedure";
+import type {
+  SearchScope,
+  SearchPolicy,
+  InferSearchProjector,
+  SearchProjection,
+} from "../../../apps/loom/src/core/search/types";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
+import { searchSchema, searchRelations } from "../fixtures/search-schema";
+import { sql } from "drizzle-orm";
+
+type Graph = typeof searchRelations;
+const graphScope: SearchScope<Graph["tasks"], Graph> = {
+  name: "root",
+  version: "1",
+  dependencies: ["members"],
+  where: ({ table }) => sql`${table.done} = false`,
+};
+const legacyRoot: SearchScope<Graph["tasks"]> = {
+  name: "legacy-root",
+  version: "1",
+  where: ({ table }) => sql`${table.done} = false`,
+};
+const legacyJunction: SearchScope<Graph["taskLabels"]> = {
+  name: "legacy-junction",
+  version: "1",
+  where: ({ table }) => sql`${table.taskId} is not null`,
+};
+const graphPolicy = {
+  columns: ["title"],
+  scope: graphScope,
+  through: { taskLabels: { name: "junction", version: "1", dependencies: ["teams"], where: () => sql`true` } },
+  relations: {
+    labels: { columns: ["name"], scope: { name: "child", version: "1", dependencies: [], where: () => sql`true` } },
+  },
+} satisfies SearchPolicy<Graph, Graph["tasks"]>;
+const sourceValidators = createProjectContext(searchSchema, searchRelations).validators;
+const declaredPair = sourceValidators.tables.tasks.search(graphPolicy);
+const legacyPair = sourceValidators.tables.tasks.search({
+  columns: ["title"],
+  scope: legacyRoot,
+  through: { taskLabels: legacyJunction },
+  relations: { labels: { columns: ["name"], scope: "public" } },
+});
+type DeclaredProjection = InferSearchProjector<StandardSchemaV1.InferOutput<typeof declaredPair.output>>;
+type LegacyProjection = InferSearchProjector<StandardSchemaV1.InferOutput<typeof legacyPair.output>>;
+export type DeclarationsPreserveSelection = Assert<
+  Equal<DeclaredProjection["selection"], LegacyProjection["selection"]>
+>;
+export type DeclarationsPreserveProjection = Assert<
+  Equal<SearchProjection<DeclaredProjection, typeof selected>, SearchProjection<LegacyProjection, typeof selected>>
+>;
+export type DeclaredProjectionKeepsRequiredScalars = Assert<
+  Equal<
+    SearchProjection<DeclaredProjection, typeof selected>["rows"][number],
+    { title: string; labels: { name: string }[] }
+  >
+>;
+const declaredContract = resolveContract(
+  defineContract({ list: oc.input(declaredPair.input).output(declaredPair.output) }),
+  { validators: sourceValidators },
+);
+declare const declaredClient: RouterContractClient<typeof declaredContract>;
+export type DeclaredNativeInputIsUnchanged = Assert<
+  Equal<Parameters<typeof declaredClient.list>[0], StandardSchemaV1.InferInput<typeof declaredPair.input>>
+>;
+export type DeclaredNativeOutputIsUnchanged = Assert<
+  Equal<Awaited<ReturnType<typeof declaredClient.list>>, StandardSchemaV1.InferOutput<typeof declaredPair.output>>
+>;
+sourceValidators.tables.tasks.search({
+  columns: ["title"],
+  scope: {
+    ...graphScope,
+    dependencies: [
+      // @ts-expect-error root declarations use graph keys
+      "membrs",
+    ],
+  },
+});
+sourceValidators.tables.tasks.search({
+  columns: ["title"],
+  scope: "public",
+  through: {
+    taskLabels: {
+      name: "junction",
+      version: "1",
+      where: () => sql`true`,
+      dependencies: [
+        // @ts-expect-error junction declarations use the same graph keys
+        "teamz",
+      ],
+    },
+  },
+});
+sourceValidators.tables.tasks.search({
+  columns: ["title"],
+  scope: "public",
+  relations: {
+    project: {
+      columns: ["name"],
+      scope: {
+        name: "child",
+        version: "1",
+        where: () => sql`true`,
+        dependencies: [
+          // @ts-expect-error child declarations use the same graph keys
+          "memberz",
+        ],
+      },
+    },
+  },
+});

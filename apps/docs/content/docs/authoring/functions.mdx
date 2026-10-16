@@ -34,6 +34,114 @@ Call current-scope private operations through `context.internal`, and mounted ba
 
 Handlers receive typed `db`, `tables`, `validators`, `identity`, `env`, storage and scheduler capabilities. Generation binds schema and relations once. Use native `.handler`, `.effect`, `.use` and router composition. Generation rejects missing implementations, extra routes and implementations that do not match their declared contracts.
 
+## Live SQL procedures
+
+On a Realtime-enabled Neon branch, declare a live read in the same contract and function folders. The contract describes the rows; the function returns the Drizzle SELECT that Neon will run.
+
+```ts title="kello/contracts/tasks.ts"
+import { defineContract, oc } from "kello/contract";
+import * as v from "valibot";
+
+export default defineContract({
+  list: oc
+    .input(
+      v.strictObject({
+        projectId: v.string(),
+        after: v.optional(v.string()),
+        limit: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
+      }),
+    )
+    .output(v.array(v.strictObject({ id: v.string(), title: v.string() })))
+    .live(),
+});
+```
+
+```ts title="kello/functions/tasks.ts"
+import { and, asc, eq, gt, sql } from "drizzle-orm";
+import { os } from "../_generated/rpc";
+
+export default os.tasks.router({
+  list: os.tasks.list.live(({ context, input, errors }) => {
+    if (!context.identity) throw errors.UNAUTHORIZED();
+    const tasks = context.tables.tasks;
+    return context.db
+      .select({ id: sql<string>`${tasks._id}`.as("id"), title: tasks.title })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.projectId, input.projectId),
+          eq(tasks.ownerId, context.identity.subject),
+          input.after ? gt(tasks._id, input.after) : undefined,
+        ),
+      )
+      .orderBy(asc(tasks._id))
+      .limit(input.limit);
+  }),
+});
+```
+
+Return the query **without `await` or an `async` callback**: awaiting a Drizzle builder executes it. Use the normal `.use()` middleware for asynchronous validation or permission checks before returning the query. Include all row permissions in SQL as well, including membership joins when access can change. Neon does not inherit transaction-local identity settings, RLS, or application middleware.
+
+Output keys must match the selected SQL column names. When renaming a column, use an explicit SQL alias as shown for `_id` above; Neon does not run Drizzle's result mapper.
+
+Pagination is ordinary validated input. This example uses an ordered ID cursor; changing `after` or `limit` opens a new subscription for that page. It does not accumulate pages or create an opaque pagination token. Choose a total ordering and matching cursor predicate for your query.
+
+Configure the server once in `app.config.ts`:
+
+```ts
+defineApplication({
+  env: {
+    NEON_REALTIME_SECRET: v.string(),
+    NEON_DATABASE: v.string(),
+    DEPLOYMENT_ID: v.string(),
+  },
+  liveQueries: ({ env }) => ({
+    secret: env.NEON_REALTIME_SECRET,
+    database: env.NEON_DATABASE,
+    deployment: env.DEPLOYMENT_ID,
+    resolveLogin: async ({ verified, credential, signal }) => {
+      // Use your real server session store. Never derive a generation from a subject or client label.
+      return sessionStore.resolveVerifiedLogin({ verified, credential, signal });
+    },
+  }),
+  rpc: ({ os }) => ({ os }),
+});
+```
+
+The resolver returns a `TrustedLogin` matching the verified issuer, subject and tenant, with a stable session-store generation and expiry. Credentials stay server-only. Missing login authority refuses live reads. Verified sessions must remain valid for the SDK's signed 60-second capability lifetime. Renewal reruns native input validation and middleware with the current credential; SQL permission predicates govern changes between renewals.
+
+Generation adds a React entry beside the ordinary client:
+
+```tsx
+import { createClient } from "./kello/_generated/react";
+import { createKelloReact } from "kello/react";
+
+export const { KelloProvider, useKello } = createKelloReact((options) =>
+  createClient({ ...options, realtimeUrl: "https://your-branch-realtime-endpoint" }),
+);
+
+function TaskList({ projectId, after }: { projectId: string; after?: string }) {
+  const { api } = useKello();
+  const tasks = api.tasks.list.useLiveQuery({ projectId, limit: 20, ...(after ? { after } : {}) });
+  if (tasks.isPending) return <p>Connecting…</p>;
+  if (tasks.failed) return <button onClick={tasks.refetch}>Retry live query</button>;
+  return (
+    <section>
+      {tasks.status !== "live" && <p>Reconnecting; showing the last installed rows.</p>}
+      <ul>
+        {tasks.data?.map((task) => (
+          <li key={task.id}>{task.title}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+```
+
+The generated connection owns renewal and disposal through the existing provider's login/logout lifecycle. `status` exposes connecting, live, stale, closed and error states. `refetch()` replaces the subscription; `confirm(receipt, timeoutMs)` waits for the current subscription's installed transaction progress. A timeout or disconnect means **unknown**, not a rolled-back mutation. Existing `runNeonMutation` receipts remain the opt-in write contract.
+
+This first version accepts flat scalar SELECTs and representable Valibot row-array outputs. Unsupported nested projections, custom decoders and unrepresentable output refinements fail closed. Input schemas retain normal Standard Schema validation. Live capability results are excluded from ordinary Query utilities and SSR dehydration; SSR does not issue a subscription. Ordinary procedures keep their existing transport and APIs; live issuance uses authenticated HTTP because ticket/WebSocket sessions do not carry this trusted login record.
+
 ## Transactions and operation intent
 
 The generated client forwards native oRPC option intent. Query, infinite, streamed and live options select read-only repeatable-read transactions. Mutation options and direct calls select serializable write transactions. Explicit iterator contracts always use read-only authority, including direct calls. Handlers run once per request; Kello does not automatically retry application code after transaction conflicts.

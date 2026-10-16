@@ -33,6 +33,12 @@ export { parseApplicationEnvironment } from "./application/environment";
 export type { ApplicationEnvironment, ApplicationEnvironmentOutput } from "./application/environment";
 export { createProjectProcedures, createProjectContext } from "./rpc/procedure";
 export type { ProcedureContext } from "./rpc/procedure";
+export { withLiveDependencies } from "./rpc/live-dependencies";
+export { defineRateLimits, isRateLimitDefinitions } from "./rate-limits/policy";
+export type { RateLimitDefinitions, RateLimitPolicy, RateLimitPolicyNames, RateLimitMode } from "./rate-limits/policy";
+export { RateLimits } from "./rate-limits/service";
+export type { InvocationRateLimits } from "./rate-limits/service";
+export { RateLimitExceeded, RateLimitUnavailable } from "./rate-limits/errors";
 export { searchPublicNode } from "../search/contract";
 export type { SearchPolicy, SearchSelection, SearchPage, SearchRow, SearchDescriptor } from "../search/types";
 export type {
@@ -163,3 +169,8 @@ export type {
 } from "./components/http";
 export { defineComponentPackage, getComponentPackage } from "./components/package";
 export type { ComponentPackageDescriptor } from "./components/package";
+
+export { createNeonLiveQuery, createNeonQueryIssuer, runNeonMutation } from "./realtime/neon";
+export type { NeonAuthority, NeonLiveQuery } from "./realtime/neon";
+
+export type { TrustedLogin, TrustedLoginResolver } from "./auth/login";

@@ -16,6 +16,20 @@ import { createLiveContext } from "../rpc/live-context";
 import { createComponentHost, sealComponentGraph } from "../components/graph";
 import { deferEnvironmentAccess, prepareComponentEnvironments } from "../components/environment";
 import type { ComponentHost } from "../components/graph";
+import type { LiveQueryTarget } from "../realtime/procedure";
+import type { TrustedLoginResolver } from "../auth/login";
+
+type ApplicationLiveQueries<Env extends ApplicationEnvironment> = (context: {
+  readonly env: ApplicationEnvironmentOutput<Env>;
+}) => LiveQueryTarget & { readonly resolveLogin: TrustedLoginResolver };
+
+interface LiveQueryDeclaration<Env extends ApplicationEnvironment> {
+  liveQueries?: ApplicationLiveQueries<Env>;
+}
+
+interface PreparedLiveQueries {
+  liveQueries?: LiveQueryTarget & { readonly resolveLogin: TrustedLoginResolver };
+}
 
 type RegisteredComponents = ProjectRegistration extends { components: infer Components extends object }
   ? Components
@@ -110,6 +124,7 @@ export interface ApplicationDefinition<
 > extends ComponentHost {
   readonly env: EnvironmentReferences<Env>;
   readonly environmentSchema: Env;
+  readonly liveQueries?: ApplicationLiveQueries<Env>;
   readonly rpc: (context: { readonly os: ApplicationBase<Env> }) => Builders;
 }
 
@@ -118,9 +133,11 @@ export function defineApplication<
   const Builders extends Record<string, object>,
 >(options: {
   readonly env: Env;
+  readonly liveQueries?: ApplicationLiveQueries<Env>;
   readonly rpc: (context: { readonly os: ApplicationBase<Env> }) => Builders;
 }): ApplicationDefinition<Env, Builders>;
 export function defineApplication<const Builders extends Record<string, object>>(options: {
+  readonly liveQueries?: ApplicationLiveQueries<Record<never, never>>;
   readonly rpc: (context: { readonly os: ApplicationBase<Record<never, never>> }) => Builders;
 }): ApplicationDefinition<Record<never, never>, Builders>;
 export function defineApplication<
@@ -128,12 +145,21 @@ export function defineApplication<
   const Builders extends Record<string, object>,
 >(options: {
   readonly env?: Env;
+  readonly liveQueries?: ApplicationLiveQueries<Env>;
   readonly rpc: (context: { readonly os: ApplicationBase<Env> }) => Builders;
 }): ApplicationDefinition<Env, Builders> {
   // SAFETY: the public no-environment overload fixes Env to an empty record.
   const environmentSchema = Object.freeze(options.env ?? ({} as Env));
   const env = createEnvironmentReferences(environmentSchema);
-  const app = Object.freeze({ env, environmentSchema, rpc: options.rpc, ...createComponentHost(env) });
+  const live: LiveQueryDeclaration<Env> = {};
+  if (options.liveQueries) live.liveQueries = options.liveQueries;
+  const app = Object.freeze({
+    env,
+    environmentSchema,
+    rpc: options.rpc,
+    ...live,
+    ...createComponentHost(env),
+  });
   applications.add(app);
   return app;
 }
@@ -162,6 +188,9 @@ export interface ApplicationEnvironmentDefinition<
   Env extends ApplicationEnvironment = ApplicationEnvironment,
 > extends ComponentHost {
   readonly environmentSchema: Env;
+  liveQueries?(context: { readonly env: ApplicationEnvironmentOutput<Env> }): LiveQueryTarget & {
+    readonly resolveLogin: TrustedLoginResolver;
+  };
   readonly env: EnvironmentReferences<Env>;
 }
 
@@ -190,7 +219,11 @@ export async function prepareApplicationEnvironment<Env extends ApplicationEnvir
   const graph = sealComponentGraph(app);
   const env = await parseApplicationEnvironment(app.environmentSchema, source);
   const components = await prepareComponentEnvironments(graph, env, source);
+  const liveQueries = app.liveQueries?.({ env });
+  const live: PreparedLiveQueries = {};
+  if (liveQueries) live.liveQueries = Object.freeze({ ...liveQueries });
   return Object.freeze({
+    ...live,
     serviceFactories: components.serviceFactories,
     http: components.http,
     run: <Result>(work: () => Result): Result => environment.run({ application: app, env }, work),

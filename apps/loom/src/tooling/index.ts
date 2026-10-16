@@ -49,7 +49,10 @@ export type { DevelopmentRevision, DevelopmentFailure, DevelopmentCoordinatorOpt
 export { generateProject, prepareProject, activateProject, assertGeneratedVersion } from "./codegen/generate";
 export { createSnapshot, emptySnapshot, inspectSnapshot, snapshotHash } from "./migrations/adapter";
 export type { MigrationSnapshot, RenameHint } from "./migrations/adapter";
+// Historical format-2 classification is part of immutable artifacts; assessMigration supplies current admission.
 export { classifyMigration } from "./migrations/classifier";
+export { assessMigration } from "./migrations/assessment";
+export type { MigrationAssessment, BlockingGinOperation } from "./migrations/assessment";
 export { planMigration } from "./migrations/planner";
 export type { MigrationPlan } from "./migrations/planner";
 export { planCustomMigration } from "./migrations/custom";
@@ -69,6 +72,8 @@ export {
   MigrationCommandError,
 } from "./migrations/project";
 export { bootstrapDatabase } from "./migrations/bootstrap";
+export { registerRateLimitPolicies, cleanupRateLimits } from "./migrations/rate-limits";
+export type { CleanupRateLimitsOptions, RateLimitCleanupResult } from "./migrations/rate-limits";
 export { installRevisionTracking } from "./migrations/revisions";
 export type { BootstrapOptions } from "./migrations/bootstrap";
 export { applyMigrations, applyMigrationsOnConnection } from "./migrations/runner";
@@ -164,3 +169,13 @@ export { withMigrationConnection } from "./migrations/connection";
 
 export { createNativeSnapshot, migrationStatements } from "./migrations/adapter";
 export type { NativeMigrationSchema } from "./migrations/adapter";
+
+export { startDiagnostics } from "./diagnostics";
+export type {
+  DiagnosticsOptions,
+  DiagnosticsSession,
+  DiagnosticsStats,
+  DiagnosticsRecord,
+  DiagnosticsRuntimeEvent,
+  DiagnosticsDeploymentEvent,
+} from "./diagnostics";

@@ -12,3 +12,7 @@ export {
   useQueries,
   useQueryClient,
 } from "@tanstack/react-query";
+
+export { useNeonLiveQuery } from "./realtime";
+export { createLiveQueryHooks } from "./live-query";
+export type { LiveQueryHooks } from "./live-query";

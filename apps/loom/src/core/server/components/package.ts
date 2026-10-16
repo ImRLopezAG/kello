@@ -11,6 +11,7 @@ const descriptorSchema = v.strictObject({
   relations: v.optional(entry),
   crons: v.optional(entry),
   storage: v.optional(entry),
+  rateLimits: v.optional(entry),
   contractRegistry: entry,
   contracts: v.array(v.strictObject({ path: modulePath, entry })),
   procedures: v.array(v.strictObject({ path: modulePath, entry, visibility: v.picklist(["public", "internal"]) })),

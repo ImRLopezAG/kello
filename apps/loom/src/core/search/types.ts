@@ -34,13 +34,19 @@ export interface SearchBudgets {
   readonly rows: number;
   /** Lifetime of encrypted, branch-keyed cursors in seconds. */
   readonly cursorSeconds: number;
+  /** FTS-only server budgets; absent on legacy descriptors. */
+  readonly fullTextQueryBytes?: number;
+  readonly fullTextQueryNodes?: number;
+  readonly fullTextTimeoutMs?: number;
 }
 /** Authorization receives the native table alias used in this SQL invocation. */
-export interface SearchScope<Table extends TableRelationalConfig> {
+export interface SearchScope<Table extends TableRelationalConfig, Graph extends AnyRelations = Record<never, never>> {
   /** Stable authorization policy name included in the cursor binding. */
   readonly name: string;
   /** Change when authorization semantics change to invalidate earlier cursors. */
   readonly version: string;
+  /** Complete graph-local policy reads; omit when unknown, use [] for no additional reads. */
+  readonly dependencies?: readonly (keyof Graph & string)[];
   readonly where: (context: { readonly table: Table["table"]; readonly identity: InvocationIdentity | null }) => SQL;
 }
 type FieldName<Table extends TableRelationalConfig> = keyof GetTableViewFieldSelection<Table["table"]> & string;
@@ -56,20 +62,54 @@ type Textual<Table extends TableRelationalConfig> = {
     ? Key
     : never;
 }[FieldName<Table>];
+type TableDocuments<Table extends TableRelationalConfig> = Table["table"] extends {
+  readonly _: { readonly fullText?: infer Documents };
+}
+  ? NonNullable<Documents>
+  : never;
+type DocumentName<Table extends TableRelationalConfig> = [TableDocuments<Table>] extends [never]
+  ? never
+  : keyof TableDocuments<Table> & string;
+/** Registration checks all declared document sources against both explicit grants. */
+export type FullTextPolicyCheck<Table extends TableRelationalConfig, Policy> = Policy extends {
+  readonly fullText: readonly (infer Name extends string)[];
+}
+  ? Exclude<Name, DocumentName<Table>> extends never
+    ? {
+        [Key in Name]: Key extends keyof TableDocuments<Table>
+          ? TableDocuments<Table>[Key] extends {
+              readonly fields: readonly { readonly field: infer Source extends string }[];
+            }
+            ? Exclude<Source, Capability<Policy, "filter"> & Capability<Policy, "text">> extends never
+              ? never
+              : Key
+            : Key
+          : Key;
+      }[Name] extends never
+      ? unknown
+      : never
+    : never
+  : unknown;
 /** Projection, filtering, ordering and text matching are independent permissions.
  * Every root, child and M2M junction declares its server authorization scope. */
-export type SearchPolicy<Graph extends AnyRelations, Table extends TableRelationalConfig> = {
+export type SearchPolicy<
+  Graph extends AnyRelations,
+  Table extends TableRelationalConfig,
+  Root extends boolean = true,
+> = {
   readonly columns: readonly FieldName<Table>[];
   readonly filter?: readonly Exclude<FieldName<Table>, "AND" | "OR" | "NOT" | "relations">[];
   readonly order?: readonly Orderable<Model<Graph, Table>>[];
   readonly text?: readonly Textual<Table>[];
-  readonly scope: "public" | SearchScope<Table>;
-  readonly through?: { readonly [Name in keyof Graph]?: "public" | SearchScope<Graph[Name]> };
+  readonly fullText?: Root extends true ? readonly [DocumentName<Table>, ...DocumentName<Table>[]] : never;
+  readonly scope: "public" | SearchScope<Table, Graph>;
+  readonly through?: { readonly [Name in keyof Graph]?: "public" | SearchScope<Graph[Name], Graph> };
   readonly budgets?: Partial<SearchBudgets>;
   readonly relations?: {
     readonly [Name in keyof Table["relations"]]?: SearchPolicy<
       Graph,
-      FindTargetTableInRelationalConfig<Graph, Table["relations"][Name]>
+      FindTargetTableInRelationalConfig<Graph, Table["relations"][Name]>,
+      false
     >;
   };
 };
@@ -160,26 +200,36 @@ export type SearchNestedSelection<Graph extends AnyRelations, Table extends Tabl
     : never;
   readonly limit?: number;
 };
+type RootMatching<Policy> = [Capability<Policy, "fullText">] extends [never]
+  ? { readonly fullText?: never }
+  :
+      | { readonly fullText?: never }
+      | {
+          readonly fullText: { readonly document: Capability<Policy, "fullText">; readonly query: string };
+          readonly orderBy?: never;
+        };
 /** One finite root page. Order priority is an array, never object key order. */
 export type SearchSelection<
   Graph extends AnyRelations,
   Table extends TableRelationalConfig,
   Policy,
-> = SearchNestedSelection<Graph, Table, Policy> & {
-  readonly cursor?: string | null;
-  readonly direction?: "forward" | "backward";
-  readonly count?: boolean;
-};
+> = SearchNestedSelection<Graph, Table, Policy> &
+  RootMatching<Policy> & {
+    readonly cursor?: string | null;
+    readonly direction?: "forward" | "backward";
+    readonly count?: boolean;
+  };
 /** A coherent live loaded window, with a contract-specific anchor. */
 export type SearchLiveSelection<
   Graph extends AnyRelations,
   Table extends TableRelationalConfig,
   Policy,
-> = SearchNestedSelection<Graph, Table, Policy> & {
-  readonly anchor?: string | null;
-  readonly loadedPages?: number;
-  readonly count?: boolean;
-};
+> = SearchNestedSelection<Graph, Table, Policy> &
+  RootMatching<Policy> & {
+    readonly anchor?: string | null;
+    readonly loadedPages?: number;
+    readonly count?: boolean;
+  };
 
 type AllowedColumns<Policy> = Policy extends { columns: readonly (infer Key extends string)[] } ? Key : never;
 type DefiniteKeys<Columns, Value> = {

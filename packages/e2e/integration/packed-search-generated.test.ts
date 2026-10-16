@@ -24,6 +24,7 @@ test("packed generated search infers selected results through native options", a
     return result.output;
   }
   try {
+    console.info(JSON.stringify({ proof: "search-generated-root-created", root }));
     await succeed(
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
       fileURLToPath(new URL("../../../apps/loom/", import.meta.url)),
@@ -35,15 +36,15 @@ test("packed generated search infers selected results through native options", a
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
-          "@orpc/client": "2.0.0-beta.41",
-          "@orpc/server": "2.0.0-beta.41",
-          "@orpc/tanstack-query": "2.0.0-beta.41",
-          "@tanstack/react-query": "5.104.0",
+          "@orpc/client": "2.0.0-beta.43",
+          "@orpc/server": "2.0.0-beta.43",
+          "@orpc/tanstack-query": "2.0.0-beta.43",
+          "@tanstack/react-query": "5.104.3",
           "drizzle-orm": "1.0.0-rc.4",
           valibot: "1.5.0",
           react: "19.3.0",
           "react-dom": "19.3.0",
-          effect: "4.0.0",
+          effect: "4.0.5",
         },
         devDependencies: { typescript: "7.0.2", "@types/react": "19.3.0" },
       }),
@@ -56,11 +57,22 @@ await initializeProject("./app", "search-generated");
 await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: "br-fixture", branchName: "dev", protected: false, isDefault: false, databaseName: "neondb", migrationRole: "neondb_owner", public: { serviceUrl: "https://search.example.test" } });`,
     );
     await succeed(["bun", "initialize.mjs"]);
-    const fixture = await readFile(new URL("../../tests/fixtures/search-schema.ts", import.meta.url), "utf8");
+    // Internal proofs use source modules; the isolated consumer must resolve only published exports.
+    function publicImports(source: string) {
+      return source.replaceAll(
+        /from "\.\.\/\.\.\/\.\.\/apps\/loom\/src\/core\/(server|client|contract)\/index"/g,
+        'from "kello/$1"',
+      );
+    }
+    const fixture = publicImports(
+      await readFile(new URL("../../tests/fixtures/search-schema.ts", import.meta.url), "utf8"),
+    );
     await writeFile(join(root, "app/kello/fixture.ts"), fixture);
     await writeFile(join(root, "app/kello/schema.ts"), 'export { searchSchema as default } from "./fixture";');
     await writeFile(join(root, "app/kello/relations.ts"), 'export { searchRelations as default } from "./fixture";');
-    const source = await readFile(new URL("../../tests/types/search-generated.test-d.ts", import.meta.url), "utf8");
+    const source = publicImports(
+      await readFile(new URL("../../tests/types/search-generated.test-d.ts", import.meta.url), "utf8"),
+    );
     const factory = source.slice(source.indexOf("const policy ="), source.indexOf("type Native ="));
     assert.match(factory, /validators\.tables\.tasks\.search/);
     await writeFile(
@@ -130,6 +142,7 @@ const client = connection.client.tasks;`,
       )
       .replace("declare const rpc: SearchRouterUtils<Native>;", "const rpc = connection.rpc.tasks;");
     assert.doesNotMatch(probe, /@ts-expect-error|@ts-ignore/);
+    assert.doesNotMatch(fixture + probe, /apps\/loom\/src/);
     await writeFile(
       join(root, "probe.ts"),
       probe +
@@ -162,12 +175,90 @@ os.tasks.ordinary.handler(async ({ context }) => {
       lib: ["ES2023", "DOM", "DOM.Iterable"],
     };
     const compiler = join(root, "node_modules/.bin/tsc");
+    await writeFile(
+      join(root, "full-text.ts"),
+      `
+import { defineSchema, defineTable } from "kello/server";
+import { assessMigration } from "kello/tooling";
+import type { MigrationPlan, MigrationAssessment, ApplyMigrationsOptions } from "kello/tooling";
+const schema = defineSchema((s) => ({ tasks: defineTable({ title: s.text(), status: s.enum(["open", "closed"]) }, {
+  fullText: { content: { config: "pg_catalog.simple", fields: [{ field: "title", weight: "A" }, { field: "status", weight: "D" }], version: "1" } },
+}) }));
+const config: "pg_catalog.simple" = schema.metadata.entities[0]!.options.fullText.content.config;
+const literalSources: readonly [{ readonly field: "title"; readonly weight: "A" }, { readonly field: "status"; readonly weight: "D" }] = schema.metadata.entities[0]!.options.fullText.content.fields;
+const mutableSources: { field: "title" | "body"; weight: "A" | "D" }[] = [{ field: "title", weight: "A" }];
+const mutableDocument = {
+  config: "pg_catalog.simple" as const,
+  fields: mutableSources,
+  version: "1",
+};
+const mutableSchema = defineSchema((s) => ({ articles: defineTable({ title: s.text(), body: s.text() }, {
+  fullText: { content: mutableDocument },
+}) }));
+const mutableContent = mutableSchema.metadata.entities[0]!.options.fullText.content;
+const mutableConfig: "pg_catalog.simple" = mutableContent.config;
+const mutableVersion: string = mutableContent.version;
+const sourceField: "title" | "body" = mutableContent.fields[0]!.field;
+const sourceWeight: "A" | "D" = mutableContent.fields[0]!.weight;
+const nativeContent: typeof mutableContent = mutableSchema.tables.articles._.fullText.content;
+// @ts-expect-error compiled versions are readonly for mutable author input
+mutableContent.version = "2";
+// @ts-expect-error compiled source arrays are readonly for mutable author input
+mutableContent.fields.push({ field: "body", weight: "D" });
+// @ts-expect-error compiled source entries are deeply readonly
+mutableContent.fields[0]!.field = "body";
+// @ts-expect-error compiled source weights are deeply readonly
+mutableContent.fields[0]!.weight = "D";
+// @ts-expect-error mutable input preserves literal document names
+mutableSchema.metadata.entities[0]!.options.fullText.absent;
+void [literalSources, mutableConfig, mutableVersion, sourceField, sourceWeight, nativeContent];
+declare const plan: MigrationPlan;
+const result: Promise<MigrationAssessment> = assessMigration(plan);
+declare const assessment: Awaited<typeof result>;
+if (!assessment.blockingGinTimeout.eligible) {
+  const reason: string = assessment.blockingGinTimeout.reason;
+  void reason;
+}
+// @ts-expect-error derived evidence is readonly
+assessment.artifactHash = "changed";
+// @ts-expect-error derived evidence cannot be executed as an immutable artifact
+assessMigration(assessment);
+// @ts-expect-error document names remain literal keys
+schema.metadata.entities[0]!.options.fullText.absent;
+const options: ApplyMigrationsOptions = { connectionString: "postgresql://localhost/disposable", root: ".", migrations: "migrations", namespace: "app", runtimeRole: "runtime", reviewedHashes: [plan.hash], blockingGinTimeouts: [{ artifactHash: plan.hash, statementTimeoutMs: 120000 }] };
+void [config, options];
+`,
+    );
+    await writeFile(
+      join(root, "full-text.mjs"),
+      `
+import assert from "node:assert/strict";
+import { defineSchema, defineTable } from "kello/server";
+import { assessMigration, createSnapshot, emptySnapshot, planMigration, validateMigration } from "kello/tooling";
+const initial = defineSchema((s) => ({ tasks: { title: s.text() } }), { namespace: "fts_packed" });
+const target = defineSchema((s) => ({ tasks: defineTable({ title: s.text() }, { fullText: { content: { config: "pg_catalog.simple", fields: [{ field: "title", weight: "A" }], version: "1" } } }) }), { namespace: "fts_packed" });
+const baseline = await createSnapshot(initial);
+const plan = await planMigration(baseline, target);
+const before = JSON.stringify(plan);
+const assessment = await assessMigration(plan);
+assert.equal(plan.safety.automatic, true);
+assert.equal(assessment.safety.automatic, false);
+assert.equal(assessment.artifactHash, plan.hash);
+assert.deepEqual(assessment.blockingGinTimeout, { eligible: true });
+assert.equal(assessment.blockingGinOperations.length, 1);
+await validateMigration(plan);
+assert.equal(JSON.stringify(plan), before);
+assert.equal((await assessMigration(await planMigration(await emptySnapshot("fts_packed"), target))).safety.automatic, true);
+assert.equal((await planMigration(plan.snapshot, target)).statements.length, 0);
+`,
+    );
+    await succeed(["bun", "full-text.mjs"]);
     for (const exactOptionalPropertyTypes of [true, false]) {
       await writeFile(
         join(root, "tsconfig.json"),
         JSON.stringify({
           compilerOptions: { ...compilerOptions, exactOptionalPropertyTypes },
-          include: ["probe.ts", "app/kello/**/*.ts"],
+          include: ["probe.ts", "full-text.ts", "app/kello/**/*.ts"],
         }),
       );
       const start = performance.now();
@@ -334,5 +425,6 @@ async function obsoleteCodec() {
     assert.match(obsoleteCodec.output, /codec-negative\.ts\(6,/);
   } finally {
     await rm(root, { recursive: true, force: true });
+    console.info(JSON.stringify({ proof: "search-generated-root-cleanup", root }));
   }
 }, 180_000);

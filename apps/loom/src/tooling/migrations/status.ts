@@ -6,6 +6,8 @@ import {
   withMigrationConnection,
 } from "./connection";
 import { readMigrations } from "./history";
+import { assessMigration } from "./assessment";
+import type { MigrationAssessment } from "./assessment";
 import { inspectHistory } from "./state";
 import type { HistoryIssue } from "./state";
 import type { FrameworkReadiness } from "./framework-history";
@@ -46,7 +48,13 @@ export interface MigrationStatus {
   readonly head: string | null;
   readonly committedHead: string | null;
   readonly applied: readonly string[];
-  readonly pending: readonly { readonly name: string; readonly hash: string; readonly safety: MigrationSafety }[];
+  readonly pending: readonly {
+    readonly name: string;
+    readonly hash: string;
+    readonly safety: MigrationSafety;
+    readonly blockingGinOperations: MigrationAssessment["blockingGinOperations"];
+    readonly blockingGinTimeout: MigrationAssessment["blockingGinTimeout"];
+  }[];
   readonly catalog: { readonly expected: string | null; readonly actual: string };
 }
 
@@ -69,6 +77,18 @@ export async function migrationStatusOnConnection(
     const artifacts = await readMigrations(config.root, config.migrations);
     const state = await inspectHistory(client, config, artifacts);
     const target = await databaseIdentity(client);
+    const pending = await Promise.all(
+      artifacts.slice(state.applied.length).map(async (artifact) => {
+        const assessment = await assessMigration(artifact.plan);
+        return {
+          name: artifact.name,
+          hash: assessment.artifactHash,
+          safety: assessment.safety,
+          blockingGinOperations: assessment.blockingGinOperations,
+          blockingGinTimeout: assessment.blockingGinTimeout,
+        };
+      }),
+    );
     await client.query("COMMIT");
     return {
       target,
@@ -80,9 +100,7 @@ export async function migrationStatusOnConnection(
       head: state.applied.at(-1)?.after_hash ?? null,
       committedHead: artifacts.at(-1)?.plan.after ?? null,
       applied: state.applied.map((row) => row.hash),
-      pending: artifacts
-        .slice(state.applied.length)
-        .map((artifact) => ({ name: artifact.name, hash: artifact.plan.hash, safety: artifact.plan.safety })),
+      pending,
       catalog: { expected: state.expectedCatalog, actual: state.actualCatalog },
     };
   } catch (cause) {

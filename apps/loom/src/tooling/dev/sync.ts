@@ -10,6 +10,8 @@ import { bootstrapSession } from "../migrations/bootstrap";
 import { catalogFingerprint } from "../migrations/drift";
 import { inspectSnapshot } from "../migrations/adapter";
 import { planMigration } from "../migrations/planner";
+import { assessMigration } from "../migrations/assessment";
+import type { MigrationAssessment } from "../migrations/assessment";
 import type { MigrationPlan } from "../migrations/planner";
 import { readMigrations } from "../migrations/history";
 import { inspectHistory } from "../migrations/state";
@@ -35,7 +37,10 @@ export interface DevelopmentSyncReceipt {
   readonly catalogHash: string;
 }
 export class DevelopmentReviewRequired extends Error {
-  constructor(readonly plan: MigrationPlan) {
+  constructor(
+    readonly plan: MigrationPlan,
+    readonly assessment?: MigrationAssessment,
+  ) {
     super("Development schema change requires migration review");
   }
 }
@@ -116,7 +121,9 @@ export async function synchronizeDevelopment(
           await writeAuthOwnership(project, scope.mountPath, scope.migrations, plan.snapshot);
           await assertGeneratedVersion(options.root, options.sourceVersion);
           options.signal?.throwIfAborted();
-          if (!plan.safety.automatic || !plan.safety.transactional) throw new DevelopmentReviewRequired(plan);
+          const assessment = await assessMigration(plan);
+          if (!assessment.safety.automatic || !assessment.safety.transactional)
+            throw new DevelopmentReviewRequired(plan, assessment);
           if (last?.source_version === options.sourceVersion && !plan.statements.length) {
             receipts.push({
               target,

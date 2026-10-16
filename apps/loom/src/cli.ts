@@ -6,11 +6,14 @@ import { neonLogin, neonProfiles } from "./commands/login";
 import { withNeonCredentials } from "kello/tooling";
 import { NeonCredentialError, ProjectResolutionError } from "kello/tooling";
 import { parseArgs } from "node:util";
-import { resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
+import { open, realpath } from "node:fs/promises";
+import { createFileOutput, writeStderrOutput } from "./tooling/diagnostics/output";
+import type { DiagnosticsOptions } from "./tooling/diagnostics/types";
 import { deployCommand } from "./commands/deploy";
 import { retireDatabaseCommand } from "./commands/retire";
 import { provisionCommand } from "./commands/provision";
-import { devCommand } from "./commands/dev";
+import { devCommand, devCommandWithOwnedOutput } from "./commands/dev";
 import { devQuarantineCommand } from "./commands/dev-quarantine";
 import { backfillApplyCommand } from "./commands/backfill";
 import { compatibilityCommand } from "./commands/compatibility";
@@ -19,6 +22,7 @@ import {
   initializeProject,
   loadProject,
   planRelease,
+  assessMigration,
   generateRelease,
   generateCustomRelease,
   readRenameHints,
@@ -40,6 +44,9 @@ const help = `Usage: kello <command> [--cwd <directory>] [--json]
   init [directory] --name <name>  Create a project without overwriting files
   generate                      Generate public/internal references and manifest
   dev [--development <file>]     Watch and serve the Neon development target in kello.config.ts
+      --diagnostics text        Write local-process diagnostics to stderr
+      --diagnostics jsonl --diagnostics-file <path>  Create a private event-only JSONL file
+      --telemetry otlp           Export metrics using KELLO_TELEMETRY_ENDPOINT and optional KELLO_TELEMETRY_BEARER_TOKEN
   dev quarantine [--development <file>]  Revoke database grants and cancel jobs on the development branch
   schema inspect                Inspect compiled storage metadata
   schema diff                   Plan changes from the committed migration baseline
@@ -118,10 +125,36 @@ async function runCommand(args: readonly string[]): Promise<number> {
         retirement: { type: "string" },
         branch: { type: "string" },
         development: { type: "string" },
+        diagnostics: { type: "string" },
+        telemetry: { type: "string" },
+        "diagnostics-file": { type: "string" },
         "dry-run": { type: "boolean" },
       },
     });
     const [first, second, ...extra] = parsed.positionals;
+    const diagnostics = parsed.values.diagnostics;
+    const diagnosticsFile = parsed.values["diagnostics-file"];
+    const telemetry = parsed.values.telemetry;
+    if (telemetry !== undefined && (first !== "dev" || second !== undefined || telemetry !== "otlp")) {
+      reportFailure(structured, first ?? command, "USAGE", "dev telemetry requires --telemetry otlp", 2);
+      return 2;
+    }
+    if (
+      (diagnostics !== undefined || diagnosticsFile !== undefined) &&
+      (first !== "dev" ||
+        second !== undefined ||
+        (diagnostics !== "text" && diagnostics !== "jsonl") ||
+        (diagnostics === "jsonl" ? !diagnosticsFile : diagnosticsFile !== undefined))
+    ) {
+      reportFailure(
+        structured,
+        first ?? command,
+        "USAGE",
+        "dev diagnostics require text or jsonl with --diagnostics-file",
+        2,
+      );
+      return 2;
+    }
     if (parsed.values.help || !first) {
       console.log(structured ? JSON.stringify({ ok: true, help }) : help);
       return 0;
@@ -284,16 +317,81 @@ async function runCommand(args: readonly string[]): Promise<number> {
         first !== "dev" ||
         parsed.positionals.length !== (quarantine ? 2 : 1) ||
         parsed.values.development === "" ||
-        Object.keys(parsed.values).some((name) => !["cwd", "json", "development"].includes(name))
+        Object.keys(parsed.values).some(
+          (name) => !["cwd", "json", "development", "diagnostics", "diagnostics-file", "telemetry"].includes(name),
+        )
       ) {
-        reportFailure(structured, command, "USAGE", "dev accepts --development, --cwd and --json options", 2);
+        reportFailure(
+          structured,
+          command,
+          "USAGE",
+          "dev accepts --development, --cwd, --json, local diagnostics and --telemetry otlp",
+          2,
+        );
         return 2;
       }
       if (quarantine) {
         command = "dev quarantine";
         return await devQuarantineCommand(root, parsed.values.development ?? "kello.config.ts", structured);
       }
-      return await devCommand(root, parsed.values.development ?? "kello.config.ts", structured);
+      const file = parsed.values.development ?? "kello.config.ts";
+      let telemetryOptions: DiagnosticsOptions["telemetry"];
+      if (telemetry === "otlp") {
+        try {
+          const { validateOtlpConfig } = await import("./tooling/diagnostics/config");
+          const endpoint = process.env.KELLO_TELEMETRY_ENDPOINT;
+          const bearerToken = process.env.KELLO_TELEMETRY_BEARER_TOKEN;
+          if (endpoint === undefined) throw new Error("TELEMETRY_CONFIG_INVALID");
+          const config = bearerToken === undefined ? { endpoint } : { endpoint, bearerToken };
+          validateOtlpConfig(config);
+          telemetryOptions = { protocol: "otlp-http-json", ...config };
+        } catch {
+          reportFailure(structured, command, "TELEMETRY_CONFIG_INVALID", "Telemetry configuration is invalid.", 2);
+          return 2;
+        }
+      }
+      const diagnosticsOptions: DiagnosticsOptions = telemetryOptions ? { telemetry: telemetryOptions } : {};
+      if (diagnostics === "text")
+        return await devCommand(root, file, structured, {
+          ...diagnosticsOptions,
+          output: { format: "text", write: (chunk, signal) => writeStderrOutput(process.stderr, chunk, signal) },
+        });
+      if (diagnostics === "jsonl" && diagnosticsFile) {
+        let handle: Awaited<ReturnType<typeof open>>;
+        let ownedOutputPath: string;
+        try {
+          const requestedPath = resolve(root, diagnosticsFile);
+          ownedOutputPath = resolve(await realpath(dirname(requestedPath)), basename(requestedPath));
+          handle = await open(ownedOutputPath, "wx", 0o600);
+        } catch {
+          reportFailure(structured, command, "DIAGNOSTICS_OUTPUT_UNAVAILABLE", "Diagnostics output is unavailable.", 2);
+          return 2;
+        }
+        const output = createFileOutput(handle);
+        try {
+          return await devCommandWithOwnedOutput(
+            root,
+            file,
+            structured,
+            { ...diagnosticsOptions, output: { format: "jsonl", write: output.write } },
+            ownedOutputPath,
+          );
+        } finally {
+          const closed = await output.close();
+          if (closed === "pending") {
+            const code = "DIAGNOSTICS_OUTPUT_CLOSE_PENDING";
+            const message = "Diagnostics output will close when its pending operation settles.";
+            console.error(
+              structured
+                ? JSON.stringify({ ok: true, command: "dev", event: "diagnostics-close-pending", code, message })
+                : `${code}: ${message}`,
+            );
+          }
+        }
+      }
+      return telemetryOptions
+        ? await devCommand(root, file, structured, { telemetry: telemetryOptions })
+        : await devCommand(root, file, structured);
     }
     if (first === "provision" || parsed.values.branch !== undefined) {
       if (
@@ -351,10 +449,11 @@ async function runCommand(args: readonly string[]): Promise<number> {
         return 2;
       }
       const artifact = await generateCustomRelease(root, parsed.values.name, parsed.values.sql, mode);
+      const assessment = await assessMigration(artifact.plan);
       console.log(
         structured
-          ? JSON.stringify({ ok: true, command, artifact })
-          : `Generated custom migration ${artifact.name}. Review and commit its SQL and snapshot before application.`,
+          ? JSON.stringify({ ok: true, command, artifact, assessment })
+          : `Generated custom migration ${artifact.name}. Review and commit its SQL and snapshot before application.\n${JSON.stringify(assessment, null, 2)}`,
       );
       return 0;
     }
@@ -421,17 +520,24 @@ async function runCommand(args: readonly string[]): Promise<number> {
       const renames = parsed.values.renames ? await readRenameHints(root, parsed.values.renames) : [];
       if (first === "schema") {
         const plan = await planRelease(root, renames);
+        const assessment = await assessMigration(plan);
         console.log(
           structured
-            ? JSON.stringify({ ok: true, command, baseline: "committed", plan })
-            : JSON.stringify({ baseline: "committed", statements: plan.statements, safety: plan.safety }, null, 2),
+            ? JSON.stringify({ ok: true, command, baseline: "committed", plan, assessment })
+            : JSON.stringify({ baseline: "committed", statements: plan.statements, ...assessment }, null, 2),
         );
       } else if (parsed.values.name) {
         const artifact = await generateRelease(root, parsed.values.name, renames);
+        const assessments = await Promise.all(
+          artifact.scopes.map(async (scope) => ({
+            namespace: scope.namespace,
+            assessment: await assessMigration(scope.artifact.plan),
+          })),
+        );
         console.log(
           structured
-            ? JSON.stringify({ ok: true, command, artifact })
-            : `Generated ${artifact.scopes.length} migration${artifact.scopes.length === 1 ? "" : "s"}: ${artifact.scopes.map((scope) => scope.artifact.name).join(", ")}. Review and commit their SQL and snapshots before application.`,
+            ? JSON.stringify({ ok: true, command, artifact, assessments })
+            : `Generated ${artifact.scopes.length} migration${artifact.scopes.length === 1 ? "" : "s"}: ${artifact.scopes.map((scope) => scope.artifact.name).join(", ")}. Review and commit their SQL and snapshots before application.\n${JSON.stringify(assessments, null, 2)}`,
         );
       }
       return 0;

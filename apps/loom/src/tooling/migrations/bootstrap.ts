@@ -319,6 +319,34 @@ export function frameworkMigrations(namespace: string) {
       PRIMARY KEY (project_id, branch_id)
     )`,
   ]);
+  versions.push([
+    `CREATE TABLE ${schema}.rate_limit_policies (
+      application_namespace text NOT NULL CHECK (octet_length(application_namespace) BETWEEN 1 AND 256),
+      mount_path text NOT NULL CHECK (octet_length(mount_path) <= 256),
+      policy_name text NOT NULL CHECK (policy_name ~ '^[A-Za-z][A-Za-z0-9_.-]{0,63}$'),
+      version integer NOT NULL CHECK (version > 0),
+      mode text NOT NULL CHECK (mode IN ('quota','attempt')),
+      scope text NOT NULL CHECK (scope IN ('user','tenant','userInTenant')),
+      limit_count integer NOT NULL CHECK (limit_count BETWEEN 1 AND 1000000),
+      window_ms integer NOT NULL CHECK (window_ms BETWEEN 1000 AND 86400000),
+      fingerprint text NOT NULL CHECK (fingerprint ~ '^[a-f0-9]{64}$'),
+      PRIMARY KEY (application_namespace,mount_path,policy_name,version)
+    )`,
+    `CREATE TABLE ${schema}.rate_limit_buckets (
+      application_namespace text NOT NULL, mount_path text NOT NULL,
+      policy_name text NOT NULL, version integer NOT NULL,
+      key_digest bytea NOT NULL CHECK (octet_length(key_digest) = 32),
+      count integer NOT NULL CHECK (count BETWEEN 0 AND 1000000),
+      window_start_ms bigint NOT NULL CHECK (window_start_ms BETWEEN 0 AND 9007199254740991),
+      window_end_ms bigint NOT NULL CHECK (window_end_ms BETWEEN window_start_ms AND 9007199254740991),
+      last_observed_ms bigint NOT NULL CHECK (last_observed_ms BETWEEN window_start_ms AND 9007199254740991),
+      cleanup_after_ms bigint NOT NULL CHECK (cleanup_after_ms BETWEEN window_end_ms AND 9007199254740991),
+      PRIMARY KEY (application_namespace,mount_path,policy_name,version,key_digest),
+      FOREIGN KEY (application_namespace,mount_path,policy_name,version)
+        REFERENCES ${schema}.rate_limit_policies (application_namespace,mount_path,policy_name,version)
+    )`,
+    `CREATE INDEX rate_limit_buckets_cleanup ON ${schema}.rate_limit_buckets (cleanup_after_ms)`,
+  ]);
   return versions.map((statements, index) => ({
     version: index + 1,
     statements,
@@ -436,6 +464,11 @@ export async function bootstrapSession(
     await client.query(`GRANT SELECT ON ${schema}.deployment_activations TO ${role}`);
     await client.query(`GRANT SELECT ON ${schema}.deployment_trigger_bindings TO ${role}`);
     await client.query(`GRANT SELECT ON ${schema}.release_ingress TO ${role}`);
+    await client.query(`GRANT SELECT ON ${schema}.rate_limit_policies TO ${role}`);
+    await client.query(`GRANT SELECT, INSERT ON ${schema}.rate_limit_buckets TO ${role}`);
+    await client.query(
+      `GRANT UPDATE (count, window_start_ms, window_end_ms, last_observed_ms, cleanup_after_ms) ON ${schema}.rate_limit_buckets TO ${role}`,
+    );
     await client.query(`GRANT SELECT, INSERT ON ${schema}.storage_intents TO ${role}`);
     await client.query(
       `GRANT UPDATE (state, error_code, updated_at, event_job_id, cleanup_after) ON ${schema}.storage_intents TO ${role}`,

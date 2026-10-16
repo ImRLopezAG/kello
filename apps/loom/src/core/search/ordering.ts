@@ -3,15 +3,63 @@ import { PgTable } from "drizzle-orm/pg-core";
 import type { SQL, TableRelationalConfig } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { StorageValue } from "../validation/encoding";
+import { systemParsers } from "../validation/encoding";
 import type { SearchRuntimeDescriptor } from "./metadata";
 import type { SearchPublicSelection, SearchOrder } from "./public";
 import { validSearchSelection } from "./public";
 import { searchColumn } from "./compiler";
 import { exactSearchTimestamp } from "./timestamp";
 import * as v from "valibot";
+import type { ResolvedFullText } from "./full-text";
+import { fullTextExpressions } from "./full-text";
+import { exactRankFloat4 } from "./rank";
 
 export type SearchDirection = "forward" | "backward";
 export type ResolvedSearchOrder = SearchOrder & { readonly nulls: "first" | "last" };
+export type ResolvedSearchOrdering =
+  | { readonly kind: "field"; readonly fields: readonly ResolvedSearchOrder[] }
+  | { readonly kind: "fullTextRank"; readonly fullText: ResolvedFullText };
+
+export function resolveSearchOrdering(
+  descriptor: SearchRuntimeDescriptor,
+  input: SearchPublicSelection,
+  fullText?: ResolvedFullText,
+): ResolvedSearchOrdering {
+  // Retain the existing primary-key and selection checks in both modes.
+  const fields = searchOrdering(descriptor, input);
+  if (input.fullText) {
+    if (!fullText) throw new Error("Missing parsed full-text order");
+    return { kind: "fullTextRank", fullText };
+  }
+  return { kind: "field", fields };
+}
+export function resolvedSearchOrderSQL(
+  table: TableRelationalConfig["table"],
+  order: ResolvedSearchOrdering,
+  direction: SearchDirection,
+): SQL[] {
+  if (order.kind === "field") return searchOrderSQL(table, order.fields, direction);
+  const { rank } = fullTextExpressions(table, order.fullText);
+  return direction === "forward"
+    ? [sql`${rank} desc`, sql`${searchColumn(table, "_id")} asc`]
+    : [sql`${rank} asc`, sql`${searchColumn(table, "_id")} desc`];
+}
+export function resolvedSearchKeyset(
+  table: TableRelationalConfig["table"],
+  order: ResolvedSearchOrdering,
+  keys: readonly StorageValue[],
+  direction: SearchDirection,
+): SQL {
+  if (order.kind === "field") return searchKeyset(table, order.fields, keys, direction);
+  if (keys.length !== 2) throw new Error("Search boundary length mismatch");
+  const rank = fullTextExpressions(table, order.fullText).rank;
+  const parameter = sql`${v.parse(exactRankFloat4, keys[0]).toString()}::real`;
+  const id = searchColumn(table, "_id");
+  const uuid = sql`${v.parse(systemParsers._id, keys[1])}::uuid`;
+  return direction === "forward"
+    ? sql`(${rank} < ${parameter} or (${rank} = ${parameter} and ${id} > ${uuid}))`
+    : sql`(${rank} > ${parameter} or (${rank} = ${parameter} and ${id} < ${uuid}))`;
+}
 
 /** Every ordering ends in the compiled root primary key, never a guessed unique field. */
 export function searchOrdering(

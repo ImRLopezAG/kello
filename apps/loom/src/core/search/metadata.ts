@@ -4,12 +4,39 @@ import type { AnyRelations, TableRelationalConfig, SQL } from "drizzle-orm";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { InvocationIdentity } from "../server/auth/context";
 import type { SearchPublicNode } from "./public";
+import type { CompiledFullText } from "../schema/full-text";
 import type { SearchBudgets } from "./types";
 import * as v from "valibot";
+
+/** Shared private semantics for public capability hashes and ranked cursor binding. */
+export const fullTextSemantics = Object.freeze({
+  parser: "plain-v1",
+  rank: "ts_rank_cd",
+  normalization: 32,
+  weights: Object.freeze([0.1, 0.2, 0.4, 1]),
+  codec: "float4-bits-v1",
+  order: "rank-desc-id-asc",
+});
+
+type SearchInputIssueCode = "INVALID_SELECTION" | "QUERY_BUDGET_EXCEEDED";
+const inputIssueCodes = new WeakMap<readonly StandardSchemaV1.Issue[], SearchInputIssueCode>();
+
+/** Internal authority is the exact native issues array, never a serialized marker. */
+export function createSearchInputIssues(code: SearchInputIssueCode): readonly StandardSchemaV1.Issue[] {
+  const issues = [{ message: "Invalid search input" }];
+  inputIssueCodes.set(issues, code);
+  return issues;
+}
+
+/** Internal RPC seam; copied or third-party issues carry no search authority. */
+export function searchInputIssueCode(issues: readonly StandardSchemaV1.Issue[]) {
+  return inputIssueCodes.get(issues);
+}
 
 export interface RuntimeSearchScope {
   readonly name: string;
   readonly version: string;
+  readonly dependencies?: readonly string[];
   readonly where: (context: {
     readonly table: TableRelationalConfig["table"];
     readonly identity: InvocationIdentity | null;
@@ -17,6 +44,8 @@ export interface RuntimeSearchScope {
 }
 export interface SearchRuntimeNode {
   readonly entity: string;
+  /** Granted schema-owned documents, never serialized into browser metadata. */
+  readonly fullText?: CompiledFullText;
   readonly public: SearchPublicNode;
   readonly scope: "public" | RuntimeSearchScope;
   readonly through: Readonly<Record<string, "public" | RuntimeSearchScope>>;

@@ -7,8 +7,8 @@ import { startDevelopmentServer, developmentServerLimits } from "./server";
 import type { DevelopmentServerOptions } from "./server";
 import type { DevelopmentTarget } from "./target";
 import type { DevelopmentDatabaseProvider } from "./connection";
-import { watchDevelopment } from "./watcher";
-import type { DevelopmentCoordinatorOptions } from "./coordinator";
+import { watchDevelopment, watchDevelopmentWithOwnedOutput } from "./watcher";
+import type { DevelopmentCoordinatorOptions, DevelopmentRevision } from "./coordinator";
 import { createDevelopmentJobLoop, developmentJobInterval } from "./jobs";
 import { createDevelopmentCronLoop } from "./crons";
 
@@ -26,6 +26,23 @@ export interface ActiveDevelopmentGeneration {
 
 /** Owns the watcher and listener; initial or later failed edits remain observable and recover on the next save. */
 export async function startDevelopment(input: DevelopmentOptions, provider?: DevelopmentDatabaseProvider) {
+  return startDevelopmentInternal(input, provider);
+}
+
+/** Source-internal CLI ownership forwarding; absent from the public tooling barrel. */
+export async function startDevelopmentWithOwnedOutput(
+  input: DevelopmentOptions,
+  provider: DevelopmentDatabaseProvider | undefined,
+  ownedOutputPath: string,
+) {
+  return startDevelopmentInternal(input, provider, ownedOutputPath);
+}
+
+async function startDevelopmentInternal(
+  input: DevelopmentOptions,
+  provider?: DevelopmentDatabaseProvider,
+  ownedOutputPath?: string,
+) {
   const { port, maxConnections, debounceMs, jobPollMs, storageBackend, ...values } = input;
   const parsed = v.safeParse(v.omit(developmentRuntimeOptions, ["sourceVersion"]), values);
   const transport = v.safeParse(developmentServerLimits, { port, maxConnections });
@@ -45,97 +62,98 @@ export async function startDevelopment(input: DevelopmentOptions, provider?: Dev
   let stopping: Promise<void> | undefined;
   let background: ReturnType<typeof createDevelopmentJobLoop> | undefined;
   let cronBackground: ReturnType<typeof createDevelopmentCronLoop> | undefined;
-  const watcher = await watchDevelopment(
-    options.root,
-    async (revision) => {
-      if (fatal) throw fatal;
-      const candidate = await prepareProject(options.root);
-      revision.assertCurrent();
-      if (candidate.version === active?.version) return;
-      await synchronizeDevelopment(
-        {
-          root: options.root,
-          sourceVersion: candidate.version,
-          databaseName: options.databaseName,
-          migrationRole: options.migrationRole,
-          runtimeRole: options.runtimeRole,
-          signal: revision.signal,
-        },
-        provider,
-      );
-      revision.assertCurrent();
-      const started = await startDevelopmentRuntime(
-        { ...options, ...storage, sourceVersion: candidate.version, signal: revision.signal },
-        provider,
-      );
-      let transferred = false;
-      let runtime = started.runtime;
-      try {
-        const jobs = createDevelopmentJobLoop(started.runtime.worker, jobsInterval.output);
-        const crons = createDevelopmentCronLoop(started.cronSchedules, started.runtime.crons);
-        runtime = {
-          ...started.runtime,
-          async stop() {
-            jobs.halt();
-            crons.halt();
-            try {
-              await crons.stop();
-            } finally {
-              try {
-                await jobs.stop();
-              } finally {
-                await started.runtime.stop();
-              }
-            }
-          },
-        };
-        revision.assertCurrent();
-        const activated = () => {
-          background?.halt();
-          cronBackground?.halt();
-          background = jobs;
-          cronBackground = crons;
-          if (stopping) {
-            jobs.halt();
-            crons.halt();
-          } else {
-            jobs.start();
-            crons.start();
-          }
-          active = Object.freeze({ version: candidate.version, target: started.target });
-        };
-        if (server) {
-          transferred = true;
-          const result = await server.replace(runtime, revision.signal, async (install) => {
-            await activateProject(options.root, candidate.version, revision.signal, () => {
-              install();
-              activated();
-            });
-          });
-          if (!result.retired) {
-            fatal = new Error("Development retirement failed; restart development");
-            throw fatal;
-          }
-        } else {
-          transferred = true;
-          const initial = await startDevelopmentServer(runtime, transport.output);
-          let installed = false;
+  const update = async (revision: DevelopmentRevision) => {
+    if (fatal) throw fatal;
+    const candidate = await prepareProject(options.root);
+    revision.assertCurrent();
+    if (candidate.version === active?.version) return;
+    await synchronizeDevelopment(
+      {
+        root: options.root,
+        sourceVersion: candidate.version,
+        databaseName: options.databaseName,
+        migrationRole: options.migrationRole,
+        runtimeRole: options.runtimeRole,
+        signal: revision.signal,
+      },
+      provider,
+    );
+    revision.assertCurrent();
+    const started = await startDevelopmentRuntime(
+      { ...options, ...storage, sourceVersion: candidate.version, signal: revision.signal },
+      provider,
+    );
+    let transferred = false;
+    let runtime = started.runtime;
+    try {
+      const jobs = createDevelopmentJobLoop(started.runtime.worker, jobsInterval.output);
+      const crons = createDevelopmentCronLoop(started.cronSchedules, started.runtime.crons);
+      runtime = {
+        ...started.runtime,
+        async stop() {
+          jobs.halt();
+          crons.halt();
           try {
-            await activateProject(options.root, candidate.version, revision.signal, () => {
-              server = initial;
-              installed = true;
-              activated();
-            });
+            await crons.stop();
           } finally {
-            if (!installed) await initial.stop();
+            try {
+              await jobs.stop();
+            } finally {
+              await started.runtime.stop();
+            }
           }
+        },
+      };
+      revision.assertCurrent();
+      const activated = () => {
+        background?.halt();
+        cronBackground?.halt();
+        background = jobs;
+        cronBackground = crons;
+        if (stopping) {
+          jobs.halt();
+          crons.halt();
+        } else {
+          jobs.start();
+          crons.start();
         }
-      } finally {
-        if (!transferred) await runtime.stop();
+        active = Object.freeze({ version: candidate.version, target: started.target });
+      };
+      if (server) {
+        transferred = true;
+        const result = await server.replace(runtime, revision.signal, async (install) => {
+          await activateProject(options.root, candidate.version, revision.signal, () => {
+            install();
+            activated();
+          });
+        });
+        if (!result.retired) {
+          fatal = new Error("Development retirement failed; restart development");
+          throw fatal;
+        }
+      } else {
+        transferred = true;
+        const initial = await startDevelopmentServer(runtime, transport.output);
+        let installed = false;
+        try {
+          await activateProject(options.root, candidate.version, revision.signal, () => {
+            server = initial;
+            installed = true;
+            activated();
+          });
+        } finally {
+          if (!installed) await initial.stop();
+        }
       }
-    },
-    { debounceMs: debounce.output },
-  );
+    } finally {
+      if (!transferred) await runtime.stop();
+    }
+  };
+  const coordinatorOptions = { debounceMs: debounce.output };
+  const watcher =
+    ownedOutputPath === undefined
+      ? await watchDevelopment(options.root, update, coordinatorOptions)
+      : await watchDevelopmentWithOwnedOutput(options.root, update, coordinatorOptions, ownedOutputPath);
   return {
     get url(): URL | null {
       return server ? new URL(server.url) : null;

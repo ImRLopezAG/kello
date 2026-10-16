@@ -14,11 +14,12 @@ export function evaluateLiveSnapshot<Result>(target: symbol, work: () => Result)
 }
 
 export async function withLiveInvocation<Result>(
-  target: symbol,
   start: LiveInvocation["start"],
   work: () => Promise<Result>,
 ): Promise<Result> {
-  const scope: LiveInvocation = { snapshot: evaluation.getStore() === target, start, used: false };
+  // Nested generated live reads share the already-owned evaluation. They must
+  // not start a second subscription with unrelated transaction evidence.
+  const scope: LiveInvocation = { snapshot: evaluation.getStore() !== undefined, start, used: false };
   const result = await invocation.run(scope, work);
   if (scope.snapshot && !scope.used) throw new Error("Live reevaluation must return context.live's snapshot");
   return result;

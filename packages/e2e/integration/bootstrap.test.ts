@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "../../../apps/loom/src/tooling/migrations/bootstrap";
 import pg from "pg";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
@@ -14,6 +14,9 @@ test.skipIf(!connectionString)(
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     async function removeComponentMetadata() {
+      await admin.query(
+        `DROP TABLE IF EXISTS "${metadataNamespace}".rate_limit_buckets, "${metadataNamespace}".rate_limit_policies`,
+      );
       await admin.query(`DROP TABLE IF EXISTS "${metadataNamespace}".search_cursor_keys`);
       await admin.query(
         `ALTER TABLE IF EXISTS "${metadataNamespace}".storage_intents DROP COLUMN IF EXISTS owner_scope`,
@@ -57,6 +60,7 @@ test.skipIf(!connectionString)(
         { version: 25 },
         { version: 26 },
         { version: 27 },
+        { version: 28 },
       ]);
       const twentiethVersion = (
         await admin.query(

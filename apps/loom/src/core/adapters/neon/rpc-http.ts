@@ -1,11 +1,15 @@
 import { RPCHandler, BodyLimitPlugin } from "@orpc/server/fetch";
 import type { FetchHandler } from "@orpc/server/fetch";
+import type { StandardHandlerOptions } from "@orpc/server/standard";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import type { OpenAPIDocument } from "@orpc/openapi";
 import * as v from "valibot";
 import { ORPCError } from "@orpc/server";
+import { createORPCErrorFromJson } from "@orpc/client";
 import type { Router } from "@orpc/server";
 import { originPolicy } from "../../server/auth/policy";
+import { resolveTrustedLogin } from "../../server/auth/login";
+import type { TrustedLogin, TrustedLoginResolver } from "../../server/auth/login";
 import type { VerifiedSession } from "../../server/auth/verify";
 import type { createConnectionTickets } from "../../server/auth/tickets";
 import type { ProcedureContext } from "../../server/rpc/procedure";
@@ -15,12 +19,20 @@ import { readRequestBody, RequestBodyError } from "./request-body";
 import { abortable } from "./abortable";
 import { generateRpcOpenAPI } from "../../server/rpc/openapi";
 import { createHash } from "node:crypto";
+import {
+  composeInvocationSignals,
+  constrainInvocationDeadline,
+  timedInvocationSignal,
+} from "../../server/invocation-deadline";
 
 export interface RpcHttpOptions {
   readonly router: Router<ProcedureContext>;
   readonly version: string;
   readonly origins: readonly string[];
   readonly verify: (token: string) => Promise<VerifiedSession>;
+  /** Optional trusted store lookup after verification; never supplied by RPC input. */
+  readonly resolveLogin?: TrustedLoginResolver;
+  readonly liveQueries?: import("../../server/realtime/procedure").LiveQueryTarget;
   readonly tickets?: Pick<ReturnType<typeof createConnectionTickets>, "issue">;
   readonly allowAnonymous?: boolean;
   readonly maxRequestBytes?: number;
@@ -31,6 +43,7 @@ export interface RpcHttpOptions {
  * through this boundary or its CORS response handling. */
 export function createRpcHttpApp(options: RpcHttpOptions) {
   const handler = new RPCHandler(options.router, {
+    ...rateLimitInterceptors(),
     serializer: rpcTransportSerializer,
     allowMethods: ["POST"],
     errorStatusMap: rpcErrorStatusMap,
@@ -46,12 +59,68 @@ export async function createRpcOpenApiApp(options: Omit<RpcHttpOptions, "tickets
 }> {
   const document = await generateRpcOpenAPI(options.router);
   const handler = new OpenAPIHandler(options.router, {
+    ...rateLimitInterceptors(),
     errorStatusMap: rpcErrorStatusMap,
     plugins: [new BodyLimitPlugin({ maxBodySize: options.maxRequestBytes ?? 1_048_576 })],
   });
   return {
     ...createHttpIngress(options, handler, "/api/kello/openapi", ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]),
     document,
+  };
+}
+
+function rateLimitInterceptors(): Pick<
+  StandardHandlerOptions<ProcedureContext>,
+  "interceptors" | "routingInterceptors"
+> {
+  const retries = new WeakMap<ProcedureContext, string>();
+  const retryData = v.strictObject({
+    retryAfterMs: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(86_400_000)),
+  });
+  return {
+    interceptors: [
+      async ({ next, context }) => {
+        try {
+          return await next();
+        } catch (error) {
+          if (!(error instanceof ORPCError)) throw error;
+          if (error.code === "RATE_LIMIT_UNAVAILABLE") {
+            throw createORPCErrorFromJson({
+              code: "RATE_LIMIT_UNAVAILABLE",
+              message: "Rate limit unavailable",
+              data: undefined,
+              defined: error.defined,
+            });
+          }
+          if (error.code !== "RATE_LIMITED") throw error;
+          const parsed = v.safeParse(retryData, error.data);
+          if (!parsed.success) throw new ORPCError("INTERNAL_SERVER_ERROR");
+          retries.set(context, String(Math.max(1, Math.ceil(parsed.output.retryAfterMs / 1000))));
+          throw createORPCErrorFromJson({
+            code: "RATE_LIMITED",
+            message: "Rate limit exceeded",
+            data: parsed.output,
+            defined: error.defined,
+          });
+        }
+      },
+    ],
+    // StandardHandler catches interceptor errors and lets the native codec
+    // encode them before returning through this outer routing hook.
+    routingInterceptors: [
+      async ({ next, context }) => {
+        try {
+          const result = await next();
+          const retry = retries.get(context);
+          if (result.matched && result.response.status === 429 && retry !== undefined) {
+            result.response.headers["retry-after"] = retry;
+          }
+          return result;
+        } finally {
+          retries.delete(context);
+        }
+      },
+    ],
   };
 }
 
@@ -102,7 +171,10 @@ function createHttpIngress(
       if (ticket && !options.tickets) return fail("NOT_FOUND", 404);
       const origin = request.headers.get("origin");
       if (!allowed(origin) || (ticket && !origin)) return fail("FORBIDDEN", 403);
-      if (origin) headers.set("access-control-allow-origin", origin);
+      if (origin) {
+        headers.set("access-control-allow-origin", origin);
+        headers.set("access-control-expose-headers", "Retry-After");
+      }
       if (request.method === "OPTIONS") {
         const requested = (request.headers.get("access-control-request-headers") ?? "")
           .split(",")
@@ -125,12 +197,13 @@ function createHttpIngress(
         request.headers.get("x-loom-version") !== options.version
       )
         return fail("RPC_VERSION_MISMATCH", 409);
-      const deadline = AbortSignal.timeout(timeout);
-      let signal = AbortSignal.any([request.signal, deadline]);
+      const deadline = timedInvocationSignal(timeout);
+      let signal = composeInvocationSignals([request.signal, deadline]);
       try {
         signal.throwIfAborted();
         const authorization = request.headers.get("authorization");
         let session: VerifiedSession | null = null;
+        let login: TrustedLogin | undefined;
         if (authorization !== null) {
           const token = /^Bearer ([^\s]+)$/i.exec(authorization)?.[1];
           if (!token) return fail("UNAUTHORIZED", 401);
@@ -142,10 +215,24 @@ function createHttpIngress(
           }
           if (!Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now() / 1000)
             return fail("UNAUTHORIZED", 401);
-          signal = AbortSignal.any([
-            signal,
-            AbortSignal.timeout(Math.min(timeout, Math.max(1, Math.ceil(session.expiresAt * 1000 - Date.now())))),
-          ]);
+          const monotonic = performance.now();
+          const remaining = session.expiresAt * 1000 - Date.now();
+          const sessionSignal = timedInvocationSignal(Math.min(timeout, Math.max(1, Math.ceil(remaining))));
+          constrainInvocationDeadline(sessionSignal, monotonic + remaining);
+          signal = composeInvocationSignals([signal, sessionSignal]);
+          try {
+            login = await abortable(resolveTrustedLogin(options.resolveLogin, token, session, signal), signal);
+          } catch {
+            signal.throwIfAborted();
+            return fail("UNAUTHORIZED", 401);
+          }
+          if (login) {
+            const loginMonotonic = performance.now();
+            const loginRemaining = login.expiresAt * 1000 - Date.now();
+            const loginSignal = timedInvocationSignal(Math.min(timeout, Math.max(1, Math.ceil(loginRemaining))));
+            constrainInvocationDeadline(loginSignal, loginMonotonic + loginRemaining);
+            signal = composeInvocationSignals([signal, loginSignal]);
+          }
         } else if (!options.allowAnonymous || ticket || sessionRequest) return fail("UNAUTHORIZED", 401);
         signal.throwIfAborted();
         if (sessionRequest) {
@@ -157,10 +244,11 @@ function createHttpIngress(
                 session.identity.issuer,
                 session.identity.subject,
                 session.identity.tenantId ?? null,
+                ...(login ? [login.id] : []),
               ]),
             )
             .digest("hex");
-          return Response.json({ key, expiresAt: session.expiresAt }, { headers });
+          return Response.json({ key, expiresAt: login?.expiresAt ?? session.expiresAt }, { headers });
         }
         if (ticket) {
           if (!session || !origin || !options.tickets) return fail("UNAUTHORIZED", 401);
@@ -187,13 +275,16 @@ function createHttpIngress(
         if (body) init.body = body;
         const result = await handler.handle(new Request(request.url, init), {
           prefix,
-          context: () =>
-            rpcContext(
+          context: () => {
+            const context = rpcContext(
               session,
               signal,
               request.headers.get("idempotency-key") ?? undefined,
               request.headers.get("x-loom-operation") ?? undefined,
-            ),
+              login,
+            );
+            return options.liveQueries ? { ...context, liveQueries: options.liveQueries } : context;
+          },
         });
         signal.throwIfAborted();
         if (!result.matched) return fail("NOT_FOUND", 404);

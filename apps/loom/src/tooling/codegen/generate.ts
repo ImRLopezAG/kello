@@ -97,8 +97,14 @@ async function writeGeneration(project: LoadedProject): Promise<ProcedureManifes
   } catch (cause) {
     if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EEXIST") throw cause;
   }
-  const entrypoints = { api: "createClient", internal: "internal", service: "createService", worker: "createWorker" };
-  for (const [name, exported] of Object.entries(entrypoints)) {
+  const entrypoints = new Map([
+    ["api", "createClient"],
+    ["internal", "internal"],
+    ["service", "createService"],
+    ["worker", "createWorker"],
+  ]);
+  if ("react.js" in artifacts) entrypoints.set("react", "createClient");
+  for (const [name, exported] of entrypoints) {
     for (const extension of ["js", "d.ts"]) {
       const filename = join(generationRoot, `${name}.${extension}`);
       const content = `export * from "./current/${name}.js";\n`;

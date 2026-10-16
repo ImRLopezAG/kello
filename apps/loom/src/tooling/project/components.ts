@@ -6,7 +6,8 @@ import type { ComponentSourceScope } from "./component-references";
 import { readdir, lstat, realpath } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { getComponentPackage } from "kello/server";
-import type { ComponentGraph, ComponentPackageDescriptor } from "kello/server";
+import type { ComponentGraph } from "kello/server";
+import type { ComponentPackageDescriptor } from "../../core/server/components/package";
 import type { InferOutput } from "valibot";
 import type { moduleNamespace } from "../codegen/procedures";
 
@@ -121,6 +122,7 @@ export async function componentSourceScopes(
         relationsFile: descriptor.relations ? resolvePublished(descriptor.relations) : undefined,
         cronsFile: descriptor.crons ? resolvePublished(descriptor.crons) : undefined,
         storageFile: descriptor.storage ? resolvePublished(descriptor.storage) : undefined,
+        rateLimitsFile: descriptor.rateLimits ? resolvePublished(descriptor.rateLimits) : undefined,
         contractModules: descriptor.contracts.map((module) => ({
           file: resolvePublished(module.entry),
           path: module.path,
@@ -166,6 +168,7 @@ export async function componentSourceScopes(
       relationsFile: await optionalFile("relations.ts"),
       cronsFile: await optionalFile("crons.ts"),
       storageFile: await optionalFile("storage.ts"),
+      rateLimitsFile: await optionalFile("rate-limits.ts"),
       contractModules: contractFiles.map((file) => ({
         file,
         path: relative(join(directory, "contracts"), file).replaceAll("\\", "/"),
@@ -198,6 +201,7 @@ export { default as componentRelations${scope.index} } from ${JSON.stringify(com
 export { contract as componentContract${scope.index} } from ${JSON.stringify(componentVirtual(scope, "contracts"))};
 ${scope.cronsFile ? `export { default as componentCrons${scope.index} } from ${JSON.stringify(`loom-component-file:${scope.index}:${scope.cronsFile}`)};` : ""}
 ${scope.storageFile ? `export { default as componentStorage${scope.index} } from ${JSON.stringify(`loom-component-file:${scope.index}:${scope.storageFile}`)};` : ""}
+${scope.rateLimitsFile ? `export { default as componentRateLimits${scope.index} } from ${JSON.stringify(`loom-component-file:${scope.index}:${scope.rateLimitsFile}`)};` : ""}
 ${scope.procedureModules.map((module, index) => `export * as component${scope.index}Module${index} from ${JSON.stringify(`loom-component-file:${scope.index}:${module.file}`)};`).join("\n")}`,
     )
     .join("\n");

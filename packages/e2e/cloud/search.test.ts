@@ -27,13 +27,36 @@ const finiteSchema = v.strictObject({
   previousCursor: v.nullable(v.string()),
   count: v.string(),
 });
+const natural = v.pipe(v.number(), v.integer(), v.minValue(0));
+const metricsSchema = v.strictObject({
+  instance: v.pipe(v.string(), v.uuid()),
+  completedPolls: natural,
+  subscriptions: natural,
+  evaluating: natural,
+  queued: natural,
+  evaluations: v.strictObject({ watch: natural, broadWatch: natural, policyWatch: natural }),
+});
+type SearchMetrics = v.InferOutput<typeof metricsSchema>;
+const watchNames = ["watch", "broadWatch", "policyWatch"] as const;
+type WatchName = (typeof watchNames)[number];
+type LiveValues = Record<WatchName, JsonValue>;
+function equivalentWindow(parsed: v.InferOutput<typeof windowSchema>, expected: v.InferOutput<typeof windowSchema>) {
+  assert.deepEqual(parsed.pages, expected.pages);
+  assert.equal(parsed.count, expected.count);
+  // Each native procedure has its own cursor binding and issuance time.
+  assert.equal(parsed.nextCursor === null, expected.nextCursor === null);
+  assert.equal(parsed.previousCursor === null, expected.previousCursor === null);
+}
 // Browser messages are parsed at the test boundary; packed generation checks exact client types.
 declare global {
   interface Window {
     loomSearch: {
-      start(urls: string[], token: string, input: Readonly<Record<string, JsonValue>>): Promise<object[]>;
-      next(): Promise<object[]>;
-      errors(): Promise<string[]>;
+      start(urls: string[], token: string, input: Readonly<Record<string, JsonValue>>): Promise<LiveValues[]>;
+      next(names?: WatchName[]): Promise<Partial<LiveValues>[]>;
+      metrics(): Promise<SearchMetrics[]>;
+      barrier(markers: SearchMetrics[]): Promise<SearchMetrics[]>;
+      deliveries(): Record<WatchName, number>[];
+      errors(): Promise<Record<WatchName, string>[]>;
       stop(): Promise<void>;
     };
   }
@@ -214,6 +237,10 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       assert(a && b);
       stage = "seed relational oracle";
       await admin.query(`INSERT INTO "${namespace}".permissions(subject,allowed) VALUES ('alice',true),('bob',true)`);
+      await admin.query(
+        `INSERT INTO "${namespace}".declared_policy_permissions(subject,allowed) VALUES ('alice',true),('bob',true)`,
+      );
+      await admin.query(`INSERT INTO "${namespace}".unrelated(title) VALUES ('before')`);
       const organization = (
         await admin.query<{ _id: string }>(
           `INSERT INTO "${namespace}".organizations(name) VALUES ('organization') RETURNING _id`,
@@ -363,15 +390,39 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       await writeFile(
         entry,
         `import { createClient } from "./kello/_generated/api";
-const connections = [], streams = [];
+const connections = [], peers = [];
+const names = ["watch", "broadWatch", "policyWatch"];
+function observe(stream) {
+ const values = [], waiters = [], failures = [];
+ let deliveries = 0, failure;
+ const fail = code => { failure = code; for (const waiter of waiters.splice(0)) waiter.reject(new Error(code)); for (const resolve of failures.splice(0)) resolve(code); };
+ void (async () => {
+  try { for (;;) { const event = await stream.next(); if (event.done) { fail("STREAM_ENDED"); return; } deliveries++; const waiter = waiters.shift(); if (waiter) waiter.resolve(event.value); else values.push(event.value); } }
+  catch (error) { fail(error.code ?? "UNKNOWN"); }
+ })();
+ return {
+  next() { if (values.length) return Promise.resolve(values.shift()); if (failure) return Promise.reject(new Error(failure)); return new Promise((resolve, reject) => waiters.push({ resolve, reject })); },
+  error() { if (values.length) return Promise.resolve("UNEXPECTED_VALUE"); if (failure) return Promise.resolve(failure); return new Promise(resolve => failures.push(resolve)); },
+  deliveries: () => deliveries,
+  stream,
+ };
+}
 window.loomSearch = {
  async start(urls, token, input) {
-  for (const url of urls) { const connection = createClient({ url, getToken: async () => token }); connections.push(connection); streams.push(await connection.client.tasks.watch(input)); }
+  for (const url of urls) {
+   const connection = createClient({ url, getToken: async () => token }); connections.push(connection);
+   const peer = {};
+   for (const name of names) peer[name] = observe(await connection.client.tasks[name](input));
+   peers.push(peer);
+  }
   return this.next();
  },
- async next() { return Promise.all(streams.map(async stream => { const event = await stream.next(); if (event.done) throw new Error("Stream ended"); return event.value; })); },
- async errors() { return Promise.all(streams.map(async stream => { try { await stream.next(); return "NO_ERROR"; } catch(error) { return error.code; } })); },
- async stop() { for (const connection of connections) connection.dispose(); await Promise.allSettled(streams.map(async stream => { await stream.return?.(); })); }
+ async next(selected = names) { return Promise.all(peers.map(async peer => Object.fromEntries(await Promise.all(selected.map(async name => [name, await peer[name].next()]))))); },
+ async metrics() { return Promise.all(connections.map(connection => connection.client.tasks.metrics())); },
+ async barrier(markers) { return Promise.all(connections.map((connection, index) => connection.client.tasks.barrier({ instance: markers[index].instance, after: markers[index].completedPolls, expectedSubscriptions: 3 }))); },
+ deliveries() { return peers.map(peer => Object.fromEntries(names.map(name => [name, peer[name].deliveries()]))); },
+ async errors() { return Promise.all(peers.map(async peer => Object.fromEntries(await Promise.all(names.map(async name => [name, await peer[name].error()]))))); },
+ async stop() { for (const connection of connections) connection.dispose(); await Promise.allSettled(peers.flatMap(peer => names.map(async name => { await peer[name].stream.return?.(); }))); }
 };`,
       );
       const build = await Bun.build({ entrypoints: [entry], target: "browser", format: "esm" });
@@ -389,11 +440,19 @@ window.loomSearch = {
         }),
       );
       async function windows() {
-        return (await bounded(browserPage.evaluate(() => window.loomSearch.next()))).map((value) =>
-          v.parse(windowSchema, value),
-        );
+        return (await bounded(browserPage.evaluate(() => window.loomSearch.next()))).map((values) => {
+          const watch = v.parse(windowSchema, values.watch);
+          equivalentWindow(v.parse(windowSchema, values.broadWatch), watch);
+          equivalentWindow(v.parse(windowSchema, values.policyWatch), watch);
+          return watch;
+        });
       }
-      let current = initial.map((value) => v.parse(windowSchema, value));
+      let current = initial.map((values) => {
+        const watch = v.parse(windowSchema, values.watch);
+        equivalentWindow(v.parse(windowSchema, values.broadWatch), watch);
+        equivalentWindow(v.parse(windowSchema, values.policyWatch), watch);
+        return watch;
+      });
       for (const value of current)
         assert.deepEqual(
           value.pages.flat().map((row) => row.title),
@@ -423,13 +482,137 @@ window.loomSearch = {
         "external-child-commit",
         "external-junction-commit",
       );
+      stage = "same-peer selective completed-poll barriers";
+      const instances: string[] = [];
+      const selectiveEvidence: { check: string; before: SearchMetrics[]; after: SearchMetrics[] }[] = [];
+      async function metrics() {
+        const values = (await bounded(browserPage.evaluate(() => window.loomSearch.metrics()))).map((value) =>
+          v.parse(metricsSchema, value),
+        );
+        assert.equal(values.length, 2);
+        if (!instances.length) {
+          instances.push(...values.map((value) => value.instance));
+          assert.equal(new Set(instances).size, 2, "Hosted services must use distinct processes");
+        }
+        values.forEach((value, index) =>
+          assert.equal(value.instance, instances[index], "Same RPC peer changed isolate"),
+        );
+        return values;
+      }
+      async function completedPolls(markers: SearchMetrics[]) {
+        const values = (
+          await bounded(browserPage.evaluate((markers) => window.loomSearch.barrier(markers), markers))
+        ).map((value) => v.parse(metricsSchema, value));
+        assert.equal(values.length, 2);
+        values.forEach((value, index) => {
+          const marker = markers[index];
+          assert(marker);
+          assert.equal(value.instance, instances[index], "Barrier changed isolate");
+          assert.equal(value.subscriptions, 3);
+          assert.equal(value.evaluating, 0);
+          assert.equal(value.queued, 0);
+          assert(value.completedPolls >= marker.completedPolls + 2, "Post-commit completed ALL-poll barrier");
+        });
+        return values;
+      }
+      await completedPolls(await metrics());
+      const beforeUnrelated = await metrics();
+      const beforeDeliveries = await browserPage.evaluate(() => window.loomSearch.deliveries());
+      await admin.query(`UPDATE "${namespace}".unrelated SET title='after'`);
+      const afterUnrelated = await completedPolls(await metrics());
+      const broadValues = await bounded(browserPage.evaluate(() => window.loomSearch.next(["broadWatch"])));
+      const afterDeliveries = await browserPage.evaluate(() => window.loomSearch.deliveries());
+      for (let index = 0; index < 2; index++) {
+        const before = beforeUnrelated[index],
+          after = afterUnrelated[index];
+        const deliveriesBefore = beforeDeliveries[index],
+          deliveriesAfter = afterDeliveries[index];
+        assert(before && after && deliveriesBefore && deliveriesAfter);
+        assert.equal(after.evaluations.watch, before.evaluations.watch);
+        assert.equal(after.evaluations.policyWatch, before.evaluations.policyWatch);
+        assert.equal(after.evaluations.broadWatch, before.evaluations.broadWatch + 1);
+        assert.equal(deliveriesAfter.watch, deliveriesBefore.watch);
+        assert.equal(deliveriesAfter.policyWatch, deliveriesBefore.policyWatch);
+        assert.equal(deliveriesAfter.broadWatch, deliveriesBefore.broadWatch + 1);
+        const expected = current[index];
+        assert(expected);
+        equivalentWindow(v.parse(windowSchema, broadValues[index]?.broadWatch), expected);
+      }
+      selectiveEvidence.push({
+        check: "unrelated-skip-and-broad-rerun",
+        before: beforeUnrelated,
+        after: afterUnrelated,
+      });
+      checks.push(
+        "same-peer-instance-UUID-both-replicas",
+        "completed-ALL-poll-barrier-both-replicas",
+        "unrelated-skip-both-replicas",
+        "undeclared-control-rerun-both-replicas",
+      );
+      stage = "declared policy-only subquery dependency";
+      const beforePolicy = await metrics();
+      const policyDeliveries = await browserPage.evaluate(() => window.loomSearch.deliveries());
+      await admin.query(`UPDATE "${namespace}".declared_policy_permissions SET allowed=false WHERE subject='alice'`);
+      const afterPolicy = await completedPolls(await metrics());
+      const policyValues = await bounded(
+        browserPage.evaluate(() => window.loomSearch.next(["broadWatch", "policyWatch"])),
+      );
+      const afterPolicyDeliveries = await browserPage.evaluate(() => window.loomSearch.deliveries());
+      for (let index = 0; index < 2; index++) {
+        const before = beforePolicy[index],
+          after = afterPolicy[index];
+        const deliveriesBefore = policyDeliveries[index],
+          deliveriesAfter = afterPolicyDeliveries[index];
+        assert(before && after && deliveriesBefore && deliveriesAfter);
+        assert.equal(after.evaluations.watch, before.evaluations.watch);
+        assert.equal(after.evaluations.policyWatch, before.evaluations.policyWatch + 1);
+        assert.equal(after.evaluations.broadWatch, before.evaluations.broadWatch + 1);
+        assert.equal(deliveriesAfter.watch, deliveriesBefore.watch);
+        assert.equal(deliveriesAfter.policyWatch, deliveriesBefore.policyWatch + 1);
+        assert.equal(deliveriesAfter.broadWatch, deliveriesBefore.broadWatch + 1);
+        assert.deepEqual(v.parse(windowSchema, policyValues[index]?.policyWatch), {
+          pages: [],
+          nextCursor: null,
+          previousCursor: null,
+          count: "0",
+        });
+        const expected = current[index];
+        assert(expected);
+        equivalentWindow(v.parse(windowSchema, policyValues[index]?.broadWatch), expected);
+      }
+      selectiveEvidence.push({ check: "declared-policy-only-rerun", before: beforePolicy, after: afterPolicy });
+      checks.push("declared-policy-subquery-only-rerun-both-replicas");
+      stage = "same-connection permission-only revocation";
+      const beforeRevocation = await metrics();
+      const revocationDeliveries = await browserPage.evaluate(() => window.loomSearch.deliveries());
       await admin.query(`UPDATE "${namespace}".permissions SET allowed=false WHERE subject='alice'`);
-      assert.deepEqual(await bounded(browserPage.evaluate(() => window.loomSearch.errors())), [
-        "FORBIDDEN",
-        "FORBIDDEN",
-      ]);
+      const errors = await bounded(browserPage.evaluate(() => window.loomSearch.errors()));
+      assert.equal(errors.length, 2);
+      for (const error of errors)
+        assert.deepEqual(error, { watch: "FORBIDDEN", broadWatch: "FORBIDDEN", policyWatch: "FORBIDDEN" });
+      const afterRevocation = await metrics();
+      assert.deepEqual(
+        await browserPage.evaluate(() => window.loomSearch.deliveries()),
+        revocationDeliveries,
+        "No unauthorized new publication",
+      );
+      afterRevocation.forEach((value, index) =>
+        assert.deepEqual(
+          value.evaluations,
+          beforeRevocation[index]?.evaluations,
+          "Revocation must fail before authored handlers",
+        ),
+      );
+      selectiveEvidence.push({
+        check: "same-connection-permission-revocation",
+        before: beforeRevocation,
+        after: afterRevocation,
+      });
       await browserPage.evaluate(() => window.loomSearch.stop());
-      checks.push("authorization-only-revocation-both-replicas");
+      checks.push(
+        "authorization-only-revocation-both-replicas",
+        "same-connection-revocation-no-unauthorized-event-both-replicas",
+      );
       stage = "representative hosted performance";
       const performanceToken = await issuer.token("performance", "loom-acceptance", "30m");
       const performanceEvidence = await measureSearchPerformance({
@@ -480,6 +663,7 @@ window.loomSearch = {
             timings,
             explain,
             performanceEvidence,
+            selectiveEvidence,
             namespace,
             metadataNamespace,
           },

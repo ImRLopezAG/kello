@@ -51,8 +51,9 @@ export async function withMigrationConnection<T>(
     connectionTimeoutMillis: 5000,
     application_name: "loom-migrations",
   });
-  client.on("error", () => channel("kello.migrations.connection_error").publish({ code: "CONNECTION_LOST" }));
+  let result: T;
   try {
+    client.on("error", () => channel("kello.migrations.connection_error").publish({ code: "CONNECTION_LOST" }));
     await client.connect();
     const version = await client.query<{ server_version_num: string }>("SHOW server_version_num");
     if (Math.floor(Number(version.rows[0]?.server_version_num) / 10000) !== 18)
@@ -61,9 +62,35 @@ export async function withMigrationConnection<T>(
     await client.query("SET statement_timeout = '60s'");
     await client.query("SET search_path = pg_catalog");
     ownedConnections.add(client);
-    return await operation(client);
-  } finally {
+    result = await operation(client);
+  } catch (error) {
     ownedConnections.delete(client);
-    await client.end();
+    try {
+      await client.end();
+    } catch {
+      // Preserve the original connection or migration failure when cleanup also fails.
+    }
+    throw error;
   }
+  ownedConnections.delete(client);
+  await client.end();
+  return result;
+}
+
+/** Caller owns the outer transaction. Rollback restores SET LOCAL on failure. */
+export async function withBlockingGinTimeout<T>(
+  client: pg.Client,
+  statementTimeoutMs: number,
+  operation: () => Promise<T>,
+): Promise<T> {
+  assertMigrationConnection(client);
+  if (!Number.isSafeInteger(statementTimeoutMs) || statementTimeoutMs < 1 || statementTimeoutMs > 900000)
+    throw new Error("Blocking GIN statement timeout must be an integer in 1..900000 ms");
+  const setting = await client.query<{ timeout: string }>("SELECT current_setting('statement_timeout') AS timeout");
+  const previous = setting.rows[0]?.timeout;
+  if (previous === undefined) throw new Error("Missing PostgreSQL statement timeout");
+  await client.query("SELECT set_config('statement_timeout', $1, true)", [`${statementTimeoutMs}ms`]);
+  const result = await operation();
+  await client.query("SELECT set_config('statement_timeout', $1, true)", [previous]);
+  return result;
 }

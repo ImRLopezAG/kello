@@ -22,7 +22,7 @@ export interface RevisionCoordinatorOptions {
 }
 interface Subscription {
   readonly session: { readonly expiresAt: number };
-  readonly execute: (signal: AbortSignal) => Promise<TableRevisions>;
+  readonly execute: (signal: AbortSignal, polled: TableRevisions) => Promise<TableRevisions>;
   readonly close: RevisionSubscription<never>["close"];
   readonly controller: AbortController;
   expiry?: ReturnType<typeof setTimeout>;
@@ -33,11 +33,14 @@ interface Subscription {
 function changed(before: TableRevisions | undefined, after: TableRevisions): boolean {
   return !before || Object.entries(before).some(([table, revision]) => after[table] !== revision);
 }
+function missing(captured: TableRevisions, polled: TableRevisions): boolean {
+  return Object.keys(captured).some((table) => !Object.hasOwn(polled, table));
+}
 function bounded(value: number, maximum: number): boolean {
   return Number.isInteger(value) && value >= 1 && value <= maximum;
 }
 
-/** One instance per active isolate/generation. All subscriptions share its conservative table set. */
+/** One instance per active isolate/generation. One all-revision poll serves each subscription's captured keys. */
 export function createRevisionCoordinator(options: RevisionCoordinatorOptions) {
   const { readRevisions } = options;
   const interval = options.intervalMs ?? 1000;
@@ -133,7 +136,13 @@ export function createRevisionCoordinator(options: RevisionCoordinatorOptions) {
       return;
     }
     if (stopped) return;
-    const queue = [...subscriptions].filter((subscription) => changed(subscription.revisions, revisions));
+    const queue = [...subscriptions].filter((subscription) => {
+      if (subscription.revisions && missing(subscription.revisions, revisions)) {
+        close(subscription, "RESYNC_REQUIRED");
+        return false;
+      }
+      return changed(subscription.revisions, revisions);
+    });
     queued = queue.length;
     report();
     let next = 0;
@@ -147,7 +156,7 @@ export function createRevisionCoordinator(options: RevisionCoordinatorOptions) {
         evaluating++;
         report();
         try {
-          subscription.running = subscription.execute(subscription.controller.signal);
+          subscription.running = subscription.execute(subscription.controller.signal, revisions);
           const evaluated = await subscription.running;
           if (active(subscription)) subscription.revisions = Object.freeze({ ...evaluated });
         } catch (error) {
@@ -190,9 +199,12 @@ export function createRevisionCoordinator(options: RevisionCoordinatorOptions) {
       const subscription: Subscription = {
         session: structuredClone(verifiedSession),
         close: sink.close,
-        execute: async (signal) => {
+        execute: async (signal, polled) => {
           const result = await sink.evaluate(signal);
-          if (active(subscription) && !sink.publish(result.value)) close(subscription, "RESYNC_REQUIRED");
+          if (active(subscription)) {
+            if (missing(result.revisions, polled) || !sink.publish(result.value))
+              close(subscription, "RESYNC_REQUIRED");
+          }
           return result.revisions;
         },
         controller: new AbortController(),

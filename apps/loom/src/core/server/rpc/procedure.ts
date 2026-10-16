@@ -1,4 +1,5 @@
 import "@orpc/experimental-effect/extensions/effect";
+import "../realtime/procedure";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { channel } from "node:diagnostics_channel";
 import type { ErrorMap } from "@orpc/server";
@@ -29,9 +30,17 @@ import type { SearchValidators } from "../../search/contract";
 import { isNativeRelations, validateSchemaRelations } from "../database/relations";
 import { createSearchContext } from "../../search/executor";
 import type { SearchContext } from "../../search/executor";
+import { RateLimitExceeded, RateLimitUnavailable } from "../rate-limits/errors";
+import { RateLimits, invocationRateLimits } from "../rate-limits/service";
+import { searchInputIssueCode } from "../../search/metadata";
+import { searchErrors } from "../../search/errors";
 
 /** Server invocation context extended with Effect services and transport hints. Treat operation hints as untrusted and authorize using verified identity. */
 export interface ProcedureContext extends InvocationContext, WithEffectContext<Invocation> {
+  /** Trusted HTTP session-store generation, absent for unsupported transports. */
+  readonly login?: import("../auth/login").TrustedLogin;
+  /** Server-owned Neon issuance configuration, never accepted from RPC input. */
+  readonly liveQueries?: import("../realtime/procedure").LiveQueryTarget;
   /** Untrusted client intent; never authentication or authorization evidence. */
   readonly operation?: OperationType | "call";
   readonly idempotencyKey?: string;
@@ -42,13 +51,29 @@ const failures = channel("kello.procedure.failure");
 const observation = new AsyncLocalStorage<boolean>();
 
 async function publicError(cause: unknown, errorMap: ErrorMap) {
+  if (cause instanceof RateLimitExceeded)
+    return new ORPCError("RATE_LIMITED", {
+      message: "Rate limit exceeded",
+      data: { retryAfterMs: cause.retryAfterMs },
+    });
+  if (cause instanceof RateLimitUnavailable)
+    return new ORPCError("RATE_LIMIT_UNAVAILABLE", { message: "Rate limit unavailable" });
   if (cause instanceof RpcReplayVersionError)
     return new ORPCError("RPC_VERSION_MISMATCH", { message: "RPC replay protocol mismatch" });
   if (cause instanceof IdempotencyError) return new ORPCError(cause.code, { message: cause.code });
   if (cause instanceof TransactionConflictError) return new ORPCError("CONFLICT", { message: "Transaction conflict" });
   if (cause instanceof ORPCError) {
-    if (cause.cause instanceof ValidationError && cause.code === "BAD_REQUEST")
+    if (cause.cause instanceof ValidationError && cause.code === "BAD_REQUEST") {
+      const code = searchInputIssueCode(cause.cause.issues);
+      if (code) {
+        const declared = await reconcileORPCError(
+          errorMap,
+          new ORPCError(code, { message: searchErrors[code].message }),
+        );
+        if (declared.defined) return declared;
+      }
       return new ORPCError("BAD_REQUEST", { message: "Invalid input" });
+    }
     const declared = await reconcileORPCError(errorMap, cause);
     if (declared.defined) return declared;
   }
@@ -133,12 +158,14 @@ function projectContext<Schema extends ProjectSchema, Relations extends AnyRelat
       context: {
         ...bindings,
         storage: invocationStorage(),
+        rateLimits: invocationRateLimits(),
         "effect/wrap": redactDefects,
         "effect/context": context["effect/context"].pipe(
           Context.add(Tables, schema.tables),
           Context.add(Validators, bindings.validators.tables),
           Context.add(Diagnostics, publishRuntimeMetric),
           Context.add(Storage, invocationStorage()),
+          Context.add(RateLimits, invocationRateLimits()),
         ),
       },
     }),
@@ -174,6 +201,10 @@ function projectProcedures<Schema extends ProjectSchema, Relations extends AnyRe
       UNAUTHORIZED: {},
       FORBIDDEN: {},
       STORAGE_UNAVAILABLE: {},
+      RATE_LIMITED: {
+        data: v.strictObject({ retryAfterMs: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(86_400_000)) }),
+      },
+      RATE_LIMIT_UNAVAILABLE: {},
     })
     .use(rpcErrorBoundary)
     .use(middleware);

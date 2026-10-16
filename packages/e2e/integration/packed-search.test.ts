@@ -33,8 +33,8 @@ test("packed generated search-shaped contracts expose the native dependent-outpu
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
-          "@orpc/tanstack-query": "2.0.0-beta.41",
-          "@tanstack/react-query": "5.104.0",
+          "@orpc/tanstack-query": "2.0.0-beta.43",
+          "@tanstack/react-query": "5.104.3",
           "drizzle-orm": "1.0.0-rc.4",
           valibot: "1.5.0",
           react: "19.3.0",
@@ -54,9 +54,19 @@ await saveResolvedProject("./app", {
 `,
     );
     await succeed(["bun", "initialize.mjs"]);
-    const source = (
-      await readFile(new URL("../../tests/types/search-contracts.test-d.ts", import.meta.url), "utf8")
-    ).replace(/^const contract = resolveContract\(.*\);\n/m, "");
+    const internalSource = await readFile(
+      new URL("../../tests/types/search-contracts.test-d.ts", import.meta.url),
+      "utf8",
+    );
+    // The appended policy-authoring probe uses the internal schema fixture;
+    // this consumer retains the complete native projection-gap probe preceding it.
+    const policyBoundary = '\nimport { createProjectContext } from "../../../apps/loom/src/core/server/rpc/procedure";';
+    assert.equal(internalSource.split(policyBoundary).length, 2, "one internal policy probe boundary is required");
+    const source = internalSource
+      .split(policyBoundary)[0]!
+      .replaceAll(/from "\.\.\/\.\.\/\.\.\/apps\/loom\/src\/core\/(server|client|contract)\/index"/g, 'from "kello/$1"')
+      .replace(/^const contract = resolveContract\(.*\);\n/m, "");
+    assert.doesNotMatch(source, /apps\/loom\/src/, "packed consumer must use public package imports");
     const boundary = "declare const client: RouterContractClient<typeof contract>;";
     assert.equal(source.split(boundary).length, 2, "proof must have one generated-client substitution point");
     await writeFile(

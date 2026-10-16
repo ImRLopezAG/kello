@@ -32,6 +32,11 @@ const poolErrors = channel("kello.database.pool.error");
 const invocation = new AsyncLocalStorage<{ active: boolean }>();
 const transactionSignal = new AsyncLocalStorage<AbortSignal>();
 
+/** Detect transaction ownership without exposing a capability or its token. */
+export function hasDatabaseInvocation(): boolean {
+  return invocation.getStore() !== undefined;
+}
+
 /** Carry cancellation to the native connection without changing Drizzle's API. */
 export function withTransactionSignal<Result>(signal: AbortSignal | undefined, work: () => Result): Result {
   return signal ? transactionSignal.run(signal, work) : work();

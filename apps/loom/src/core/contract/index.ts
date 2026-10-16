@@ -1,4 +1,6 @@
 import { searchContractDescriptor } from "../search/metadata";
+import "../realtime/contract";
+export { liveQueryRows } from "../realtime/contract";
 export { searchErrors } from "../search/errors";
 import { ProcedureContract } from "@orpc/contract";
 import type { RouterContract } from "@orpc/contract";

@@ -29,6 +29,98 @@ Invalid source, unsafe changes or failed startup preserve the prior serving gene
 
 Old requests drain through their generation, and old sockets close so clients can reconnect. SIGINT and SIGTERM stop admission and drain owned work. Use [release migrations](/operations/migrations) for changes that development synchronization refuses.
 
+## Local diagnostics
+
+Diagnostics are opt-in on `kello dev`. The runtime, jobs and HTTP/WebSocket listener run in that CLI process; one session observes them across generation replacements. It cannot see credential/link helper children, separately launched applications, other CLI invocations or remote isolates. These measurements describe local observations, not fleet health, provider acceptance or an end-user SLA.
+
+```sh
+kello dev --cwd ./project --diagnostics text
+kello dev --cwd ./project --diagnostics jsonl --diagnostics-file ./diagnostics.jsonl
+```
+
+Text lines go to stderr; stdout lifecycle output is unchanged. JSONL requires `--diagnostics-file`, and that option requires JSONL. `--json` independently controls lifecycle messages. These options are unavailable on `dev quarantine` and other commands; invalid combinations return `USAGE`, exit 2, before development starts.
+
+The file path resolves against `--cwd`. Kello creates it exclusively with mode `0600`: existing files and symlinks fail with `DIAGNOSTICS_OUTPUT_UNAVAILABLE`, exit 2. Parent directories must already exist. The file contains only event records, with no lifecycle messages or project console output. Kello closes its owned handle on exit; already submitted I/O may settle later, with `DIAGNOSTICS_OUTPUT_CLOSE_PENDING` reported on stderr when closure remains pending. There is no append, overwrite, rotation or automatic upload. You own retention and deletion; operational timing data can still be sensitive.
+
+Each line is a `DiagnosticsRecord` from `kello/tooling`, with `schemaVersion: 1`, `scope: "local-process"`, session-monotonic `sequence`, UTC ISO `timestamp`, `source` and `event`. For example:
+
+```json
+{
+  "schemaVersion": 1,
+  "scope": "local-process",
+  "sequence": 1,
+  "timestamp": "2026-10-07T00:00:00.000Z",
+  "source": "runtime",
+  "event": { "type": "rpc.procedure", "mode": "finite", "status": "success", "durationMs": 7 }
+}
+```
+
+Sources are `runtime`, `deployment` and `diagnostics`. Only approved primitive event fields are copied; unknown variants and malformed fields are rejected, and extras are stripped. Records exclude identities, function/job/table names, arguments, SQL, credentials, paths, endpoint URLs and raw errors.
+
+RPC durations overlap with nested revision reads and pool acquisition; do not sum them. A live RPC success ends at initial iterator construction and excludes stream lifetime and later iteration errors. Pool counts are samples at acquisition completion, and acquisition duration includes connection establishment as well as waiting. Job age and due lag sample successful claims, not every pending job. Realtime state has no pool/generation identity. Release acknowledgements describe receipt writes only, and a separate deployment process is outside this session. See [operating limits](/operations/limits) for the broader acceptance boundary.
+
+Output is best effort: ingress holds 1,024 records, output holds 256, lines are limited to 2 KiB, and each drain processes at most 64 records before yielding. Overflow drops newest records. `diagnostics.loss` reports cumulative `accepted`, `invalid`, `dropped`, `outputFailures` and `exportFailures` counters at most once per second when loss changes. Accepted means admitted, not delivered; dropped can include both sink loss and refused metric accumulation. Loss records can themselves be lost. A writer failure disables local output while enabled metrics continue.
+
+SIGINT/SIGTERM drain development first, then stop diagnostics. Diagnostics cleanup has its own 2-second budget, which does not bound development/database shutdown. Stop forbids new writer calls immediately, aborts the writer signal and discards queued local output; it does not emit a final loss line or revoke already submitted OS writes. Abrupt process loss can lose data. Omit the flags on the next launch to opt out; existing files remain yours to delete.
+
+## Export metrics explicitly
+
+`--telemetry otlp` enables OTLP/HTTP JSON metrics independently of local output. Environment variables alone never enable it:
+
+```sh
+KELLO_TELEMETRY_ENDPOINT=http://127.0.0.1:4318/v1/metrics \
+  kello dev --cwd ./project --telemetry otlp
+```
+
+Supply the complete metrics URL, including a nonempty path. HTTPS is supported; HTTP is allowed only for literal `127.0.0.1` or `[::1]`, not `localhost` or alternate numeric spellings. Userinfo, query strings and fragments are rejected. Kello preserves the path and does not follow redirects. Invalid configuration returns fixed `TELEMETRY_CONFIG_INVALID`, exit 2, before project/provider startup, without echoing values.
+
+For authentication, set `KELLO_TELEMETRY_BEARER_TOKEN` through your shell or secret manager. It is sent only as an Authorization header to the configured endpoint and is not exposed in records or errors. There is no token flag or credential fallback. Generic `OTEL_*` variables, including endpoints, headers and resource attributes, are ignored. Configure collector authentication, access and retention yourself.
+
+The private registry exports cumulative counters and millisecond histograms: RPC/read/acquisition counts and durations, additional transaction attempts, job claims/age/due lag, terminal lease cleanup/loss, receipt acknowledgements and diagnostics loss. The fixed baseline is 68 instrument/attribute series (54 counters, 14 histograms); ceilings are 128 series and 128 KiB per request. Labels use finite modes, statuses, kinds, recovered flags, stages and reasons. Realtime state, pool counts, table counts and attempt numbers stay local. There are no logs, traces or ambient global metrics.
+
+The resource contains only `service.name="kello-dev"`, package `service.version`, `deployment.environment.name="development"` and a random per-session `service.instance.id`. These identities separate cumulative sessions; they do not cap collector-wide cardinality or identify a project/fleet.
+
+Attempts run every 10 seconds, with one request in flight, no catch-up queue and no per-batch retry. Requests have a 1-second deadline including serialization and response consumption; responses are limited to 16 KiB. Redirects, invalid/rejected responses and error-bearing partial success increment export failures without printing response contents. Admitted measurements remain in the next cumulative snapshot after failure; dropped observations are unrecoverable. Loss reasons are `invalid`, `ingress_queue`, `output_queue`, `output` and `export`. After valid startup, sink/export failures do not change application exit behavior.
+
+Stop can attempt a final cumulative export within the same 2-second diagnostics cleanup budget. There is no disk spool or delivery guarantee; local collection does not establish hosted retention or provider acceptance. Remove `--telemetry otlp` to opt out. Without either diagnostics or telemetry flags, Kello starts no diagnostics session, sink or export timer. Opt-out needs no migration or provider-resource cleanup.
+
+## Programmatic diagnostics
+
+Use the public server-side `kello/tooling` entrypoint under Bun or Node 24. At least one output or telemetry sink is required, and only one session may be active per JavaScript realm, including duplicate package instances. A competing start rejects with `DIAGNOSTICS_ALREADY_ACTIVE`. The API observes its caller's process; it is not a browser API or a remote attach command.
+
+```ts
+import { open } from "node:fs/promises";
+import { startDiagnostics } from "kello/tooling";
+import type { DiagnosticsOptions, DiagnosticsSession } from "kello/tooling";
+
+const file = await open("./diagnostics.jsonl", "wx", 0o600);
+const options: DiagnosticsOptions = {
+  output: {
+    format: "jsonl",
+    async write(chunk, signal) {
+      signal.throwIfAborted();
+      await file.writeFile(chunk);
+      signal.throwIfAborted();
+    },
+  },
+};
+let session: DiagnosticsSession | undefined;
+try {
+  session = await startDiagnostics(options);
+  // Run your server-side workload here while the session is active.
+  console.error(session.snapshot());
+} finally {
+  await session?.stop();
+  await file.close(); // Caller-owned I/O cleanup can outlast session.stop().
+}
+```
+
+For programmatic export, replace or supplement `output` with `telemetry: { protocol: "otlp-http-json", endpoint: "http://127.0.0.1:4318/v1/metrics" }`, optionally supplying `bearerToken`. Programmatic configuration uses these explicit options, not CLI environment discovery. `DiagnosticsRecord`, `DiagnosticsStats`, `DiagnosticsRuntimeEvent` and `DiagnosticsDeploymentEvent` are also public type exports.
+
+Writers receive `(chunk: string, signal: AbortSignal)` and return `void` or `Promise<void>`. Return promptly and cooperate with cancellation before deferred writes. The example checks cancellation around an OS write but cannot undo bytes already submitted. `stop()` is idempotent and prevents new calls synchronously; pending caller-owned work can outlive bounded adapter cleanup. Use `snapshot()` for final loss statistics because stop writes no final local record.
+
+Returned promises must allow standard settlement observers to attach. Promise subclasses, constructor getters and reentrancy are supported when observation remains possible. Deliberately sabotaged constructor/species/then behavior that prevents observation is unsupported; a later unhandled rejection remains the caller's risk. The adapter does not mutate promises or install global exception/rejection handlers.
+
 ## Jobs, crons and storage
 
 Published generations poll durable jobs; the default interval is 1000 milliseconds. Local crons evaluate UTC schedules without replaying missed minutes. Replacement stops old background loops before starting the new generation's loops.

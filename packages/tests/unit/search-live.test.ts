@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { createSearchValidators } from "../../../apps/loom/src/core/search/contract";
 import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
 import { prepareSearchPage, finishSearchPage } from "../../../apps/loom/src/core/search/pagination";
-import { oc } from "kello/contract";
+import { oc } from "../../../apps/loom/src/core/contract/index";
 import { searchSchema, searchRelations } from "../fixtures/search-schema";
 
 const validators = createSearchValidators(searchSchema, searchRelations);

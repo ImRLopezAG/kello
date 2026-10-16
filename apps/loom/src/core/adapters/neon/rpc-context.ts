@@ -3,6 +3,8 @@ import { Context } from "effect";
 import * as v from "valibot";
 import { Invocation } from "../../server/effect/runtime";
 import type { ProcedureContext } from "../../server/rpc/procedure";
+import { captureTrustedLogin } from "../../server/auth/login";
+import type { TrustedLogin } from "../../server/auth/login";
 import type { VerifiedSession } from "../../server/auth/verify";
 
 export { rpcErrorStatusMap } from "../../server/rpc/error-status";
@@ -17,9 +19,18 @@ export function rpcContext(
   signal: AbortSignal,
   idempotencyKey: string | readonly string[] | undefined,
   operation?: string | readonly string[],
+  login?: TrustedLogin,
 ): ProcedureContext {
   signal.throwIfAborted();
   if (session && session.expiresAt <= Date.now() / 1000) throw new ORPCError("UNAUTHORIZED");
+  if (login && !session) throw new ORPCError("UNAUTHORIZED");
+  let capturedLogin: TrustedLogin | undefined;
+  try {
+    capturedLogin = login && session ? captureTrustedLogin(session, login, signal) : undefined;
+  } catch {
+    signal.throwIfAborted();
+    throw new ORPCError("UNAUTHORIZED");
+  }
   const key = v.safeParse(v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(128))), idempotencyKey);
   if (!key.success) throw new ORPCError("INVALID_IDEMPOTENCY_KEY");
   const intent = v.safeParse(
@@ -32,11 +43,12 @@ export function rpcContext(
     requestId: crypto.randomUUID(),
     signal,
   });
-  const context = {
+  const context: ProcedureContext = {
     ...invocation,
     operation: intent.output,
-    expiresAt: session?.expiresAt ?? Math.floor(Date.now() / 1000) + 120,
+    expiresAt: capturedLogin?.expiresAt ?? session?.expiresAt ?? Math.floor(Date.now() / 1000) + 120,
     "effect/context": Context.make(Invocation, invocation),
   };
-  return key.output === undefined ? context : { ...context, idempotencyKey: key.output };
+  const authenticated = capturedLogin ? { ...context, login: capturedLogin } : context;
+  return key.output === undefined ? authenticated : { ...authenticated, idempotencyKey: key.output };
 }

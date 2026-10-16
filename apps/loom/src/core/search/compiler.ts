@@ -27,12 +27,19 @@ import type { InvocationIdentity } from "../server/auth/context";
 import type { SearchRuntimeDescriptor, SearchRuntimeNode, RuntimeSearchScope } from "./metadata";
 import type { SearchPublicSelection, SearchPublicFilter } from "./public";
 import { validSearchSelection, selectedColumns, searchRecord } from "./public";
+import { fullTextExpressions, fullTextBudgetExceeded } from "./full-text";
+import type { ResolvedFullText } from "./full-text";
 
 export interface CompiledSearch {
   readonly config: SearchQueryConfig;
   /** The same authorized root predicate is used for rows and optional count. */
   readonly where: (table: TableRelationalConfig["table"]) => SQL;
   readonly dependencies: ReadonlySet<string>;
+  /** Private live evidence: consume only after lazy row and count SQL has executed. */
+  readonly dependencyEvidence: {
+    readonly dependencies: ReadonlySet<string>;
+    readonly complete: boolean;
+  };
 }
 export interface SearchQueryConfig {
   readonly columns: Record<string, boolean>;
@@ -124,9 +131,28 @@ export function compileSearch(
   descriptor: SearchRuntimeDescriptor,
   input: SearchPublicSelection,
   identity: InvocationIdentity | null,
+  fullText?: ResolvedFullText,
 ): CompiledSearch {
-  if (!validSearchSelection(descriptor.node.public, input)) throw new ORPCError("INVALID_SELECTION");
+  if (!validSearchSelection(descriptor.node.public, input, fullTextBudgetExceeded))
+    throw new ORPCError("INVALID_SELECTION");
+  if (Boolean(input.fullText) !== Boolean(fullText)) throw new Error("Full-text search requires parser preflight");
+  if (fullText && (input.fullText?.document !== fullText.name || input.fullText.query !== fullText.raw))
+    throw new Error("Full-text preflight belongs to a different query");
   const dependencies = new Set<string>([descriptor.entity]);
+  let complete = true;
+  const dependencyEvidence = {
+    dependencies,
+    get complete() {
+      return complete;
+    },
+  };
+  function policyScope(value: "public" | RuntimeSearchScope, source: TableRelationalConfig["table"]): SQL {
+    if (value !== "public") {
+      if (value.dependencies === undefined) complete = false;
+      else for (const name of value.dependencies) dependencies.add(name);
+    }
+    return scope(value, source, identity);
+  }
   const tableNames = new Map(Object.entries(descriptor.graph).map(([name, config]) => [config.table, name]));
   function configNode(node: SearchRuntimeNode) {
     const value = descriptor.graph[node.entity];
@@ -172,7 +198,7 @@ export function compileSearch(
       filter: SearchPublicFilter | undefined,
     ): SQL {
       dependencies.add(node.entity);
-      const predicates = [scope(node.scope, source, identity)];
+      const predicates = [policyScope(node.scope, source)];
       for (const [name, condition] of Object.entries(filter === undefined ? {} : record(filter))) {
         if (condition === undefined) continue;
         if (name === "AND" || name === "OR") {
@@ -200,7 +226,7 @@ export function compileSearch(
               const match = combine([
                 ...(joins.filter ? [joins.filter] : []),
                 visit(child, target, record(childFilter)),
-                ...(through && throughTable ? [scope(through.policy, throughTable, identity)] : []),
+                ...(through && throughTable ? [policyScope(through.policy, throughTable)] : []),
               ]);
               const join = throughTable
                 ? sql`inner join ${getTableAsAliasSQL(throughTable)} on ${joins.joinCondition}`
@@ -243,10 +269,11 @@ export function compileSearch(
       where: {
         RAW: (source) => {
           const predicates = [predicate(node, source, selection.where)];
+          if (depth === 0 && fullText) predicates.push(fullTextExpressions(source, fullText).match);
           if (incoming?.relation.throughTable) {
             const through = junction(incoming.node, incoming.relation);
             // Pinned Drizzle RQB v2 uses tr{parentDepth} for its exact joined junction.
-            predicates.push(scope(through.policy, alias(through.table, `tr${depth - 1}`), identity));
+            predicates.push(policyScope(through.policy, alias(through.table, `tr${depth - 1}`)));
           }
           return combine(predicates);
         },
@@ -266,7 +293,10 @@ export function compileSearch(
         Math.min(depth ? 20 : 50, depth ? descriptor.budgets.nestedSize : descriptor.budgets.pageSize),
     };
   }
-  const where = (source: TableRelationalConfig["table"]) => predicate(descriptor.node, source, input.where);
+  const where = (source: TableRelationalConfig["table"]) =>
+    fullText
+      ? combine([predicate(descriptor.node, source, input.where), fullTextExpressions(source, fullText).match])
+      : predicate(descriptor.node, source, input.where);
   const config = projection(descriptor.node, input, 0);
-  return { config, where, dependencies };
+  return { config, where, dependencies, dependencyEvidence };
 }

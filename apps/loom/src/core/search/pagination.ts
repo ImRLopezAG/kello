@@ -6,9 +6,14 @@ import type { SearchRuntimeDescriptor } from "./metadata";
 import type { SearchPublicSelection, SearchCachedPage } from "./public";
 import { acceptsSearchPage, acceptsSearchOutput } from "./public";
 import { compileSearch, searchColumn } from "./compiler";
-import { searchOrdering, searchOrderSQL, searchKeyset } from "./ordering";
+import { resolveSearchOrdering, resolvedSearchOrderSQL, resolvedSearchKeyset, searchOrderSQL } from "./ordering";
+import type { ResolvedFullText } from "./full-text";
+import { fullTextExpressions } from "./full-text";
 import { createSearchCursor } from "./cursor";
 import type { SearchCursorContext } from "./cursor";
+import * as v from "valibot";
+import { exactRankFloat4 } from "./rank";
+import { systemParsers } from "../validation/encoding";
 
 /** Plan through the native relational query; ordering fields stay private until page assembly. */
 export async function prepareSearchPage(
@@ -16,13 +21,19 @@ export async function prepareSearchPage(
   input: SearchPublicSelection,
   context: SearchCursorContext,
   key: string | undefined,
+  fullText?: ResolvedFullText,
 ) {
-  const compiled = compileSearch(descriptor, input, context.identity);
-  const order = searchOrdering(descriptor, input);
-  const codec = createSearchCursor(key, descriptor, input, context);
+  const compiled = compileSearch(descriptor, input, context.identity, fullText);
+  const resolvedOrder = resolveSearchOrdering(descriptor, input, fullText);
+  const order =
+    resolvedOrder.kind === "field"
+      ? resolvedOrder.fields
+      : [{ field: "_id", direction: "asc", nulls: "last" } as const];
+  const codec = createSearchCursor(key, descriptor, input, context, undefined, fullText);
   const direction = input.direction ?? "forward";
   const token = input.cursor ?? input.anchor;
-  const boundary = token ? await codec.read(token, direction) : undefined;
+  const hasToken = token !== undefined && token !== null;
+  const boundary = hasToken ? await codec.read(token, direction) : undefined;
   const pageSize = compiled.config.limit;
   const limit = pageSize * (descriptor.mode === "live" ? (input.loadedPages ?? 1) : 1);
   if (limit > descriptor.budgets.rows)
@@ -30,6 +41,17 @@ export async function prepareSearchPage(
   const root = descriptor.graph[descriptor.entity];
   if (!root || !is(root.table, PgTable)) throw new Error("Missing search table");
   const columns = getTableColumns(root.table);
+  const occupied = new Set([
+    ...Object.keys(columns),
+    ...Object.values(columns).map((column) => column.name),
+    ...Object.keys(descriptor.node.relations),
+  ]);
+  let rankAlias: string | undefined;
+  if (resolvedOrder.kind === "fullTextRank") {
+    rankAlias = "searchRank";
+    while (occupied.has(rankAlias)) rankAlias = `_${rankAlias}`;
+    occupied.add(rankAlias);
+  }
   const timestamps = order.flatMap(({ field }, index) => {
     const metadata = descriptor.node.public.fields?.[field] ?? descriptor.node.public.columns[field];
     if (!metadata || metadata === "_id" || metadata === "_createdAt" || metadata.kind !== "timestamp") return [];
@@ -37,6 +59,7 @@ export async function prepareSearchPage(
     while (Object.hasOwn(columns, alias)) alias = `_${alias}`;
     return [{ field, alias }];
   });
+  const rankTransportAlias = rankAlias;
   return {
     descriptor,
     input,
@@ -44,31 +67,43 @@ export async function prepareSearchPage(
     codec,
     direction,
     order,
+    resolvedOrder,
+    rankAlias,
     limit,
     pageSize,
     timestamps,
-    fromCursor: Boolean(token),
+    fromCursor: hasToken,
     dependencies: compiled.dependencies,
+    dependencyEvidence: compiled.dependencyEvidence,
     where: compiled.where,
     config: {
       ...compiled.config,
       columns: { ...compiled.config.columns, ...Object.fromEntries(order.map(({ field }) => [field, true])) },
       limit: limit + 1,
-      orderBy: (table: Parameters<typeof searchOrderSQL>[0]) => searchOrderSQL(table, order, direction),
-      extras: Object.fromEntries(
-        timestamps.map(({ field, alias }) => [
+      orderBy: (table: Parameters<typeof searchOrderSQL>[0]) => resolvedSearchOrderSQL(table, resolvedOrder, direction),
+      extras: Object.fromEntries([
+        ...timestamps.map(({ field, alias }) => [
           alias,
           (table: Parameters<typeof searchOrderSQL>[0]) =>
             sql<string>`to_char(${searchColumn(table, field)} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') || case when extract(year from ${searchColumn(table, field)} at time zone 'UTC') < 0 then ' BC' else '' end`.as(
               alias,
             ),
         ]),
-      ),
+        ...(rankTransportAlias && fullText
+          ? [
+              [
+                rankTransportAlias,
+                (table: Parameters<typeof searchOrderSQL>[0]) =>
+                  fullTextExpressions(table, fullText).bits.as(rankTransportAlias),
+              ],
+            ]
+          : []),
+      ]),
       where: {
         RAW: (table: Parameters<typeof searchOrderSQL>[0]) =>
           and(
             compiled.config.where.RAW(table),
-            ...(boundary ? [searchKeyset(table, order, boundary, direction)] : []),
+            ...(boundary ? [resolvedSearchKeyset(table, resolvedOrder, boundary, direction)] : []),
           ) ?? sql`false`,
       },
     },
@@ -85,13 +120,21 @@ export async function finishSearchPage(plan: SearchPagePlan, rows: readonly Stor
   const first = retained[0];
   const last = retained.at(-1);
   const hasMore = rows.length > plan.limit;
-  const keys = (row: StorageRow) =>
-    plan.order.map(({ field }) => {
+  const keys = (row: StorageRow) => {
+    if (plan.resolvedOrder.kind === "fullTextRank") {
+      const rank = plan.rankAlias && row[plan.rankAlias];
+      if (rank === undefined || row._id === undefined) throw new Error("Search omitted a ranked key");
+      v.parse(exactRankFloat4, rank);
+      return [rank, v.parse(systemParsers._id, row._id)];
+    }
+    return plan.order.map(({ field }) => {
       const timestamp = plan.timestamps.find((entry) => entry.field === field);
       const value = row[timestamp?.alias ?? field];
       if (value === undefined) throw new Error("Search omitted an ordering field");
       return timestamp && value !== null ? { timestamp: value } : value;
     });
+  };
+  if (plan.resolvedOrder.kind === "fullTextRank") for (const row of rows) keys(row);
   const nextCursor =
     last && (plan.direction === "forward" ? hasMore : plan.fromCursor)
       ? await plan.codec.issue(keys(last), "forward")
@@ -102,6 +145,7 @@ export async function finishSearchPage(plan: SearchPagePlan, rows: readonly Stor
       : null;
   const hidden = new Set(plan.order.filter(({ field }) => !plan.selected[field]).map(({ field }) => field));
   for (const { alias } of plan.timestamps) hidden.add(alias);
+  if (plan.rankAlias) hidden.add(plan.rankAlias);
   const selected = retained.map((row) => Object.fromEntries(Object.entries(row).filter(([name]) => !hidden.has(name))));
   const page = {
     ...(plan.descriptor.mode === "live"

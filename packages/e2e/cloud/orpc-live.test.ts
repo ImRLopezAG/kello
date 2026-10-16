@@ -11,9 +11,9 @@ import type { Client } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import * as v from "valibot";
 import { chromium } from "playwright";
-import { createNeonApiFromOptions } from "@neon/config-runtime/v1";
 import {
   applyMigrations,
+  createKelloNeonApi,
   defineConfig,
   deployProjectRelease,
   generateProject,
@@ -32,9 +32,8 @@ test.skipIf(process.env.LOOM_CLOUD_LIVE !== "1")(
     const projectId = process.env.LOOM_CLOUD_PROJECT_ID;
     const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
     const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
-    const apiKey = process.env.NEON_API_KEY;
     const runtimeRole = process.env.LOOM_CLOUD_RUNTIME_ROLE;
-    assert(projectId && branchId && connectionString && apiKey && runtimeRole);
+    assert(projectId && branchId && connectionString && runtimeRole);
     assert.match(runtimeRole, /^runtime_[a-f0-9]{32}$/);
     const mode = v.parse(v.picklist(["notify", "polling"]), process.env.LOOM_CLOUD_LIVE_MODE ?? "notify");
     const workload = v.parse(v.picklist(["spread", "hot-table"]), process.env.LOOM_CLOUD_LIVE_WORKLOAD ?? "spread");
@@ -46,7 +45,7 @@ test.skipIf(process.env.LOOM_CLOUD_LIVE !== "1")(
       v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(600)),
       Number(process.env.LOOM_CLOUD_LIVE_SECONDS ?? "600"),
     );
-    const provider = createNeonApiFromOptions("Kello native live acceptance", { apiKey });
+    const provider = createKelloNeonApi();
     const target = await inspectDeploymentTarget(
       defineConfig({
         project: "tasks",

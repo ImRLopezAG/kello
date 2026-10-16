@@ -8,6 +8,7 @@ export type SearchJsonSchema = {
   readonly required?: readonly string[];
   readonly additionalProperties?: boolean;
   readonly items?: SearchJsonSchema;
+  readonly not?: SearchJsonSchema;
   readonly anyOf?: readonly SearchJsonSchema[];
   readonly enum?: readonly string[] | undefined;
   readonly format?: string;
@@ -139,6 +140,14 @@ export function searchJsonSchemas(root: SearchPublicNode): SearchJsonSchemas {
       ["limit", { type: "integer", minimum: 1, maximum: depth ? budgets.nestedSize : budgets.pageSize }],
     ]);
     if (!depth) {
+      if (node.fullText)
+        controls.fullText = object(
+          {
+            document: { type: "string", enum: Object.keys(node.fullText) },
+            query: { type: "string", maxLength: budgets.textLength },
+          },
+          ["document", "query"],
+        );
       controls.count = { type: "boolean" };
       if (root.mode === "live") {
         controls.anchor = { type: ["string", "null"], maxLength: 4096 };
@@ -148,7 +157,9 @@ export function searchJsonSchemas(root: SearchPublicNode): SearchJsonSchemas {
         controls.direction = { enum: ["forward", "backward"] };
       }
     }
-    return { input: object(controls), row: { ...object(rows), minProperties: 1 }, filter: filterRef };
+    const input: { -readonly [Key in keyof JsonSchema]: JsonSchema[Key] } = object(controls);
+    if (!depth && node.fullText) input.not = { required: ["fullText", "orderBy"] };
+    return { input, row: { ...object(rows), minProperties: 1 }, filter: filterRef };
   }
   const compiled = compile(root, 0);
   const key = root.mode === "live" ? "pages" : "rows";

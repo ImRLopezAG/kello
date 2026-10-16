@@ -17,10 +17,11 @@ const compiledSchemas = new WeakSet<object>();
 const schemaBindings = new WeakMap<SchemaDefinition, (namespace: string) => SchemaDefinition>();
 
 /** Recompile declarations; never mutate shared native Drizzle tables. */
-export function bindSchemaNamespace(schema: SchemaDefinition, namespace: string): SchemaDefinition {
+export function bindSchemaNamespace<const Schema extends SchemaDefinition>(schema: Schema, namespace: string): Schema {
   const bind = schemaBindings.get(schema);
   if (!bind) throw new Error("Expected a Kello schema declaration");
-  return bind(namespace);
+  // SAFETY: the registered binding recompiles the same declarations and validators with only a different namespace.
+  return bind(namespace) as Schema;
 }
 
 export function isKelloSchema(value: unknown): value is SchemaDefinition {

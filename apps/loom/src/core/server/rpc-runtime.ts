@@ -23,7 +23,7 @@ import { createRpcJobQueue } from "./jobs/rpc-queue";
 import { createRpcJobWorker } from "./jobs/rpc-worker";
 import { createRpcCronDispatcher } from "./jobs/rpc-crons";
 import { createTransactionalRpcScheduler } from "./jobs/rpc-service";
-import { createRevisionReader } from "./realtime/revisions";
+import { createDependencyRegistry } from "./realtime/dependencies";
 import { createRevisionCoordinator } from "./realtime/coordinator";
 import { listenForRevisions } from "./realtime/notifications";
 import { bindRuntimeGraph } from "./rpc/runtime-graph";
@@ -63,6 +63,8 @@ export interface RpcRuntimeOptions<Relations extends AnyRelations> extends Datab
     readonly crons?: Readonly<Record<string, ProcedureCron>>;
     readonly storage?: ProcedureStorageDefinition;
   }[];
+  /** Internal generation rollout switch; never selected by an RPC request. */
+  readonly selectiveInvalidation?: boolean;
   readonly jobMigrations?: readonly JobMigration[];
   readonly directConnectionString?: string;
   readonly config?: RuntimeConfigInput;
@@ -199,30 +201,18 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       current,
     );
   }
-  const revisionReaders = new Map([["", createScopeRevisions("", options.schema)]]);
-  for (const scope of options.scopes ?? []) {
-    if (scope.name && scope.schema) revisionReaders.set(scope.name, createScopeRevisions(scope.name, scope.schema));
-  }
-  function createScopeRevisions(scope: string, schema: DatabaseOptions<Relations>["schema"]) {
-    const tables = schema.metadata.entities.map((entity) => entity.sqlName);
-    const read = tables.length
-      ? createRevisionReader({ namespace: schema.metadata.namespace, metadataNamespace, tables })
-      : async () => Object.freeze({});
-    return async (db: NodePgDatabase) => {
-      const revisions = await read(db);
-      return scope
-        ? Object.freeze(
-            Object.fromEntries(Object.entries(revisions).map(([table, value]) => [`${scope}:${table}`, value])),
-          )
-        : revisions;
-    };
-  }
-  const revisions = revisionReaders.get("")!;
-  async function allRevisions(db: NodePgDatabase) {
-    return Object.freeze(
-      Object.assign({}, ...(await Promise.all([...revisionReaders.values()].map((read) => read(db))))),
-    );
-  }
+  const dependencyRegistry = createDependencyRegistry(metadataNamespace, [
+    { scope: "", schema: options.schema },
+    ...(options.scopes ?? []).flatMap((scope) =>
+      scope.name && scope.schema ? [{ scope: scope.name, schema: scope.schema }] : [],
+    ),
+  ]);
+  const allRevisions = dependencyRegistry.read;
+  const dependencies = {
+    registry: dependencyRegistry,
+    authorization: auth.dependencies,
+    selective: options.selectiveInvalidation ?? true,
+  };
   await activate(shutdown.signal);
   const connection = await connectDatabase({ ...options, connectionString });
   let objectStorage: ReturnType<RuntimeStorageBackend["connect"]> | undefined;
@@ -410,11 +400,8 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
           connection: runtimeConnection,
           replay: idempotency,
           scope,
-          revisions: async (db: NodePgDatabase) => {
-            const root = await revisions(db);
-            const read = revisionReaders.get(scope);
-            return scope && read ? Object.freeze({ ...root, ...(await read(db)) }) : root;
-          },
+          revisions: allRevisions,
+          dependencies,
           scheduler: scope ? createTransactionalRpcScheduler({ version, internal, queue, scope }) : scheduler,
           maxResultBytes: config.realtime.maxResultBytes,
           authorize: auth.authorize,
@@ -441,7 +428,8 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       database: {
         connection: runtimeConnection,
         replay: idempotency,
-        revisions,
+        revisions: allRevisions,
+        dependencies,
         scheduler,
         maxResultBytes: config.realtime.maxResultBytes,
         authorize: auth.authorize,
@@ -535,7 +523,17 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
             ),
         };
       }),
-      auth,
+      auth: application?.liveQueries
+        ? {
+            ...auth,
+            resolveLogin: application.liveQueries.resolveLogin,
+            liveQueries: {
+              secret: application.liveQueries.secret,
+              database: application.liveQueries.database,
+              deployment: application.liveQueries.deployment,
+            },
+          }
+        : auth,
       version,
       router: graph.router,
       snapshots: graph.snapshots,

@@ -9,6 +9,7 @@ import { Context } from "effect";
 import * as v from "valibot";
 import type { AnyRelations } from "drizzle-orm";
 import { Invocation } from "../effect/runtime";
+import { composeInvocationSignals } from "../invocation-deadline";
 import type { createEffectRuntime } from "../effect/runtime";
 import { bindRpcDatabaseProcedure, getDatabasePolicy, outsideRpcDatabase, resolveDatabasePolicy } from "./database";
 import type { RpcDatabaseOptions } from "./database";
@@ -25,7 +26,8 @@ import type { RpcOutput } from "./stream";
 import { createStreamLifetime } from "./stream-lifetime";
 import { evaluateLiveSnapshot, withLiveInvocation } from "./live-context";
 import { createSnapshotStream } from "./snapshot-stream";
-import { evaluateSnapshot } from "./snapshot";
+import { evaluateSnapshot, markSnapshotUnknown } from "./snapshot";
+import { carryLiveDependencies } from "./live-dependencies";
 import type { ComponentHttpInvocation } from "../components/http";
 import type { createStorageIntents } from "../storage/intents";
 import { searchContractDescriptor } from "../../search/metadata";
@@ -210,6 +212,7 @@ export function bindRuntimeGraph<Relations extends AnyRelations>(options: {
         ...authored.orderedMiddlewares,
       ],
     });
+    carryLiveDependencies(entry.procedure, serviceBound);
     const bound = policy ? bindRpcDatabaseProcedure(serviceBound, database) : serviceBound;
     const definition = bound["~orpc"];
     const own: Middleware<ProcedureContext, object, RpcValue, RpcOutput, Record<never, never>> = (
@@ -228,13 +231,15 @@ export function bindRuntimeGraph<Relations extends AnyRelations>(options: {
                   : "allowed",
               async () => {
                 await options.activate(invocation.signal);
-                if (!policy)
+                if (!policy) {
+                  markSnapshotUnknown();
                   await options.authorize({
                     ...context,
                     signal: invocation.signal,
                     path,
                     input: v.parse(rpcValue, input),
                   });
+                }
                 const storagePolicy =
                   policy === "automatic" && resolveDatabasePolicy(policy, context, streaming) === "write"
                     ? "single-attempt-write"
@@ -260,7 +265,7 @@ export function bindRuntimeGraph<Relations extends AnyRelations>(options: {
                     ),
                   );
                 const result = streaming
-                  ? await withLiveInvocation(liveTarget, () => startLive(input, context, invocation.signal), execute)
+                  ? await withLiveInvocation(() => startLive(input, context, invocation.signal), execute)
                   : await execute();
                 return {
                   ...result,
@@ -268,7 +273,7 @@ export function bindRuntimeGraph<Relations extends AnyRelations>(options: {
                 };
               },
             ),
-          signal ? AbortSignal.any([signal, context.signal]) : context.signal,
+          signal ? composeInvocationSignals([signal, context.signal]) : context.signal,
         ),
       );
     // Validation still precedes acquisition. Database binding already moves all
@@ -278,8 +283,8 @@ export function bindRuntimeGraph<Relations extends AnyRelations>(options: {
         ? definition.inputSchemas.length
         : 1
       : 0;
-    const ownProcedure = (procedure: AnyProcedure) =>
-      new Procedure({
+    const ownProcedure = (procedure: AnyProcedure) => {
+      const owned = new Procedure({
         ...procedure["~orpc"],
         orderedMiddlewares: [
           { middleware: rpcErrorBoundary, inputSchemasLengthAtUse: inputCount, outputSchemasLengthAtUse: 0 },
@@ -290,6 +295,9 @@ export function bindRuntimeGraph<Relations extends AnyRelations>(options: {
           })),
         ],
       });
+      carryLiveDependencies(procedure, owned);
+      return owned;
+    };
     const owned = ownProcedure(bound);
     // The initial subscription owns native event validation. Snapshot evaluations
     // rerun authorization but return raw events, so output transforms run once.
@@ -299,6 +307,7 @@ export function bindRuntimeGraph<Relations extends AnyRelations>(options: {
       disableInputValidation: true,
       disableOutputValidation: true,
     });
+    carryLiveDependencies(snapshotBound, snapshotProcedure);
     function startLive(input: RpcValue, context: ProcedureContext, signal: AbortSignal) {
       const captured = serializeRpcValue(v.parse(rpcValue, input));
       return createSnapshotStream({

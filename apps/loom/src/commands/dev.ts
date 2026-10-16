@@ -1,12 +1,44 @@
 import { setTimeout } from "node:timers/promises";
-import { startProjectDevelopment } from "kello/tooling";
+import { startDiagnostics, startProjectDevelopment } from "kello/tooling";
+import type { DiagnosticsOptions, DiagnosticsSession } from "kello/tooling";
+import { closeOwnedFile } from "../tooling/diagnostics/output";
+import { startProjectDevelopmentWithOwnedOutput } from "../tooling/dev/project";
 
-export async function devCommand(root: string, file: string, structured: boolean): Promise<number> {
+export async function devCommand(
+  root: string,
+  file: string,
+  structured: boolean,
+  diagnosticsOptions?: DiagnosticsOptions,
+): Promise<number> {
+  return devCommandInternal(root, file, structured, diagnosticsOptions);
+}
+
+/** CLI-only forwarding; the public command and DiagnosticsOptions remain unchanged. */
+export async function devCommandWithOwnedOutput(
+  root: string,
+  file: string,
+  structured: boolean,
+  diagnosticsOptions: DiagnosticsOptions,
+  ownedOutputPath: string,
+): Promise<number> {
+  return devCommandInternal(root, file, structured, diagnosticsOptions, ownedOutputPath);
+}
+
+async function devCommandInternal(
+  root: string,
+  file: string,
+  structured: boolean,
+  diagnosticsOptions?: DiagnosticsOptions,
+  ownedOutputPath?: string,
+): Promise<number> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   process.on("SIGINT", cancel);
   process.on("SIGTERM", cancel);
   let development: Awaited<ReturnType<typeof startProjectDevelopment>> | undefined;
+  let diagnostics: DiagnosticsSession | undefined;
+  let failed = false;
+  let stopFailure: { cause: unknown } | undefined;
   function report(event: "watching" | "ready" | "stopped", version?: string, url?: string) {
     console.log(
       structured
@@ -19,7 +51,11 @@ export async function devCommand(root: string, file: string, structured: boolean
     );
   }
   try {
-    development = await startProjectDevelopment(root, file);
+    if (diagnosticsOptions) diagnostics = await startDiagnostics(diagnosticsOptions);
+    development =
+      ownedOutputPath === undefined
+        ? await startProjectDevelopment(root, file)
+        : await startProjectDevelopmentWithOwnedOutput(root, file, undefined, ownedOutputPath);
     report("watching");
     let version: string | undefined;
     let failure: typeof development.failure = null;
@@ -78,14 +114,34 @@ export async function devCommand(root: string, file: string, structured: boolean
         if (!controller.signal.aborted) throw cause;
       }
     }
+  } catch (cause) {
+    failed = true;
+    throw cause;
   } finally {
     try {
-      await development?.stop();
+      try {
+        await development?.stop();
+      } catch (cause) {
+        if (!failed) stopFailure = { cause };
+      }
     } finally {
-      process.off("SIGINT", cancel);
-      process.off("SIGTERM", cancel);
+      try {
+        // Diagnostics cleanup cannot replace a development failure or exit class.
+        if (diagnosticsOptions) {
+          const deadline = performance.now() + 2000;
+          try {
+            await diagnostics?.stop().catch(() => {});
+          } finally {
+            await closeOwnedFile(diagnosticsOptions.output?.write, deadline);
+          }
+        }
+      } finally {
+        process.off("SIGINT", cancel);
+        process.off("SIGTERM", cancel);
+      }
     }
   }
+  if (stopFailure) throw stopFailure.cause;
   report("stopped");
   return 0;
 }

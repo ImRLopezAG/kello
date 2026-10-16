@@ -11,6 +11,9 @@ import { validSearchSelection } from "./public";
 import { searchOrdering } from "./ordering";
 import type { SearchDirection } from "./ordering";
 import { exactSearchTimestamp } from "./timestamp";
+import type { ResolvedFullText } from "./full-text";
+import { exactRankFloat4 } from "./rank";
+import { fullTextSemantics } from "./metadata";
 
 export interface SearchCursorContext {
   readonly branchId: string;
@@ -139,7 +142,12 @@ export function createSearchCursor(
   input: SearchPublicSelection,
   context: SearchCursorContext,
   clock: () => Date = () => new Date(),
+  fullText?: ResolvedFullText,
 ) {
+  if (input.fullText) {
+    if (!fullText) throw new Error("Ranked cursor requires parser preflight");
+    return createRankedCursor(value, descriptor, input, context, clock, fullText);
+  }
   const key = readSearchCursorKey(value);
   const binding = searchCursorBinding(descriptor, input, context);
   const order = searchOrdering(descriptor, input);
@@ -210,6 +218,101 @@ export function createSearchCursor(
         if (values.some((value, index) => encodeKey(value).kind !== parsed.keys[index]?.kind))
           throw invalidSearchCursor();
         return values;
+      } catch {
+        throw invalidSearchCursor();
+      }
+    },
+  });
+}
+
+const rankKey = v.strictObject({
+  kind: v.literal("rank-float4"),
+  value: v.pipe(
+    v.string(),
+    v.check((value) => v.is(exactRankFloat4, value)),
+  ),
+});
+const uuidKey = v.strictObject({ kind: v.literal("uuid"), value: systemParsers._id });
+const rankedPayload = v.strictObject({
+  v: v.literal(2),
+  binding: v.string(),
+  direction: v.picklist(["forward", "backward"]),
+  keys: v.strictTuple([rankKey, uuidKey]),
+  iat: v.pipe(v.number(), v.safeInteger()),
+  exp: v.pipe(v.number(), v.safeInteger()),
+});
+function createRankedCursor(
+  value: string | undefined,
+  descriptor: SearchRuntimeDescriptor,
+  input: SearchPublicSelection,
+  context: SearchCursorContext,
+  clock: () => Date,
+  fullText: ResolvedFullText,
+) {
+  const key = readSearchCursorKey(value);
+  if (!validSearchSelection(descriptor.node.public, input)) throw new ORPCError("INVALID_SELECTION");
+  if (input.fullText?.document !== fullText.name || input.fullText.query !== fullText.raw)
+    throw new Error("Ranked cursor belongs to a different query");
+  // The existing binding contributes identity, projection, filter and policy; this
+  // separate v2 binding adds explicit schema and the complete ranked semantics.
+  const binding = createHash("sha256")
+    .update(
+      canonical({
+        existing: searchCursorBinding(descriptor, input, context),
+        schema: descriptor.schemaFingerprint,
+        raw: fullText.raw,
+        canonical: fullText.canonical,
+        name: fullText.name,
+        document: { ...fullText.document, fields: fullText.document.fields.map((field) => ({ ...field })) },
+        ...fullTextSemantics,
+      }),
+    )
+    .digest("hex");
+  function keys(values: readonly StorageValue[]): v.InferInput<typeof rankedPayload>["keys"] {
+    if (values.length !== 2 || !v.is(exactRankFloat4, values[0])) throw invalidSearchCursor();
+    return [
+      { kind: "rank-float4", value: v.parse(v.string(), values[0]) },
+      { kind: "uuid", value: v.parse(systemParsers._id, values[1]) },
+    ];
+  }
+  return Object.freeze({
+    async issue(values: readonly StorageValue[], direction: SearchDirection): Promise<string> {
+      try {
+        const now = Math.floor(clock().getTime() / 1000);
+        const token = await new EncryptJWT({ v: 2, binding, direction, keys: keys(values) })
+          .setProtectedHeader({ alg: "dir", enc: "A256GCM", typ: "kello.search.cursor.v2" })
+          .setIssuedAt(now)
+          .setExpirationTime(now + descriptor.budgets.cursorSeconds)
+          .encrypt(key);
+        if (token.length > 8192) throw invalidSearchCursor();
+        return token;
+      } catch {
+        throw invalidSearchCursor();
+      }
+    },
+    async read(token: string, direction: SearchDirection): Promise<StorageValue[]> {
+      try {
+        if (
+          !token ||
+          token.length > 8192 ||
+          !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)
+        )
+          throw invalidSearchCursor();
+        const { payload } = await jwtDecrypt(token, key, {
+          keyManagementAlgorithms: ["dir"],
+          contentEncryptionAlgorithms: ["A256GCM"],
+          typ: "kello.search.cursor.v2",
+          currentDate: clock(),
+          maxTokenAge: descriptor.budgets.cursorSeconds,
+        });
+        const parsed = v.parse(rankedPayload, payload);
+        if (
+          parsed.binding !== binding ||
+          parsed.direction !== direction ||
+          parsed.exp - parsed.iat !== descriptor.budgets.cursorSeconds
+        )
+          throw invalidSearchCursor();
+        return [parsed.keys[0].value, parsed.keys[1].value];
       } catch {
         throw invalidSearchCursor();
       }

@@ -21,6 +21,8 @@ import {
   isJobMigrations,
   isApplicationDefinition,
   sealComponentGraph,
+  defineRateLimits,
+  isRateLimitDefinitions,
 } from "kello/server";
 import type { RouterContract } from "@orpc/contract";
 import { ProcedureContract } from "@orpc/contract";
@@ -31,6 +33,7 @@ import type {
   ProcedureCron,
   JobMigration,
   prepareApplicationEnvironment,
+  RateLimitDefinitions,
 } from "kello/server";
 import * as v from "valibot";
 import type { AnyRelations } from "drizzle-orm";
@@ -108,7 +111,7 @@ async function importBundle(root: string, content: string, version: string) {
 async function optionalModule(
   root: string,
   backend: string,
-  name: "crons" | "relations" | "auth" | "auth.config" | "storage" | "upgrade",
+  name: "crons" | "relations" | "auth" | "auth.config" | "storage" | "upgrade" | "rate-limits",
   fallback: string,
 ): Promise<string> {
   const filename = await resolveProjectPath(root, join(backend, `${name}.ts`));
@@ -118,7 +121,8 @@ async function optionalModule(
     if (cause instanceof Error && "code" in cause && cause.code === "ENOENT") return fallback;
     throw cause;
   }
-  return `export { default as ${name === "auth.config" ? "auth" : name} } from ${JSON.stringify(filename)};`;
+  const alias = name === "auth.config" ? "auth" : name === "rate-limits" ? "rateLimits" : name;
+  return `export { default as ${alias} } from ${JSON.stringify(filename)};`;
 }
 
 /** Loads operational configuration without requiring a compilable application schema or functions. */
@@ -234,6 +238,8 @@ export const contract = ${contractGraph(contractModules, (index) => `contract${i
       visibility: "internal" as const,
     })),
   ];
+  const absentRateLimits = "export const rateLimits = undefined;";
+  const rateLimitsSource = await optionalModule(root, config.backend, "rate-limits", absentRateLimits);
   const source = [
     `import schema from ${JSON.stringify(schemaFile)}; export { schema };`,
     `export { default as application } from ${JSON.stringify(applicationFile)};`,
@@ -242,6 +248,7 @@ export const contract = ${contractGraph(contractModules, (index) => `contract${i
     await optionalModule(root, config.backend, "crons", "export const crons = {};"),
     await optionalModule(root, config.backend, "upgrade", "export const upgrade = [];"),
     await optionalModule(root, config.backend, "storage", "export const storage = undefined;"),
+    rateLimitsSource,
     await optionalModule(root, config.backend, "auth.config", "export const auth = undefined;"),
     'export { default as relations } from "kello:relations";',
   ].join("\n");
@@ -405,6 +412,13 @@ export const builders = Object.keys(createApplicationRpc(app, { schema, relation
       v.custom<ProcedureStorageDefinition>(isProcedureStorage),
       exports[`componentStorage${scope.index}`] ?? defineProcedureStorage(),
     );
+    const rateLimits = v.parse(
+      v.custom<RateLimitDefinitions>(
+        isRateLimitDefinitions,
+        "Expected defineRateLimits's result as the component rate-limits default export",
+      ),
+      scope.rateLimitsFile ? exports[`componentRateLimits${scope.index}`] : defineRateLimits({}),
+    );
     const compiled = compileProcedureCapabilities({
       version,
       scope: scope.mountPath,
@@ -415,7 +429,7 @@ export const builders = Object.keys(createApplicationRpc(app, { schema, relation
       storage,
       maxAttempts: config.jobs.maxAttempts,
     });
-    return { ...scope, schema, relations, contract, procedures, crons, storage, compiled };
+    return { ...scope, schema, relations, contract, procedures, crons, storage, rateLimits, compiled };
   });
   const contract = v.parse(
     v.custom<RouterContract>((value) => value instanceof ProcedureContract || v.is(moduleNamespace, value)),
@@ -461,6 +475,13 @@ export const builders = Object.keys(createApplicationRpc(app, { schema, relation
       "Expected defineProcedureStorage's result as the storage default export",
     ),
     exports.storage === undefined ? defineProcedureStorage() : exports.storage,
+  );
+  const rateLimits = v.parse(
+    v.custom<RateLimitDefinitions>(
+      isRateLimitDefinitions,
+      "Expected defineRateLimits's result as the rate-limits default export",
+    ),
+    rateLimitsSource === absentRateLimits ? defineRateLimits({}) : exports.rateLimits,
   );
   const authoredCrons = v.parse(
     v.custom<Readonly<Record<string, ProcedureCron>>>(
@@ -509,6 +530,7 @@ export const builders = Object.keys(createApplicationRpc(app, { schema, relation
     protocol: "loom-orpc-2" as const,
     auth,
     storage,
+    rateLimits,
     storageBuckets: Object.freeze(
       [
         ...new Set([

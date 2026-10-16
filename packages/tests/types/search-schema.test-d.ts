@@ -1,5 +1,5 @@
 import type { BuildQueryResult } from "drizzle-orm";
-import type { Id } from "kello/server";
+import type { Id } from "../../../apps/loom/src/core/server/index";
 import type { Client } from "@orpc/client";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";

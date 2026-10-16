@@ -6,6 +6,8 @@ import { Field } from "./fields";
 import type { FieldMetadata, Id } from "./fields";
 import { TableDefinition } from "./table";
 import type { EntityDeclaration, EntityFields, Fields, TableOptions } from "./table";
+import { compileFullText, fullTextVector } from "./full-text";
+import type { CompiledFullText, FullTextDeclarations } from "./full-text";
 
 export function sqlName(name: string): string {
   if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name)) throw new Error(`Invalid schema identifier: ${name}`);
@@ -49,7 +51,10 @@ export type NativeTables<Entities extends Record<string, EntityDeclaration>> = {
     schema: string | undefined;
     columns: PgBuildColumns<Name, Columns<Entities[Name], Name>>;
     dialect: "pg";
-  }>;
+  }> & {
+    /** Type-only document metadata follows the table through native relation graphs; runtime metadata lives on the schema. */
+    readonly _: EntityFullText<Entities[Name]>;
+  };
 };
 export interface CompiledField extends FieldMetadata {
   readonly name: string;
@@ -65,6 +70,28 @@ export interface SchemaMetadata {
   readonly namespace: string;
   readonly entities: readonly CompiledEntity[];
 }
+type EntityFullText<Entity extends EntityDeclaration> =
+  Entity extends TableDefinition<Fields, infer Options>
+    ? Options extends { readonly fullText: infer Documents extends FullTextDeclarations }
+      ? { readonly fullText: CompiledFullText<Documents> }
+      : "fullText" extends keyof Options
+        ? Options extends { readonly fullText?: infer Documents extends FullTextDeclarations }
+          ? { readonly fullText?: CompiledFullText<Documents> }
+          : object
+        : object
+    : object;
+/** Discriminated entity names retain each declaration's literal document keys for later graph policy typing. */
+export type CompiledSchemaMetadata<Entities extends Record<string, EntityDeclaration>> = Omit<
+  SchemaMetadata,
+  "entities"
+> & {
+  readonly entities: readonly {
+    [Name in keyof Entities & string]: Omit<CompiledEntity, "name" | "options"> & {
+      readonly name: Name;
+      readonly options: Omit<TableOptions, "fullText"> & EntityFullText<Entities[Name]>;
+    };
+  }[keyof Entities & string][];
+};
 export interface CompileOptions {
   readonly namespace?: string;
 }
@@ -135,12 +162,17 @@ export function compile<const Entities extends Record<string, EntityDeclaration>
           if (table.options.serverFields?.includes(key))
             throw new Error(`Server field cannot be a command input: ${name}.${key}`);
         }
-        const structuralOptions = Object.freeze({
+        const structuralOptions: TableOptions = {
           indexes: table.options.indexes ?? Object.freeze([]),
           serverFields: table.options.serverFields ?? Object.freeze([]),
           commandFields: table.options.commandFields ?? Object.freeze([]),
           publicFields: table.options.publicFields ?? Object.freeze([]),
-        });
+        };
+        if (table.options.fullText !== undefined)
+          Object.assign(structuralOptions, {
+            fullText: compileFullText(table.options.fullText, table.fields, sqlName),
+          });
+        Object.freeze(structuralOptions);
         return Object.freeze({
           name,
           sqlName: tableName,
@@ -198,6 +230,23 @@ export function compile<const Entities extends Record<string, EntityDeclaration>
         const name = constraintName(entity.sqlName, String(position), "idx");
         constraints.push((entry.unique ? uniqueIndex(name) : index(name)).on(first, ...indexed.slice(1)));
       }
+      for (const [documentName, document] of Object.entries(entity.options.fullText ?? {})) {
+        const documentSqlName = sqlName(documentName);
+        const identity = createHash("sha256")
+          .update(JSON.stringify([entity.sqlName, documentSqlName]))
+          .digest("hex")
+          .slice(0, 16);
+        constraints.push(
+          index(constraintName(entity.sqlName, `${documentSqlName}_${identity}`, "fts_idx")).using(
+            "gin",
+            fullTextVector(document, (key) => {
+              const column = built[key];
+              if (!column) throw new Error(`Missing full-text column: ${entity.name}.${key}`);
+              return column;
+            }),
+          ),
+        );
+      }
       return constraints;
     });
   }
@@ -205,7 +254,8 @@ export function compile<const Entities extends Record<string, EntityDeclaration>
   const nativeTables = tables as NativeTables<Entities>;
   return Object.freeze({
     tables: Object.freeze(nativeTables),
-    metadata,
+    // SAFETY: metadata is built once per declaration with its unchanged entity/document keys.
+    metadata: metadata as CompiledSchemaMetadata<Entities>,
     fingerprint: createHash("sha256").update(JSON.stringify(metadata)).digest("hex"),
   });
 }

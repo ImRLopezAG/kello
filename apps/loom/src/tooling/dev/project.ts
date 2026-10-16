@@ -5,7 +5,7 @@ import type { RuntimeStorageBackend } from "kello/server";
 import { resolveProjectPath } from "../config/paths";
 import { developmentRuntimeOptions } from "./runtime";
 import { developmentConfigValidator } from "../config/development";
-import { startDevelopment } from "./development";
+import { startDevelopment, startDevelopmentWithOwnedOutput } from "./development";
 import type { DevelopmentDatabaseProvider } from "./connection";
 import { loadProjectConfig } from "../project/load";
 import { quarantineDevelopmentDatabase } from "./quarantine";
@@ -33,6 +33,25 @@ export async function startProjectDevelopment(
   root: string,
   file = "kello.config.ts",
   provider?: DevelopmentDatabaseProvider,
+) {
+  return startProjectDevelopmentInternal(root, file, provider);
+}
+
+/** Source-internal CLI ownership forwarding; absent from the public tooling barrel. */
+export async function startProjectDevelopmentWithOwnedOutput(
+  root: string,
+  file: string,
+  provider: DevelopmentDatabaseProvider | undefined,
+  ownedOutputPath: string,
+) {
+  return startProjectDevelopmentInternal(root, file, provider, ownedOutputPath);
+}
+
+async function startProjectDevelopmentInternal(
+  root: string,
+  file: string,
+  provider?: DevelopmentDatabaseProvider,
+  ownedOutputPath?: string,
 ) {
   const declaration = await readDeclaration(root, file);
   const { format: _format, activationTokenEnv, storage, ...options } = declaration;
@@ -79,7 +98,10 @@ export async function startProjectDevelopment(
       throw new Error("Invalid development storage configuration");
     }
   }
-  return startDevelopment({ ...options, ...backend, root, activationToken: token.output }, provider);
+  const input = { ...options, ...backend, root, activationToken: token.output };
+  return ownedOutputPath === undefined
+    ? startDevelopment(input, provider)
+    : startDevelopmentWithOwnedOutput(input, provider, ownedOutputPath);
 }
 
 /** Quarantines the selected database without reading runtime secrets or loading backend modules. */

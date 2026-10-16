@@ -14,6 +14,7 @@ export interface SearchPublicNode {
   readonly filter?: readonly string[] | undefined;
   readonly order?: readonly string[] | undefined;
   readonly text?: readonly string[] | undefined;
+  readonly fullText?: Readonly<Record<string, { readonly semantics: string }>> | undefined;
   readonly mode?: "finite" | "live" | undefined;
   readonly budgets?: SearchBudgets | undefined;
 }
@@ -26,6 +27,7 @@ export interface SearchOrder {
   readonly nulls?: "first" | "last";
 }
 export interface SearchPublicSelection {
+  readonly fullText?: { readonly document: string; readonly query: string };
   readonly columns?: Readonly<Record<string, boolean>>;
   readonly with?: Readonly<Record<string, SearchPublicSelection>>;
   readonly where?: SearchPublicFilter;
@@ -55,6 +57,12 @@ export const defaultSearchBudgets: SearchBudgets = Object.freeze({
   resultBytes: 1048576,
   rows: 5000,
   cursorSeconds: 3600,
+});
+/** Added only to descriptors with a root FTS grant. */
+export const defaultFullTextBudgets = Object.freeze({
+  fullTextQueryBytes: 4096,
+  fullTextQueryNodes: 128,
+  fullTextTimeoutMs: 5000,
 });
 const record = v.record(v.string(), v.unknown());
 const choice = v.record(v.string(), v.boolean());
@@ -163,7 +171,11 @@ function scalarKind(field: FieldMetadata | "_id" | "_createdAt") {
   return field === "_id" ? "uuid" : field === "_createdAt" ? "integer" : field.kind;
 }
 
-export function validSearchSelection(node: SearchPublicNode, input: unknown): input is SearchPublicSelection {
+export function validSearchSelection(
+  node: SearchPublicNode,
+  input: unknown,
+  onBudgetExceeded?: () => void,
+): input is SearchPublicSelection {
   const budgets = node.budgets ?? defaultSearchBudgets;
   const state = { predicates: 0, nodes: 0 };
   function filter(
@@ -244,9 +256,33 @@ export function validSearchSelection(node: SearchPublicNode, input: unknown): in
       "where",
       "orderBy",
       "limit",
+      ...(depth || !node.fullText ? [] : ["fullText"]),
       ...(depth ? [] : node.mode === "live" ? ["anchor", "loadedPages", "count"] : ["cursor", "direction", "count"]),
     ];
     if (Object.keys(value).some((key) => !controls.includes(key))) return false;
+    if (value.fullText !== undefined) {
+      const match = value.fullText;
+      if (
+        depth ||
+        !searchRecord(match) ||
+        Object.keys(match).some((key) => !["document", "query"].includes(key)) ||
+        !v.is(v.string(), match.document) ||
+        !Object.hasOwn(node.fullText ?? {}, match.document) ||
+        !v.is(v.string(), match.query) ||
+        value.orderBy !== undefined ||
+        match.query.includes("\0") ||
+        /[\uD800-\uDFFF]/u.test(match.query)
+      )
+        return false;
+      if (
+        match.query.length > budgets.textLength ||
+        new TextEncoder().encode(match.query).byteLength >
+          (budgets.fullTextQueryBytes ?? defaultFullTextBudgets.fullTextQueryBytes)
+      ) {
+        onBudgetExceeded?.();
+        return false;
+      }
+    }
     const size = depth ? budgets.nestedSize : budgets.pageSize;
     if (
       value.limit !== undefined &&

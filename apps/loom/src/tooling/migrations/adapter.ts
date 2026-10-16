@@ -4,16 +4,32 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SchemaDefinition } from "kello/server";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { pgSchema } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import * as v from "valibot";
 import { snapshotValidator } from "./snapshot";
 import { databaseIdentifier } from "./connection";
-import { alignCheckExpressions } from "./expressions";
+import { alignCheckExpressions, alignFullTextIndexes, normalizeFullTextIndexes } from "./expressions";
 
 export type MigrationSnapshot = Awaited<ReturnType<typeof generateDrizzleJson>>;
 export type RenameHint = NonNullable<Parameters<typeof generateMigration>[2]>[number];
 
 export async function inspectSnapshot(database: NodePgDatabase, namespace: string): Promise<MigrationSnapshot> {
-  const snapshot = v.parse(snapshotValidator, await inspectSchema(database, [v.parse(databaseIdentifier, namespace)]));
+  const selectedNamespace = v.parse(databaseIdentifier, namespace);
+  // Deparse catalog regconfig literals without confusing a search_path-shadowing application config.
+  const snapshot = await database.transaction(async (tx) => {
+    const setting = await tx.execute<{ path: string }>(sql`select current_setting('search_path') as path`);
+    const previous = setting.rows[0]?.path;
+    if (previous === undefined) throw new Error("Missing PostgreSQL search path");
+    await tx.execute(sql`SET LOCAL search_path = pg_catalog`);
+    const inspected = await normalizeFullTextIndexes(
+      v.parse(snapshotValidator, await inspectSchema(tx, [selectedNamespace])),
+      true,
+    );
+    // Releasing a nested savepoint retains SET LOCAL values in the outer transaction.
+    // On failure the rollback restores them; on success restore explicitly before release.
+    await tx.execute(sql`select set_config('search_path', ${previous}, true)`);
+    return inspected;
+  });
   return { ...snapshot, id: snapshotHash(snapshot), prevIds: [] };
 }
 
@@ -89,7 +105,10 @@ export async function createNativeSnapshot(
   const namespace = v.parse(databaseIdentifier, schema.namespace);
   const imports =
     namespace === "public" ? { ...schema.tables } : { ...schema.tables, __loomNamespace: pgSchema(namespace) };
-  const snapshot = await generateDrizzleJson(imports, previous?.id, [namespace]);
+  const generated = await generateDrizzleJson(imports, previous?.id, [namespace]);
+  // Never canonicalize persisted history or reinterpret its recorded safety. Keep raw native
+  // output, retaining only a proved-equivalent baseline spelling during regeneration.
+  const snapshot = previous ? await alignFullTextIndexes(generated, previous) : generated;
   // Drizzle accepts string identities. A structural identity makes committed artifacts reproducible.
   return { ...snapshot, id: snapshotHash(snapshot), prevIds: previous ? [previous.id] : [] };
 }

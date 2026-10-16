@@ -10,9 +10,11 @@ import {
   databaseIdentifier,
   quoteIdentifier,
   withMigrationConnection,
+  withBlockingGinTimeout,
 } from "./connection";
 import { catalogFingerprint } from "./drift";
 import { readMigrations } from "./history";
+import { assessMigration } from "./assessment";
 import { inspectHistory, ormHistoryTable } from "./state";
 import { assertGeneratedVersion } from "../codegen/generate";
 import { databaseIdentity } from "./status";
@@ -43,6 +45,21 @@ export const runnerOptions = v.strictObject({
   reviewedHashes: v.optional(v.array(v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/))), []),
   expectedHashes: v.optional(v.array(v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/)))),
   recoverNontransactional: v.optional(v.boolean(), false),
+  blockingGinTimeouts: v.optional(
+    v.pipe(
+      v.array(
+        v.strictObject({
+          artifactHash: v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/)),
+          statementTimeoutMs: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(900000)),
+        }),
+      ),
+      v.check(
+        (entries) => new Set(entries.map((entry) => entry.artifactHash)).size === entries.length,
+        "Duplicate blocking GIN timeout artifact hash",
+      ),
+    ),
+    [],
+  ),
 });
 const connectionOptions = v.omit(runnerOptions, ["connectionString"]);
 export type ApplyMigrationsOnConnectionOptions = v.InferInput<typeof connectionOptions>;
@@ -91,8 +108,21 @@ export async function applyMigrationsOnConnection(
   }
   let state = await inspectHistory(client, config, artifacts);
   const pending = artifacts.slice(state.applied.length);
+  const assessments = new Map(
+    await Promise.all(
+      pending.map(async (artifact) => [artifact.plan.hash, await assessMigration(artifact.plan)] as const),
+    ),
+  );
+  for (const entry of config.blockingGinTimeouts) {
+    const assessment = assessments.get(entry.artifactHash);
+    if (!assessment) throw new Error("Blocking GIN timeout requires a pending artifact hash");
+    if (!config.reviewedHashes.includes(entry.artifactHash))
+      throw new Error("Blocking GIN timeout requires exact artifact review");
+    if (!assessment.blockingGinTimeout.eligible)
+      throw new Error(`Blocking GIN timeout ineligible: ${assessment.blockingGinTimeout.reason}`);
+  }
   for (const artifact of pending) {
-    if (!artifact.plan.safety.automatic && !config.reviewedHashes.includes(artifact.plan.hash))
+    if (!assessments.get(artifact.plan.hash)!.safety.automatic && !config.reviewedHashes.includes(artifact.plan.hash))
       throw new Error(`Migration requires review of artifact ${artifact.plan.hash}`);
   }
   // An authenticated framework prefix cannot authorize repair of unrelated history.
@@ -118,7 +148,7 @@ export async function applyMigrationsOnConnection(
     throw new Error("Complete running backfills before applying further migrations");
   const recovery = await readConcurrentRecovery(client, config);
   for (const artifact of artifacts.slice(state.applied.length)) {
-    if (!artifact.plan.safety.transactional) {
+    if (!assessments.get(artifact.plan.hash)!.safety.transactional) {
       if (!config.recoverNontransactional)
         throw new Error("Nontransactional migration requires explicit recovery mode");
       await concurrentIndexOperations(artifact, config.namespace);
@@ -146,62 +176,96 @@ export async function applyMigrationsOnConnection(
   let expectedCatalog = state.expectedCatalog;
   for (const [index, artifact] of artifacts.entries()) {
     if (index < state.applied.length) continue;
-    if (!artifact.plan.safety.transactional) {
+    if (!assessments.get(artifact.plan.hash)!.safety.transactional) {
       if (!expectedCatalog) throw new Error("Concurrent recovery requires an applied structural baseline");
       await executeConcurrentIndexes(client, config, artifact, expectedCatalog, index + 1);
     }
-    await db.transaction(async (tx) => {
-      // The exported ORM migrator nests a savepoint within this outer transaction.
-      await migrate(
-        [
-          {
-            sql: artifact.plan.safety.transactional ? [...artifact.plan.statements] : [],
-            folderMillis: index + 1,
-            hash: artifact.plan.hash,
-            bps: true,
-            name: artifact.name,
-          },
-        ],
-        tx,
-        {
-          migrationsFolder: config.migrations,
-          migrationsSchema: config.metadataNamespace,
-          migrationsTable: drizzleTable,
-        },
-      );
-      const tables = artifact.plan.snapshot.ddl
-        .filter((entity) => entity.entityType === "tables")
-        .map((entity) => entity.name)
-        .filter((table) =>
-          ["_id", "_createdAt"].every((name) =>
-            artifact.plan.snapshot.ddl.some(
-              (entity) => entity.entityType === "columns" && entity.table === table && entity.name === name,
-            ),
-          ),
-        );
-      await protectApplication(client, config.namespace, config.runtimeRole, tables, config.metadataNamespace);
-      const catalogHash = await catalogFingerprint(client, config.namespace);
-      await client.query(
-        `INSERT INTO ${metadata}.migration_history (namespace, ordinal, name, hash, before_hash, after_hash, catalog_hash) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [
-          config.namespace,
-          index + 1,
-          artifact.name,
-          artifact.plan.hash,
-          artifact.plan.before,
-          artifact.plan.after,
-          catalogHash,
-        ],
-      );
-      if (!artifact.plan.safety.transactional) {
-        const removed = await client.query(
-          `DELETE FROM ${metadata}.nontransactional_migrations WHERE namespace=$1 AND hash=$2`,
-          [config.namespace, artifact.plan.hash],
-        );
-        if (removed.rowCount !== 1) throw new Error("Concurrent migration journal changed before completion");
-      }
-      expectedCatalog = catalogHash;
-    });
+    let migrationFailure: { error: unknown } | undefined;
+    try {
+      await db.transaction(async (tx) => {
+        try {
+          // The exported ORM migrator nests a savepoint within this outer transaction.
+          const nativeMigration = async () => {
+            const originalTransaction = tx.transaction.bind(tx);
+            // Capture the callback error before pinned Drizzle attempts savepoint rollback.
+            // This transaction instance belongs only to this native call.
+            tx.transaction = async (operation) =>
+              originalTransaction(async (nested) => {
+                try {
+                  return await operation(nested);
+                } catch (error) {
+                  migrationFailure ??= { error };
+                  throw error;
+                }
+              });
+            try {
+              await migrate(
+                [
+                  {
+                    sql: assessments.get(artifact.plan.hash)!.safety.transactional ? [...artifact.plan.statements] : [],
+                    folderMillis: index + 1,
+                    hash: artifact.plan.hash,
+                    bps: true,
+                    name: artifact.name,
+                  },
+                ],
+                tx,
+                {
+                  migrationsFolder: config.migrations,
+                  migrationsSchema: config.metadataNamespace,
+                  migrationsTable: drizzleTable,
+                },
+              );
+            } catch (error) {
+              migrationFailure ??= { error };
+              throw error;
+            } finally {
+              tx.transaction = originalTransaction;
+            }
+          };
+          const timeout = config.blockingGinTimeouts.find((entry) => entry.artifactHash === artifact.plan.hash);
+          if (timeout) await withBlockingGinTimeout(client, timeout.statementTimeoutMs, nativeMigration);
+          else await nativeMigration();
+          const tables = artifact.plan.snapshot.ddl
+            .filter((entity) => entity.entityType === "tables")
+            .map((entity) => entity.name)
+            .filter((table) =>
+              ["_id", "_createdAt"].every((name) =>
+                artifact.plan.snapshot.ddl.some(
+                  (entity) => entity.entityType === "columns" && entity.table === table && entity.name === name,
+                ),
+              ),
+            );
+          await protectApplication(client, config.namespace, config.runtimeRole, tables, config.metadataNamespace);
+          const catalogHash = await catalogFingerprint(client, config.namespace);
+          await client.query(
+            `INSERT INTO ${metadata}.migration_history (namespace, ordinal, name, hash, before_hash, after_hash, catalog_hash) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [
+              config.namespace,
+              index + 1,
+              artifact.name,
+              artifact.plan.hash,
+              artifact.plan.before,
+              artifact.plan.after,
+              catalogHash,
+            ],
+          );
+          if (!assessments.get(artifact.plan.hash)!.safety.transactional) {
+            const removed = await client.query(
+              `DELETE FROM ${metadata}.nontransactional_migrations WHERE namespace=$1 AND hash=$2`,
+              [config.namespace, artifact.plan.hash],
+            );
+            if (removed.rowCount !== 1) throw new Error("Concurrent migration journal changed before completion");
+          }
+          expectedCatalog = catalogHash;
+        } catch (error) {
+          migrationFailure ??= { error };
+          throw error;
+        }
+      });
+    } catch (error) {
+      throw migrationFailure ? migrationFailure.error : error;
+    }
     applied.push(artifact.plan.hash);
   }
   return {

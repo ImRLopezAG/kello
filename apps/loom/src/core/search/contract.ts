@@ -8,24 +8,30 @@ import type { SchemaDefinition } from "../schema/define-schema";
 import type {
   SearchDescriptor,
   SearchPolicy,
+  FullTextPolicyCheck,
   SchemaSearchProjector,
   SchemaLiveSearchProjector,
   SearchWire,
   SearchBudgets,
 } from "./types";
 import type { SearchPublicNode, SearchPublicSelection, SearchCachedPage } from "./public";
-import { validSearchSelection, acceptsSearchOutput, defaultSearchBudgets } from "./public";
+import { validSearchSelection, acceptsSearchOutput, defaultSearchBudgets, defaultFullTextBudgets } from "./public";
 import type { RuntimeSearchScope, SearchRuntimeDescriptor, SearchRuntimeNode } from "./metadata";
-import { attachSearchMetadata } from "./metadata";
+import { attachSearchMetadata, createSearchInputIssues, fullTextSemantics } from "./metadata";
 import type { SearchJsonSchema } from "./json-schema";
 import { searchJsonSchemas } from "./json-schema";
+import type { CompiledFullText } from "../schema/full-text";
 import type { InvocationIdentity } from "../server/auth/context";
 import * as v from "valibot";
+
+type CompiledPublicNode = { -readonly [Key in keyof SearchPublicNode]: SearchPublicNode[Key] };
+type CompiledRuntimeNode = { -readonly [Key in keyof SearchRuntimeNode]: SearchRuntimeNode[Key] };
 
 interface ScopeFingerprint {
   readonly name: string;
   readonly version: string;
   readonly source: string;
+  readonly dependencies?: readonly string[];
 }
 interface PolicyFingerprint {
   readonly entity: string;
@@ -39,10 +45,10 @@ interface SearchSchema extends SchemaDefinition {
 }
 export type SearchTableFactories<Graph extends AnyRelations, Table extends TableRelationalConfig> = {
   readonly search: <const Policy extends SearchPolicy<Graph, Table>>(
-    policy: Policy,
+    policy: Policy & FullTextPolicyCheck<Table, Policy>,
   ) => SearchDescriptor<SchemaSearchProjector<Graph, Table, Policy>>;
   readonly liveSearch: <const Policy extends SearchPolicy<Graph, Table>>(
-    policy: Policy,
+    policy: Policy & FullTextPolicyCheck<Table, Policy>,
   ) => SearchDescriptor<
     SchemaLiveSearchProjector<Graph, Table, Policy>,
     AsyncIterableIterator<SearchWire<SchemaLiveSearchProjector<Graph, Table, Policy>>>
@@ -74,9 +80,12 @@ const field = v.object({
 });
 const fields = v.record(v.string(), v.union([v.literal("_id"), v.literal("_createdAt"), field]));
 const budgetsSchema = v.object(
-  Object.fromEntries(
-    Object.keys(defaultSearchBudgets).map((key) => [key, v.pipe(v.number(), v.integer(), v.minValue(1))]),
-  ),
+  Object.fromEntries([
+    ...Object.keys(defaultSearchBudgets).map((key) => [key, v.pipe(v.number(), v.integer(), v.minValue(1))] as const),
+    ...Object.keys(defaultFullTextBudgets).map(
+      (key) => [key, v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)))] as const,
+    ),
+  ]),
 );
 const nodeSchema: v.GenericSchema<SearchPublicNode> = v.lazy(() =>
   v.object({
@@ -85,6 +94,7 @@ const nodeSchema: v.GenericSchema<SearchPublicNode> = v.lazy(() =>
     filter: v.optional(v.array(v.string())),
     order: v.optional(v.array(v.string())),
     text: v.optional(v.array(v.string())),
+    fullText: v.optional(v.record(v.string(), v.object({ semantics: v.string() }))),
     mode: v.optional(v.picklist(["finite", "live"])),
     budgets: v.optional(v.custom<SearchBudgets>((value) => v.is(budgetsSchema, value))),
     relations: v.record(v.string(), v.object({ many: v.boolean(), optional: v.boolean(), node: nodeSchema })),
@@ -101,9 +111,11 @@ const scopeSchema = v.union([
     name: v.pipe(v.string(), v.minLength(1)),
     version: v.pipe(v.string(), v.minLength(1)),
     where: v.function(),
+    dependencies: v.optional(v.array(v.string())),
   }),
 ]);
 const policySchema = v.strictObject({
+  fullText: v.optional(v.array(v.string())),
   columns: v.array(v.string()),
   filter: v.optional(v.array(v.string())),
   order: v.optional(v.array(v.string())),
@@ -114,7 +126,7 @@ const policySchema = v.strictObject({
   relations: v.optional(v.record(v.string(), v.unknown())),
 });
 type ParsedPolicy = v.InferOutput<typeof policySchema>;
-function scope(value: v.InferOutput<typeof scopeSchema>): "public" | RuntimeSearchScope {
+function scope(value: v.InferOutput<typeof scopeSchema>, graph: AnyRelations): "public" | RuntimeSearchScope {
   if (value === "public") return value;
   const where = v.parse(
     v.custom<(context: { table: TableRelationalConfig["table"]; identity: InvocationIdentity | null }) => SQL>(
@@ -122,7 +134,12 @@ function scope(value: v.InferOutput<typeof scopeSchema>): "public" | RuntimeSear
     ),
     value.where,
   );
-  return Object.freeze({ name: value.name, version: value.version, where });
+  const dependencies = value.dependencies;
+  if (dependencies?.some((name) => !Object.hasOwn(graph, name))) throw new Error("Unknown search policy dependency");
+  const base = { name: value.name, version: value.version, where };
+  return Object.freeze(
+    dependencies === undefined ? base : { ...base, dependencies: Object.freeze([...new Set(dependencies)].sort()) },
+  );
 }
 /** Bind descriptor factories only after the project's native graph exists. */
 export function createSearchValidators<Schema extends SearchSchema, Graph extends AnyRelations>(
@@ -130,14 +147,15 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
   graph: Graph,
 ): SearchValidators<Schema, Graph> {
   function descriptor(name: string, value: ParsedPolicy, mode: "finite" | "live") {
-    const overrides = value.budgets ?? {};
-    if (Object.keys(overrides).some((key) => !Object.hasOwn(defaultSearchBudgets, key)))
-      throw new Error("Unknown search budget");
+    const policy = v.parse(policySchema, value);
+    const overrides = policy.budgets ?? {};
+    const defaults = policy.fullText ? { ...defaultSearchBudgets, ...defaultFullTextBudgets } : defaultSearchBudgets;
+    if (Object.keys(overrides).some((key) => !Object.hasOwn(defaults, key))) throw new Error("Unknown search budget");
     const budgets = v.parse(
       v.custom<SearchBudgets>((value) => v.is(budgetsSchema, value)),
-      { ...defaultSearchBudgets, ...overrides },
+      { ...defaults, ...overrides },
     );
-    const node = compileNode(name, value, 0, budgets, mode);
+    const node = compileNode(name, policy, 0, budgets, mode);
     const fingerprint = createHash("sha256")
       .update(
         JSON.stringify(
@@ -159,7 +177,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
     const json = searchJsonSchemas(node.public);
     function make(
       role: "input" | "output",
-      validate: (value: unknown) => value is SearchPublicSelection | SearchCachedPage,
+      validate: (value: unknown, onBudgetExceeded?: () => void) => value is SearchPublicSelection | SearchCachedPage,
       json: SearchJsonSchema,
     ): StandardSchemaV1 & StandardJSONSchemaV1 {
       const result: StandardSchemaV1 & StandardJSONSchemaV1 = {
@@ -167,7 +185,18 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
           version: 1,
           vendor: "kello",
           validate(value) {
-            return validate(value) ? { value } : { issues: [{ message: `Invalid search ${role}` }] };
+            let budgetExceeded = false;
+            if (
+              validate(value, () => {
+                budgetExceeded = true;
+              })
+            )
+              return { value };
+            if (role === "input" && node.public.fullText)
+              return {
+                issues: createSearchInputIssues(budgetExceeded ? "QUERY_BUDGET_EXCEEDED" : "INVALID_SELECTION"),
+              };
+            return { issues: [{ message: `Invalid search ${role}` }] };
           },
           jsonSchema: { input: () => json, output: () => json },
         },
@@ -176,7 +205,11 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
       attachSearchMetadata(result, metadata, role);
       return Object.freeze(result);
     }
-    const input = make("input", (value) => validSearchSelection(node.public, value), json.input);
+    const input = make(
+      "input",
+      (value, onBudgetExceeded) => validSearchSelection(node.public, value, onBudgetExceeded),
+      json.input,
+    );
     const output = make("output", (value) => acceptsSearchOutput(node.public, value), json.output);
     return Object.freeze({ input, output: mode === "live" ? eventIterator(output) : output });
   }
@@ -215,10 +248,15 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
     );
   }
   function fingerprintNode(node: SearchRuntimeNode): PolicyFingerprint {
-    const policyScope = (value: "public" | RuntimeSearchScope) =>
-      value === "public"
-        ? value
-        : { name: value.name, version: value.version, source: Function.prototype.toString.call(value.where) };
+    const policyScope = (value: "public" | RuntimeSearchScope) => {
+      if (value === "public") return value;
+      const result = {
+        name: value.name,
+        version: value.version,
+        source: Function.prototype.toString.call(value.where),
+      };
+      return value.dependencies === undefined ? result : { ...result, dependencies: value.dependencies };
+    };
     return {
       entity: node.entity,
       public: node.public,
@@ -238,6 +276,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
   ): SearchRuntimeNode {
     if (depth > 4) throw new Error("Search relation depth exceeds four");
     const policy = v.parse(policySchema, value);
+    if (depth && policy.fullText !== undefined) throw new Error("Full-text grants belong to the root policy");
     if (depth && policy.budgets) throw new Error("Search budgets belong to the root policy");
     if (policy.filter?.some((name) => ["AND", "OR", "NOT", "relations"].includes(name)))
       throw new Error("Search filter field collides with a boolean control");
@@ -281,6 +320,39 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
       )
         throw new Error("Text matching requires an enabled text filter");
     }
+    const fullText: CompiledFullText = Object.freeze(
+      Object.fromEntries(
+        (policy.fullText ?? []).map((name) => {
+          const documents = entity.options.fullText;
+          const document = documents && Object.hasOwn(documents, name) ? documents[name] : undefined;
+          if (!document) throw new Error(`Unknown full-text document: ${name}`);
+          if (document.fields.some(({ field }) => !policy.filter?.includes(field) || !policy.text?.includes(field)))
+            throw new Error("Full-text matching requires explicit filter and text grants for every source");
+          if (!("representation" in document) || document.representation !== "expression")
+            throw new Error("Full-text document must be compiled");
+          return [name, Object.freeze({ ...document, representation: "expression" as const })];
+        }),
+      ),
+    );
+    if (policy.fullText && (!policy.fullText.length || new Set(policy.fullText).size !== policy.fullText.length))
+      throw new Error("Invalid full-text grants");
+    const publicFullText = Object.freeze(
+      Object.fromEntries(
+        Object.entries(fullText).map(([name, document]) => [
+          name,
+          Object.freeze({
+            semantics: createHash("sha256")
+              .update(
+                JSON.stringify({
+                  document,
+                  ...fullTextSemantics,
+                }),
+              )
+              .digest("hex"),
+          }),
+        ]),
+      ),
+    );
     const pick = (name: string) => {
       const field = available[name];
       if (!field) throw new Error(`Missing search field: ${name}`);
@@ -293,7 +365,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
     const through = Object.fromEntries(
       Object.entries(policy.through ?? {}).map(([name, value]) => {
         if (!graph[name]) throw new Error(`Unknown search junction: ${name}`);
-        return [name, scope(value)];
+        return [name, scope(value, graph)];
       }),
     );
     for (const [name, child] of Object.entries(policy.relations ?? {})) {
@@ -315,22 +387,26 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
         node: compiled.public,
       };
     }
-    return Object.freeze({
+    const publicNode: CompiledPublicNode = {
+      columns: Object.freeze(columns),
+      fields: Object.freeze(queryFields),
+      filter: Object.freeze(policy.filter ?? []),
+      order: Object.freeze(policy.order ?? []),
+      text: Object.freeze(policy.text ?? []),
+      relations: Object.freeze(relations),
+      budgets: Object.freeze(budgets),
+      mode,
+    };
+    if (policy.fullText) publicNode.fullText = publicFullText;
+    const node: CompiledRuntimeNode = {
       entity: name,
-      public: Object.freeze({
-        columns: Object.freeze(columns),
-        fields: Object.freeze(queryFields),
-        filter: Object.freeze(policy.filter ?? []),
-        order: Object.freeze(policy.order ?? []),
-        text: Object.freeze(policy.text ?? []),
-        relations: Object.freeze(relations),
-        budgets: Object.freeze(budgets),
-        mode,
-      }),
-      scope: scope(policy.scope),
+      public: Object.freeze(publicNode),
+      scope: scope(policy.scope, graph),
       through: Object.freeze(through),
       relations: Object.freeze(runtime),
-    });
+    };
+    if (policy.fullText) node.fullText = fullText;
+    return Object.freeze(node);
   }
   const entries = Object.entries(schema.validators).map(([name, validators]) => [
     name,

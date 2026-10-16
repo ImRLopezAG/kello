@@ -29,8 +29,8 @@ export default defineConfig({
     sourcemap: true,
     deps: {
       neverBundle: true,
-      alwaysBundle: [/^(drizzle-kit|zod|@neon\/config(?:-runtime)?)(\/|$)/],
-      onlyBundle: [/^(drizzle-kit|zod|@neon\/config(?:-runtime)?)(\/|$)/],
+      alwaysBundle: [/^(drizzle-kit|zod|@neon\/config(?:-runtime)?|@neon\/realtime-drizzle)(\/|$)/],
+      onlyBundle: [/^(drizzle-kit|zod|@neon\/config(?:-runtime)?|@neon\/realtime-drizzle)(\/|$)/],
     },
   },
 });

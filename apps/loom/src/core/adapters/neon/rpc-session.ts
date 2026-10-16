@@ -4,6 +4,7 @@ import type { Router } from "@orpc/server";
 import type { ProcedureContext } from "../../server/rpc/procedure";
 import type { VerifiedSession } from "../../server/auth/verify";
 import { rpcContext, rpcErrorStatusMap, rpcTransportSerializer } from "./rpc-context";
+import { composeInvocationSignals, constrainInvocationDeadline } from "../../server/invocation-deadline";
 
 export interface RpcSocket {
   readonly readyState: number;
@@ -44,7 +45,9 @@ export function createRpcSocketSession(options: RpcSocketSessionOptions) {
     identity: Object.freeze({ ...options.session.identity }),
     expiresAt: options.session.expiresAt,
   });
-  if (!Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now() / 1000)
+  const monotonic = performance.now();
+  const wall = Date.now();
+  if (!Number.isFinite(session.expiresAt) || session.expiresAt <= wall / 1000)
     throw new Error("Expired RPC socket session");
   const handler = new RPCHandler(options.router, {
     allowMethods: ["POST"],
@@ -52,6 +55,8 @@ export function createRpcSocketSession(options: RpcSocketSessionOptions) {
     serializer: rpcTransportSerializer,
   });
   const shutdown = new AbortController();
+  // Limiter authority only; native expiry/heartbeat still use their original wall clock.
+  constrainInvocationDeadline(shutdown.signal, monotonic + (session.expiresAt * 1000 - wall));
   const pending = new Set<Promise<unknown>>();
   const encoder = new TextEncoder();
   let stopped = false;
@@ -135,13 +140,17 @@ export function createRpcSocketSession(options: RpcSocketSessionOptions) {
     // in arrival order. Do not await one procedure before admitting its cancel.
     const work = handler
       .message(peer, data, {
-        context: (request) =>
-          rpcContext(
+        context: (request) => {
+          const monotonic = performance.now();
+          const remaining = session.expiresAt * 1000 - Date.now();
+          constrainInvocationDeadline(shutdown.signal, monotonic + remaining);
+          return rpcContext(
             session,
-            request.signal ? AbortSignal.any([request.signal, shutdown.signal]) : shutdown.signal,
+            composeInvocationSignals(request.signal ? [request.signal, shutdown.signal] : [shutdown.signal]),
             request.headers["idempotency-key"],
             request.headers["x-loom-operation"],
-          ),
+          );
+        },
       })
       .then((result) => {
         if (!result.matched) close(1008, "INVALID_MESSAGE");

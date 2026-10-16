@@ -17,6 +17,9 @@ import type { StorageRow } from "../validation/encoding";
 import { storageRows } from "../validation/encoding";
 import { scopedDatabase } from "../server/database/context";
 import { liveSnapshot } from "../server/rpc/live-context";
+import { withSearchDeadline } from "./deadline";
+import { fullTextPreflightSQL, resolveFullText } from "./full-text";
+import { defaultFullTextBudgets } from "./public";
 
 interface SearchInvocation {
   readonly descriptor: SearchRuntimeDescriptor;
@@ -26,6 +29,9 @@ interface SearchInvocation {
   readonly db: NodePgDatabase;
   readonly signal: AbortSignal;
   readonly assertCurrent: () => void;
+  readonly recordDependencies?:
+    | ((evidence: { readonly dependencies: ReadonlySet<string>; readonly complete: boolean }) => void)
+    | undefined;
   readonly pending: Set<Promise<void>>;
   active: boolean;
   failure?: Error;
@@ -126,33 +132,62 @@ export function createSearchContext<Graph extends AnyRelations>(graph: Graph): S
 
 /** Finite pages and live windows share one query and optional count in the owned snapshot. */
 async function readSearchPage(scope: SearchInvocation) {
+  if (scope.input.fullText) {
+    return withSearchDeadline(
+      scope.db,
+      scope.descriptor.graph,
+      scope.descriptor.budgets.fullTextTimeoutMs ?? defaultFullTextBudgets.fullTextTimeoutMs,
+      scope.signal,
+      scope.assertCurrent,
+      (statement) => executeSearchPage(scope, statement),
+    );
+  }
+  return executeSearchPage(scope, (read) => read());
+}
+
+async function executeSearchPage(
+  scope: SearchInvocation,
+  statement: <Value>(read: () => Promise<Value>) => Promise<Value>,
+) {
   const { input } = scope;
-  const plan = await prepareSearchPage(scope.descriptor, input, scope.context, scope.key);
+  const db = scopedDatabase(scope.db, scope.descriptor.graph);
+  let fullText;
+  if (input.fullText) {
+    const result = await statement(() =>
+      db.execute<{ canonical: string; nodes: number; tree: string }>(fullTextPreflightSQL(scope.descriptor, input)),
+    );
+    if (result.rows.length !== 1 || !result.rows[0]) throw new Error("Invalid full-text preflight result");
+    fullText = resolveFullText(scope.descriptor, input, result.rows[0]);
+  }
+  const plan = await prepareSearchPage(scope.descriptor, input, scope.context, scope.key, fullText);
   scope.signal.throwIfAborted();
   scope.assertCurrent();
-  const db = scopedDatabase(scope.db, scope.descriptor.graph);
   // SAFETY: every graph entry is a native relational query; its dynamic
   // config is compiled from that graph and its rows are parsed below.
   const query = db.query[scope.descriptor.entity] as NativeSearchQuery | undefined;
   if (!query) throw new Error("Missing search entity");
   // Dynamic graph lookup stays private. The compiler validates native fields,
   // and the raw database result is checked before any selected value escapes.
-  const rows = v.parse(storageRows, await query.findMany(plan.config));
+  const rows = v.parse(storageRows, await statement(() => query.findMany(plan.config)));
   scope.signal.throwIfAborted();
   scope.assertCurrent();
   let page = await finishSearchPage(plan, rows);
   if (input.count) {
     const table = scope.descriptor.graph[scope.descriptor.entity]?.table;
     if (!table || !is(table, PgTable)) throw new Error("Missing search table");
-    const result = await db
-      .select({ count: sql<string>`count(*)::text` })
-      .from(table)
-      .where(plan.where(table));
+    const result = await statement(async () =>
+      db
+        .select({ count: sql<string>`count(*)::text` })
+        .from(table)
+        .where(plan.where(table)),
+    );
     page = { ...page, count: v.parse(v.pipe(v.string(), v.regex(/^\d+$/)), result[0]?.count) };
   }
   scope.signal.throwIfAborted();
   scope.assertCurrent();
-  return validateSelectedSearchOutput(scope.descriptor, input, page);
+  const output = validateSelectedSearchOutput(scope.descriptor, input, page);
+  scope.recordDependencies?.(plan.dependencyEvidence);
+  return output;
 }
 
 /** Check raw handler values before native output schemas can strip or transform them. */
