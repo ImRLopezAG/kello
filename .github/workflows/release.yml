@@ -1,6 +1,9 @@
 name: Publish alpha
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -12,7 +15,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: npm
@@ -36,7 +39,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          passed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --branch main --event push --limit 1 --json status,conclusion --jq '.[0] | .status == "completed" and .conclusion == "success"')"
+          release_commit="$(git rev-parse HEAD)"
+          passed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$release_commit" --branch main --event push --limit 1 --json status,conclusion --jq '.[0] | .status == "completed" and .conclusion == "success"')"
           if [ "$passed" != true ]; then
             echo '::error::Publishing requires successful main push CI for this exact commit.'
             exit 1
@@ -48,6 +52,9 @@ jobs:
           import { readFileSync } from 'node:fs';
           const pkg = JSON.parse(readFileSync('apps/kello/package.json', 'utf8'));
           assert.equal(pkg.name, 'kello');
+          if (process.env.GITHUB_REF_TYPE === 'tag') {
+            assert.equal(process.env.GITHUB_REF_NAME, `v${pkg.version}`, 'Release tag must match the package version');
+          }
           assert.match(pkg.version, /^\d+\.\d+\.\d+-alpha\.\d+$/);
           assert.equal(pkg.license, 'MIT');
           assert.equal(pkg.repository.url, `git+https://github.com/${process.env.GITHUB_REPOSITORY}.git`);

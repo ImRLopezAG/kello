@@ -7,7 +7,7 @@ Kello uses the same GitHub Actions OIDC approach as cvx-kit. The publish workflo
 - Repository: `ImRLopezAG/kello`
 - Package: `kello`, from `apps/kello`
 - Workflow: `release.yml`
-- GitHub environment: `npm`, restricted to the `main` branch
+- GitHub environment: `npm`, allowing the `main` branch and `v*` release tags
 - Distribution tag: `alpha`
 - Project license: MIT
 
@@ -29,7 +29,7 @@ CI runs `bun run test:integration`, including PostgreSQL, PgBouncer, Collector a
 
 ## Release
 
-After the reviewed alpha version and publishing configuration reach main, require successful push CI for that exact commit. Manually dispatch **Publish alpha** on main. The workflow checks the exact commit's newest main push CI, validates package identity/version/license, performs a frozen Bun install, builds only Kello, and publishes with OIDC to `alpha`. CD does not rerun tests.
+After the reviewed alpha version and publishing configuration reach main, require successful push CI for that exact commit. Push the matching `v<package-version>` tag (for example, `v0.1.0-alpha.0`) to trigger **Publish alpha**, like cvx-kit. The tag must point to a commit with successful main push CI and must exactly match the package version. Manual dispatch on main or a matching release tag remains available. The workflow checks the exact commit's newest main push CI, validates package identity/version/license, performs a frozen Bun install, builds only Kello, and publishes with OIDC to `alpha`. CD does not rerun tests.
 
 After publication, independently verify `npm view kello@<version> version dist-tags dist --registry=https://registry.npmjs.org --prefer-online`, download the published archive, and verify its exports, license, dependency notices, and clean-consumer behavior. A successful workflow configuration or dry run is not a completed publication.
 
