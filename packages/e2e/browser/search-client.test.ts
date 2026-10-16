@@ -105,6 +105,11 @@ test("packed native liveOptions isolates replacement projections and identities"
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(server.url.href);
     await page.getByTestId("window").filter({ hasText: "alice-1" }).waitFor();
+    assert.deepEqual(JSON.parse((await page.getByTestId("window").textContent()) ?? "null"), {
+      pages: [[{ title: "alice-0" }, { title: "alice-1" }]],
+      nextCursor: null,
+      previousCursor: null,
+    });
     assert.equal(calls.length, 1);
     await page.getByRole("button", { name: "Load more", exact: true }).click();
     await page.getByTestId("window").filter({ hasText: "alice-3" }).waitFor();
@@ -118,9 +123,24 @@ test("packed native liveOptions isolates replacement projections and identities"
     assert.equal(await page.getByTestId("window").textContent(), "loading");
     filtered.resolve();
     await page.getByTestId("window").filter({ hasText: '"done":true' }).waitFor();
+    // Native application values contain only the selected rows and cursors.
+    // Private dependency/revision evidence must not enter the client cache.
+    assert.deepEqual(JSON.parse((await page.getByTestId("window").textContent()) ?? "null"), {
+      pages: [
+        [{ done: true }, { done: true }],
+        [{ done: true }, { done: true }],
+      ],
+      nextCursor: null,
+      previousCursor: null,
+    });
     assert.equal(await page.getByTestId("state").textContent(), "success");
     await page.getByRole("button", { name: "Switch identity", exact: true }).click();
     await page.getByTestId("window").filter({ hasText: "bob-1" }).waitFor();
+    assert.deepEqual(JSON.parse((await page.getByTestId("window").textContent()) ?? "null"), {
+      pages: [[{ title: "bob-0" }, { title: "bob-1" }]],
+      nextCursor: null,
+      previousCursor: null,
+    });
     assert(!(await page.getByTestId("window").textContent())?.includes("alice"));
     await page.getByRole("button", { name: "Live suspense", exact: true }).click();
     await page.getByTestId("suspense-live").filter({ hasText: "bob-1" }).waitFor();

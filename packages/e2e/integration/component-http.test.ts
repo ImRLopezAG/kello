@@ -3,7 +3,7 @@ import { test } from "bun:test";
 import { openapi } from "@orpc/openapi";
 import { os } from "@orpc/server";
 import * as v from "valibot";
-import { createNeonRpcApplication } from "../../../apps/loom/src/core/adapters/neon/rpc-application";
+import { createNeonRpcApplication } from "../../../apps/kello/src/core/adapters/neon/rpc-application";
 
 test("Hono serves native contract HTTP without protocol headers and retains reserved storage/RPC", async () => {
   let calls = 0;
@@ -62,7 +62,7 @@ test("Hono serves native contract HTTP without protocol headers and retains rese
 
 test("signed webhook fixture rejects altered and expired signatures before writes; retries deduplicate", async () => {
   const { createHmac, timingSafeEqual } = await import("node:crypto");
-  const { createComponentHttpApp } = await import("../../../apps/loom/src/core/adapters/neon/component-http");
+  const { createComponentHttpApp } = await import("../../../apps/kello/src/core/adapters/neon/component-http");
   const secret = "local-fixture-only";
   const timestamp = Math.floor(Date.now() / 1000);
   const body = new TextEncoder().encode('{ "id": "event-1" }\n');

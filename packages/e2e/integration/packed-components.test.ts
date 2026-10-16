@@ -71,7 +71,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
   try {
     await run(
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
-      join(workspace, "apps/loom"),
+      join(workspace, "apps/kello"),
     );
     await write(
       join(root, "package.json"),
@@ -82,7 +82,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
         dependencies: {
           kello: "file:./kello.tgz",
           valibot: "1.5.0",
-          "@orpc/client": "2.0.0-beta.41",
+          "@orpc/client": "2.0.0-beta.43",
           "drizzle-orm": "1.0.0-rc.4",
         },
         devDependencies: { "@types/node": "24.13.6" },

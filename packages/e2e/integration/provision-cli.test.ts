@@ -7,11 +7,12 @@ import { fileURLToPath } from "node:url";
 
 test("branch provisioning CLI rejects unrelated options and redacts invalid declarations", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-provision-cli-"));
-  const cli = fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url));
+  const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
   async function run(args: string[], code: number, error: string) {
     const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
       stdout: "pipe",
       stderr: "pipe",
+      timeout: 5000,
     });
     const [stdout, stderr, exit] = await Promise.all([
       new Response(child.stdout).text(),
@@ -37,4 +38,4 @@ test("branch provisioning CLI rejects unrelated options and redacts invalid decl
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 45_000);

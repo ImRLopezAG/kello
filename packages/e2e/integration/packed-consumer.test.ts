@@ -6,26 +6,26 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 test("fresh workspace installation links the CLI before compiled output exists", async () => {
-  const source = fileURLToPath(new URL("../../../apps/loom/", import.meta.url));
+  const source = fileURLToPath(new URL("../../../apps/kello/", import.meta.url));
   const manifest = await Bun.file(join(source, "package.json")).json();
   const workspaceLock = await readFile(new URL("../../../bun.lock", import.meta.url), "utf8");
   assert.match(workspaceLock, /"bin":\s*\{\s*"kello": "\.\/cli\.js"/);
   const root = await mkdtemp(join(tmpdir(), "loom-workspace-bin-"));
   try {
-    await mkdir(join(root, "apps/loom"), { recursive: true });
+    await mkdir(join(root, "apps/kello"), { recursive: true });
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({ private: true, workspaces: ["apps/*"], dependencies: { kello: "workspace:*" } }),
     );
     await writeFile(
-      join(root, "apps/loom/package.json"),
+      join(root, "apps/kello/package.json"),
       JSON.stringify({ name: manifest.name, version: manifest.version, bin: manifest.bin, type: "module" }),
     );
     // Copy committed package files, with no prebuilt dist output.
     if (!manifest.bin.kello.startsWith("./bin/")) {
-      await cp(join(source, manifest.bin.kello), join(root, "apps/loom", manifest.bin.kello));
+      await cp(join(source, manifest.bin.kello), join(root, "apps/kello", manifest.bin.kello));
     }
-    assert.equal(await Bun.file(join(root, "apps/loom/bin/kello.js")).exists(), false);
+    assert.equal(await Bun.file(join(root, "apps/kello/bin/kello.js")).exists(), false);
     const child = Bun.spawn(["bun", "install", "--ignore-scripts"], {
       cwd: root,
       stdout: "pipe",
@@ -39,14 +39,14 @@ test("fresh workspace installation links the CLI before compiled output exists",
     ]);
     assert.equal(code, 0, `${stdout}\n${stderr}`);
     await access(join(root, "node_modules/.bin/kello"));
-    assert.equal(await Bun.file(join(root, "apps/loom/dist/cli.js")).exists(), false);
+    assert.equal(await Bun.file(join(root, "apps/kello/dist/cli.js")).exists(), false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("packed tooling preserves migration and bucket privacy patches without consumer configuration", async () => {
-  const publicManifest = await Bun.file(new URL("../../../apps/loom/package.json", import.meta.url)).json();
+  const publicManifest = await Bun.file(new URL("../../../apps/kello/package.json", import.meta.url)).json();
   assert.equal(publicManifest.name, "kello");
   assert.equal(publicManifest.version, "0.0.0");
   assert.equal(publicManifest.bin.kello, "./cli.js");
@@ -65,7 +65,7 @@ test("packed tooling preserves migration and bucket privacy patches without cons
   try {
     await run(
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
-      fileURLToPath(new URL("../../../apps/loom/", import.meta.url)),
+      fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
     const entries = (await run(["tar", "-tzf", join(root, "kello.tgz")])).trim().split("\n");
     assert(
@@ -116,6 +116,140 @@ test("packed tooling preserves migration and bucket privacy patches without cons
     assert.equal(proposed.dryRun, true);
     assert.match(await readFile(join(root, "node_modules/kello/dist/cli.js"), "utf8"), /^#!\/usr\/bin\/env bun/);
     assert.match(await readFile(join(root, "node_modules/kello/dist/core/react/index.js"), "utf8"), /^"use client";/);
+    const browserForbidden = [
+      "startDiagnostics",
+      "kello.diagnostics.session.v1",
+      "kello.runtime.metric",
+      "kello.deployment.metric",
+      "resourceMetrics",
+      "otlp-http-json",
+      "node:",
+    ];
+    await writeFile(
+      join(root, "browser-exports.mjs"),
+      'export * as client from "kello/client"; export * as react from "kello/react";\n',
+    );
+    // Retain every public export; optional UI peers are outside the Kello boundary.
+    const browserExports = await Bun.build({
+      entrypoints: [join(root, "browser-exports.mjs")],
+      target: "browser",
+      external: ["react", "@tanstack/react-query"],
+    });
+    assert.equal(browserExports.success, true);
+    assert(browserExports.outputs.length > 0);
+    for (const output of browserExports.outputs) {
+      const code = await output.text();
+      for (const forbidden of browserForbidden) assert(!code.includes(forbidden), forbidden);
+    }
+    await writeFile(
+      join(root, "diagnostics.ts"),
+      `import assert from "node:assert/strict";
+import { channel } from "node:diagnostics_channel";
+import { startDiagnostics } from "kello/tooling";
+import type {
+  DiagnosticsOptions, DiagnosticsSession, DiagnosticsStats, DiagnosticsRecord,
+  DiagnosticsRuntimeEvent, DiagnosticsDeploymentEvent,
+} from "kello/tooling";
+// @ts-expect-error diagnostics are tooling-only, including their declaration surface
+import type { startDiagnostics as ClientDiagnostics } from "kello/client";
+// @ts-expect-error diagnostics are not a React export
+import type { startDiagnostics as ReactDiagnostics } from "kello/react";
+if (process.argv[2] === "node") {
+  assert.equal("Bun" in globalThis, false);
+  assert.equal(process.versions.node.split(".")[0], "24");
+} else assert.equal("Bun" in globalThis, true);
+const runtime = channel("kello.runtime.metric");
+const deployment = channel("kello.deployment.metric");
+assert.equal(runtime.hasSubscribers, false);
+assert.equal(deployment.hasSubscribers, false);
+const runtimeEvent: DiagnosticsRuntimeEvent = { type: "rpc.procedure", mode: "finite", status: "success", durationMs: 7 };
+const deploymentEvent: DiagnosticsDeploymentEvent = { type: "release.acknowledgement", stage: "complete", status: "recorded" };
+const lines: string[] = [];
+const signals: AbortSignal[] = [];
+const { promise: observed, resolve: received } = Promise.withResolvers<void>();
+const options: DiagnosticsOptions = { output: { format: "jsonl", write(chunk, signal) {
+  lines.push(chunk);
+  signals.push(signal);
+  if (lines.length === 2) received();
+} } };
+// Exercise the telemetry option declaration without enabling a network sink.
+const telemetry: NonNullable<DiagnosticsOptions["telemetry"]> = {
+  protocol: "otlp-http-json", endpoint: "http://127.0.0.1:4318/v1/metrics", bearerToken: "fixture-only",
+};
+assert.equal(telemetry.protocol, "otlp-http-json");
+const session: DiagnosticsSession = await startDiagnostics(options);
+try {
+  assert.equal(runtime.hasSubscribers, true);
+  assert.equal(deployment.hasSubscribers, true);
+  runtime.publish({ ...runtimeEvent, secret: "PACKED_DIAGNOSTICS_SECRET" });
+  deployment.publish({ ...deploymentEvent, secret: "PACKED_DIAGNOSTICS_SECRET" });
+  await observed;
+  const records: DiagnosticsRecord[] = lines.map(line => {
+    assert(line.endsWith("\\n"));
+    return JSON.parse(line);
+  });
+  assert.deepEqual(records.map(record => ({ source: record.source, event: record.event })), [
+    { source: "runtime", event: runtimeEvent }, { source: "deployment", event: deploymentEvent },
+  ]);
+  records.forEach((record, index) => {
+    assert.deepEqual(Object.keys(record).sort(), ["event", "schemaVersion", "scope", "sequence", "source", "timestamp"]);
+    assert.equal(record.schemaVersion, 1);
+    assert.equal(record.scope, "local-process");
+    assert.equal(record.sequence, index + 1);
+    assert.equal(new Date(record.timestamp).toISOString(), record.timestamp);
+  });
+  assert(!lines.join("").includes("PACKED_DIAGNOSTICS_SECRET"));
+  const stats = session.snapshot();
+  const publicStats: Readonly<DiagnosticsStats> = stats;
+  assert.deepEqual(publicStats, { accepted: 2, invalid: 0, dropped: 0, outputFailures: 0, exportFailures: 0 });
+  // @ts-expect-error snapshots are readonly in the public declarations
+  stats.accepted = 0;
+  assert.equal(session.snapshot().accepted, 2);
+} finally {
+  const stopping: Promise<void> = session.stop();
+  assert.equal(session.stop(), stopping);
+  assert(signals.every(signal => signal.aborted));
+  assert.equal(runtime.hasSubscribers, false);
+  assert.equal(deployment.hasSubscribers, false);
+  await stopping;
+}
+const stopped = session.snapshot();
+runtime.publish(runtimeEvent);
+deployment.publish(deploymentEvent);
+assert.deepEqual(session.snapshot(), stopped);
+assert.equal(lines.length, 2);
+const replacement: DiagnosticsSession = await startDiagnostics(options);
+try {
+  assert.deepEqual(replacement.snapshot(), { accepted: 0, invalid: 0, dropped: 0, outputFailures: 0, exportFailures: 0 });
+} finally { await replacement.stop(); }
+assert.equal(runtime.hasSubscribers, false);
+assert.equal(deployment.hasSubscribers, false);
+`,
+    );
+    await writeFile(
+      join(root, "diagnostics.tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          target: "ESNext",
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          strict: true,
+          exactOptionalPropertyTypes: true,
+          skipLibCheck: true,
+          types: ["node"],
+          outDir: "diagnostics-dist",
+          noEmitOnError: true,
+        },
+        include: ["diagnostics.ts"],
+      }),
+    );
+    await run([
+      fileURLToPath(new URL("../../../node_modules/.bin/tsc", import.meta.url)),
+      "-p",
+      join(root, "diagnostics.tsconfig.json"),
+    ]);
+    await run(["bun", "diagnostics-dist/diagnostics.js", "bun"]);
+    await run(["node", "diagnostics-dist/diagnostics.js", "node"]);
     await writeFile(
       join(root, "without-react.mjs"),
       `
@@ -145,7 +279,7 @@ await import("kello/server");
       "neon-config.LICENSE",
       "neon-config-runtime.LICENSE",
       "drizzle-kit@1.0.0-rc.4.patch",
-      "@neon%2Fconfig@1.8.3.patch",
+      "@neon%2Fconfig@1.9.2.patch",
     ]) {
       assert((await readFile(join(root, "node_modules/kello/dist/third-party", name), "utf8")).length > 0);
     }
@@ -255,6 +389,11 @@ assert.equal((await generateProject("./native")).version, result.version);
 assert.deepEqual(result.procedures, [{path:["tasks","list"],visibility:"public"}]);
 const browser = await Bun.build({entrypoints:["./native/kello/_generated/api.js"],target:"browser"});
 assert.equal(browser.success, true);
+assert(browser.outputs.length > 0);
+for (const output of browser.outputs) {
+  const code = await output.text();
+  for (const forbidden of ${JSON.stringify(browserForbidden)}) assert(!code.includes(forbidden), forbidden);
+}
 `,
     );
     await run(["bun", "generate-native.mjs"]);

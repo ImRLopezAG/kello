@@ -1,4 +1,4 @@
-import { createSnapshotStream } from "../../../apps/loom/src/core/server/rpc/snapshot-stream";
+import { createSnapshotStream } from "../../../apps/kello/src/core/server/rpc/snapshot-stream";
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
 import { expect, test } from "bun:test";
@@ -6,7 +6,7 @@ import pg from "pg";
 import { defineRelations, sql } from "drizzle-orm";
 import { call, ORPCError } from "@orpc/server";
 import { Context } from "effect";
-import { evaluateSnapshot } from "../../../apps/loom/src/core/server/rpc/snapshot";
+import { evaluateSnapshot } from "../../../apps/kello/src/core/server/rpc/snapshot";
 import * as v from "valibot";
 import { bootstrapDatabase, installRevisionTracking } from "kello/tooling";
 import {
@@ -18,7 +18,7 @@ import {
   Invocation,
   createRevisionReader,
   defineSchema,
-} from "../../../apps/loom/src/core/server/index";
+} from "../../../apps/kello/src/core/server/index";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

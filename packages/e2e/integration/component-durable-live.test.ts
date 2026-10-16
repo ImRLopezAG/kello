@@ -2,10 +2,15 @@ import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { os } from "@orpc/server";
 import * as v from "valibot";
-import type { RpcJobCall } from "../../../apps/loom/src/core/server/jobs/rpc-contracts";
-import { createRpcScheduler } from "../../../apps/loom/src/core/server/jobs/rpc-scheduler";
-import { compileJobMigrations } from "../../../apps/loom/src/core/server/jobs/rpc-migrations";
-import { captureSnapshotRevisions, evaluateSnapshot } from "../../../apps/loom/src/core/server/rpc/snapshot";
+import type { RpcJobCall } from "../../../apps/kello/src/core/server/jobs/rpc-contracts";
+import { createRpcScheduler } from "../../../apps/kello/src/core/server/jobs/rpc-scheduler";
+import { compileJobMigrations } from "../../../apps/kello/src/core/server/jobs/rpc-migrations";
+import {
+  acceptSnapshotAttempt,
+  evaluateSnapshot,
+  registerSnapshotSegment,
+  runSnapshotAttempt,
+} from "../../../apps/kello/src/core/server/rpc/snapshot";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
@@ -45,11 +50,13 @@ test("live snapshots retain the union of mount-qualified child revisions", async
   const db = drizzle({ client: pool });
   try {
     const result = await evaluateSnapshot(async () => {
-      await Promise.all([
-        captureSnapshotRevisions(db, async () => ({ "left/items": "1" })),
-        captureSnapshotRevisions(db, async () => ({ "app/items": "2" })),
-      ]);
-      return "snapshot";
+      const candidate = await runSnapshotAttempt(db, undefined, false, async () => {
+        registerSnapshotSegment({ reader: async () => ({ "left/items": "1" }) });
+        registerSnapshotSegment({ reader: async () => ({ "app/items": "2" }) });
+        return "snapshot";
+      });
+      acceptSnapshotAttempt(candidate);
+      return candidate.value;
     });
     expect(result.revisions).toEqual({ "left/items": "1", "app/items": "2" });
   } finally {
@@ -59,7 +66,7 @@ test("live snapshots retain the union of mount-qualified child revisions", async
 
 test("durable callbacks carry the mount identity at compilation", async () => {
   const { compileProcedureCapabilities, defineProcedureStorage, procedureCron, procedureObjectCreated } =
-    await import("../../../apps/loom/src/core/server/rpc/capabilities");
+    await import("../../../apps/kello/src/core/server/rpc/capabilities");
   const callback = os.input(v.any()).handler(() => null);
   const entries = ["left", "right"].map((scope) => ({ scope, path: ["callback"], procedure: callback }));
   const storage = defineProcedureStorage({ buckets: { files: { onObjectCreated: procedureObjectCreated(callback) } } });
@@ -78,7 +85,7 @@ test("durable callbacks carry the mount identity at compilation", async () => {
 });
 
 test("live polling ignores unrelated mounted dependencies and reauthorizes child changes", async () => {
-  const { createRevisionCoordinator } = await import("../../../apps/loom/src/core/server/realtime/coordinator");
+  const { createRevisionCoordinator } = await import("../../../apps/kello/src/core/server/realtime/coordinator");
   let revisions = { "left:items": "1", "right:items": "1" };
   let evaluations = 0;
   let authorized = true;
@@ -127,15 +134,15 @@ test.skipIf(!connectionString)(
     const { Context, Layer } = await import("effect");
     const { defineRelations } = await import("drizzle-orm");
     const { bootstrapDatabase } = await import("kello/tooling");
-    const { defineSchema } = await import("../../../apps/loom/src/core/schema/define-schema");
-    const { connectDatabase } = await import("../../../apps/loom/src/core/server/database/connection");
-    const { createProjectProcedures } = await import("../../../apps/loom/src/core/server/rpc/procedure");
-    const { createDatabaseMiddleware } = await import("../../../apps/loom/src/core/server/rpc/database");
-    const { bindRuntimeGraph } = await import("../../../apps/loom/src/core/server/rpc/runtime-graph");
-    const { createEffectRuntime, Invocation } = await import("../../../apps/loom/src/core/server/effect/runtime");
-    const { createRevisionCoordinator } = await import("../../../apps/loom/src/core/server/realtime/coordinator");
-    const { createRpcJobQueue } = await import("../../../apps/loom/src/core/server/jobs/rpc-queue");
-    const { createTransactionalRpcScheduler } = await import("../../../apps/loom/src/core/server/jobs/rpc-service");
+    const { defineSchema } = await import("../../../apps/kello/src/core/schema/define-schema");
+    const { connectDatabase } = await import("../../../apps/kello/src/core/server/database/connection");
+    const { createProjectProcedures } = await import("../../../apps/kello/src/core/server/rpc/procedure");
+    const { createDatabaseMiddleware } = await import("../../../apps/kello/src/core/server/rpc/database");
+    const { bindRuntimeGraph } = await import("../../../apps/kello/src/core/server/rpc/runtime-graph");
+    const { createEffectRuntime, Invocation } = await import("../../../apps/kello/src/core/server/effect/runtime");
+    const { createRevisionCoordinator } = await import("../../../apps/kello/src/core/server/realtime/coordinator");
+    const { createRpcJobQueue } = await import("../../../apps/kello/src/core/server/jobs/rpc-queue");
+    const { createTransactionalRpcScheduler } = await import("../../../apps/kello/src/core/server/jobs/rpc-service");
     const namespace = `loom_durable_${crypto.randomUUID().replaceAll("-", "")}`;
     const role = `${namespace}_role`;
     const admin = new pg.Client({ connectionString });
@@ -239,9 +246,9 @@ test.skipIf(!connectionString)(
         const jobs = await admin.query(`SELECT call->>'scope' AS scope FROM "${namespace}".jobs ORDER BY scope`);
         expect(jobs.rows).toEqual([{ scope: "left" }, { scope: "right" }]);
         const { createComponentStorageRuntime } =
-          await import("../../../apps/loom/src/core/server/storage/component-runtime");
+          await import("../../../apps/kello/src/core/server/storage/component-runtime");
         const { defineProcedureStorage, procedureObjectCreated, compileProcedureCapabilities } =
-          await import("../../../apps/loom/src/core/server/rpc/capabilities");
+          await import("../../../apps/kello/src/core/server/rpc/capabilities");
         const { createLocalStorage } = await import("../fixtures/local-storage");
         const { createHash } = await import("node:crypto");
         const backend = createLocalStorage({ origin: "http://127.0.0.1:5174", onUploaded: async () => {} });
@@ -339,7 +346,7 @@ test.skipIf(!connectionString)(
         } finally {
           await backend.close();
         }
-        const { quarantineBranchConnection } = await import("../../../apps/loom/src/tooling/deploy/neon/quarantine");
+        const { quarantineBranchConnection } = await import("../../../apps/kello/src/tooling/deploy/neon/quarantine");
         const quarantined = await quarantineBranchConnection(admin, namespace, {
           projectId: "project",
           branchId: "clone",
@@ -376,14 +383,14 @@ test.skipIf(!connectionString)(
     const { Context } = await import("effect");
     const { defineRelations, sql } = await import("drizzle-orm");
     const { bootstrapDatabase } = await import("kello/tooling");
-    const { defineSchema } = await import("../../../apps/loom/src/core/schema/define-schema");
-    const { createRpcRuntime } = await import("../../../apps/loom/src/core/server/rpc-runtime");
-    const { createProjectProcedures } = await import("../../../apps/loom/src/core/server/rpc/procedure");
-    const { createDatabaseMiddleware } = await import("../../../apps/loom/src/core/server/rpc/database");
-    const { Invocation } = await import("../../../apps/loom/src/core/server/effect/runtime");
-    const { defineApplication } = await import("../../../apps/loom/src/core/server/application/definition");
-    const { defineComponent } = await import("../../../apps/loom/src/core/server/components/definition");
-    const { defineRpcAuth } = await import("../../../apps/loom/src/core/server/auth/rpc-definition");
+    const { defineSchema } = await import("../../../apps/kello/src/core/schema/define-schema");
+    const { createRpcRuntime } = await import("../../../apps/kello/src/core/server/rpc-runtime");
+    const { createProjectProcedures } = await import("../../../apps/kello/src/core/server/rpc/procedure");
+    const { createDatabaseMiddleware } = await import("../../../apps/kello/src/core/server/rpc/database");
+    const { Invocation } = await import("../../../apps/kello/src/core/server/effect/runtime");
+    const { defineApplication } = await import("../../../apps/kello/src/core/server/application/definition");
+    const { defineComponent } = await import("../../../apps/kello/src/core/server/components/definition");
+    const { defineRpcAuth } = await import("../../../apps/kello/src/core/server/auth/rpc-definition");
     const namespace = `loom_assembled_${crypto.randomUUID().replaceAll("-", "")}`;
     const role = `${namespace}_role`;
     const admin = new pg.Client({ connectionString });
@@ -492,15 +499,15 @@ test.skipIf(!connectionString)(
     const { Context } = await import("effect");
     const { defineRelations, sql } = await import("drizzle-orm");
     const { bootstrapDatabase } = await import("kello/tooling");
-    const { defineSchema } = await import("../../../apps/loom/src/core/schema/define-schema");
-    const { createRpcRuntime } = await import("../../../apps/loom/src/core/server/rpc-runtime");
-    const { createProjectProcedures } = await import("../../../apps/loom/src/core/server/rpc/procedure");
-    const { createDatabaseMiddleware } = await import("../../../apps/loom/src/core/server/rpc/database");
-    const { createLiveContext } = await import("../../../apps/loom/src/core/server/rpc/live-context");
-    const { Invocation } = await import("../../../apps/loom/src/core/server/effect/runtime");
-    const { defineApplication } = await import("../../../apps/loom/src/core/server/application/definition");
-    const { defineComponent } = await import("../../../apps/loom/src/core/server/components/definition");
-    const { defineRpcAuth } = await import("../../../apps/loom/src/core/server/auth/rpc-definition");
+    const { defineSchema } = await import("../../../apps/kello/src/core/schema/define-schema");
+    const { createRpcRuntime } = await import("../../../apps/kello/src/core/server/rpc-runtime");
+    const { createProjectProcedures } = await import("../../../apps/kello/src/core/server/rpc/procedure");
+    const { createDatabaseMiddleware } = await import("../../../apps/kello/src/core/server/rpc/database");
+    const { createLiveContext } = await import("../../../apps/kello/src/core/server/rpc/live-context");
+    const { Invocation } = await import("../../../apps/kello/src/core/server/effect/runtime");
+    const { defineApplication } = await import("../../../apps/kello/src/core/server/application/definition");
+    const { defineComponent } = await import("../../../apps/kello/src/core/server/components/definition");
+    const { defineRpcAuth } = await import("../../../apps/kello/src/core/server/auth/rpc-definition");
     const namespace = `loom_live_${crypto.randomUUID().replaceAll("-", "")}`;
     const appNamespace = `${namespace}_app`;
     const childNamespace = `${namespace}_child`;
@@ -610,9 +617,9 @@ test.skipIf(!connectionString)(
 
 test("assembled runtime rejects root and component cron identity collisions before connecting", async () => {
   const { defineRelations } = await import("drizzle-orm");
-  const { defineSchema } = await import("../../../apps/loom/src/core/schema/define-schema");
-  const { createRpcRuntime } = await import("../../../apps/loom/src/core/server/rpc-runtime");
-  const { procedureCron } = await import("../../../apps/loom/src/core/server/rpc/capabilities");
+  const { defineSchema } = await import("../../../apps/kello/src/core/schema/define-schema");
+  const { createRpcRuntime } = await import("../../../apps/kello/src/core/server/rpc-runtime");
+  const { procedureCron } = await import("../../../apps/kello/src/core/server/rpc/capabilities");
   const schema = defineSchema(() => ({}));
   const childSchema = defineSchema(() => ({}), { namespace: "loom_component_collision" });
   const cron = procedureCron("* * * * *", procedure, "tick");

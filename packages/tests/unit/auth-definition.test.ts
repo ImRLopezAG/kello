@@ -4,7 +4,7 @@ import {
   createRpcAuthentication,
   defineRpcAuth,
   isRpcAuthDefinition,
-} from "../../../apps/loom/src/core/server/auth/rpc-definition";
+} from "../../../apps/kello/src/core/server/auth/rpc-definition";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
 test("auth declarations capture explicit policy and deny when omitted", async () => {

@@ -1,6 +1,6 @@
 import { defineRelations } from "drizzle-orm";
 import type { BuildQueryResult } from "drizzle-orm";
-import { defineSchema, defineTable } from "kello/server";
+import { defineSchema, defineTable } from "../../../apps/kello/src/core/server/index";
 
 export const searchSchema = defineSchema(
   (s) => ({

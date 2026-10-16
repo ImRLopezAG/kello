@@ -6,12 +6,12 @@ import { defineRelations } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";
 import { bootstrapDatabase } from "kello/tooling";
-import { defineComponent } from "../../../apps/loom/src/core/server/components/definition";
-import { readComponentEnvironment } from "../../../apps/loom/src/core/server/components/environment";
-import { defineApplication } from "../../../apps/loom/src/core/server/application/definition";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
-import { createRpcRuntime } from "../../../apps/loom/src/core/server/rpc-runtime";
-import { createNeonRpcApplication } from "../../../apps/loom/src/core/adapters/neon/rpc-application";
+import { defineComponent } from "../../../apps/kello/src/core/server/components/definition";
+import { readComponentEnvironment } from "../../../apps/kello/src/core/server/components/environment";
+import { defineApplication } from "../../../apps/kello/src/core/server/application/definition";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { createRpcRuntime } from "../../../apps/kello/src/core/server/rpc-runtime";
+import { createNeonRpcApplication } from "../../../apps/kello/src/core/adapters/neon/rpc-application";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

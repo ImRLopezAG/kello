@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createAuthLifecycle } from "../../../apps/loom/src/core/client/auth-lifecycle";
+import { createAuthLifecycle } from "../../../apps/kello/src/core/client/auth-lifecycle";
 import type { VerifiedClientSession } from "kello/client";
 
 function deferred<T>() {

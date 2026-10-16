@@ -45,11 +45,11 @@ test("documentation routes, search and mobile navigation work without hydration 
     assert.match(await page.locator("pre").innerText(), /ownerIssuer/);
     assert.ok(await page.locator('a[href="/authoring/schemas"][data-active="true"]').count());
     // A marker on the window survives Astro navigation, but not a full document reload.
-    await page.evaluate(() => Reflect.set(window, "loomNavigationMarker", "same-document"));
+    await page.evaluate(() => Reflect.set(window, "kelloNavigationMarker", "same-document"));
     await page.getByRole("link", { name: "Quickstart", exact: true }).first().click();
     await page.waitForURL("**/quickstart");
     await page.waitForFunction(() => !document.documentElement.hasAttribute("data-astro-transition"));
-    assert.equal(await page.evaluate(() => Reflect.has(window, "loomNavigationMarker")), true);
+    assert.equal(await page.evaluate(() => Reflect.has(window, "kelloNavigationMarker")), true);
     await page.getByRole("heading", { name: "Quickstart", exact: true }).waitFor();
     assert.ok(await page.locator('a[href="/quickstart"][data-active="true"]').count());
     await page.locator('a[href="#build-the-local-package"]').first().click();

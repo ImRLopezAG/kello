@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { classifyFrameworkHistory } from "../../../apps/loom/src/tooling/migrations/framework-history";
-import { releaseHistoryNeedsRecovery } from "../../../apps/loom/src/tooling/deploy/neon/history-readiness";
+import { classifyFrameworkHistory } from "../../../apps/kello/src/tooling/migrations/framework-history";
+import { releaseHistoryNeedsRecovery } from "../../../apps/kello/src/tooling/deploy/neon/history-readiness";
 
 const expected = [
   { version: 1, hash: "first" },

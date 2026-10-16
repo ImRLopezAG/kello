@@ -3,11 +3,11 @@ import {
   createSearchContext,
   validateSelectedSearchOutput,
   validateSearchHandlerOutput,
-} from "../../../apps/loom/src/core/search/executor";
-import { createSearchValidators } from "../../../apps/loom/src/core/search/contract";
-import { oc } from "kello/contract";
+} from "../../../apps/kello/src/core/search/executor";
+import { createSearchValidators } from "../../../apps/kello/src/core/search/contract";
+import { oc } from "../../../apps/kello/src/core/contract/index";
 import { searchSchema, searchRelations } from "../fixtures/search-schema";
-import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
+import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
 
 const validators = { tables: createSearchValidators(searchSchema, searchRelations) };
 const search = validators.tables.tasks.search({ scope: "public", columns: ["title", "done"] });

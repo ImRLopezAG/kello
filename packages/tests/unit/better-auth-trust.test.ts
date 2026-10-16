@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { jwt } from "better-auth/plugins";
-import { validateBetterAuthTrust } from "../../../apps/loom/src/core/better-auth/trust";
+import { validateBetterAuthTrust } from "../../../apps/kello/src/core/better-auth/trust";
 
 const issuer = {
   issuer: "https://api.test",

@@ -5,7 +5,7 @@ import { AuthenticationError, createProjectProcedures, defineSchema } from "kell
 import * as v from "valibot";
 const version = "a".repeat(64);
 const { procedure } = createProjectProcedures(defineSchema(() => ({})));
-import { originPolicy } from "../../../apps/loom/src/core/server/auth/policy";
+import { originPolicy } from "../../../apps/kello/src/core/server/auth/policy";
 
 test("origin policy matches exact canonical origins and permits originless server calls", () => {
   const allows = originPolicy(["https://app.example.test", "http://localhost:3000"]);

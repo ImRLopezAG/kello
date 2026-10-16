@@ -1,8 +1,8 @@
 Kello brand assets
 
-loom-icon.png — 256px transparent PNG mark for navigation and repository use.
-loom-hero.webp — transparent optimized homepage artwork, 1200 by 800.
-loom-social.png — repository banner and social preview, 1200 by 630.
+kello-icon.png — 256px transparent PNG mark for navigation and repository use.
+kello-hero.webp — transparent optimized homepage artwork, 1200 by 800.
+kello-social.png — repository banner and social preview, 1200 by 630.
 /favicon.png — 32px browser icon.
 /apple-touch-icon.png — 180px home-screen icon.
 

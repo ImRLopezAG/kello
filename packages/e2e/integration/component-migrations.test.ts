@@ -1,4 +1,4 @@
-import { releaseHistoryNeedsRecovery } from "../../../apps/loom/src/tooling/deploy/neon/history-readiness";
+import { releaseHistoryNeedsRecovery } from "../../../apps/kello/src/tooling/deploy/neon/history-readiness";
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
@@ -9,9 +9,9 @@ import type { DeploymentDatabaseProvider } from "kello/tooling";
 import {
   captureSchemaBaseline,
   establishSchemaBaselines,
-} from "../../../apps/loom/src/tooling/migrations/branch-baseline";
-import { withMigrationConnection as withBaselineConnection } from "../../../apps/loom/src/tooling/migrations/connection";
-import { ormHistoryTable } from "../../../apps/loom/src/tooling/migrations/state";
+} from "../../../apps/kello/src/tooling/migrations/branch-baseline";
+import { withMigrationConnection as withBaselineConnection } from "../../../apps/kello/src/tooling/migrations/connection";
+import { ormHistoryTable } from "../../../apps/kello/src/tooling/migrations/state";
 import { fileURLToPath } from "node:url";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { bindSchemaNamespace, defineSchema } from "kello/server";

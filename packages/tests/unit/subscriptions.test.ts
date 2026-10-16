@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vite-plus/test";
-import { createRevisionCoordinator } from "kello/server";
+import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
+import type { TableRevisions } from "../../../apps/kello/src/core/server/realtime/revisions";
 type Evaluation = { value: string; revisions: { tasks: string } };
 
 const session = () => ({
@@ -9,6 +10,237 @@ const session = () => ({
 const result = (revision: string): Evaluation => ({
   value: revision,
   revisions: { tasks: revision },
+});
+
+test.each([
+  ["initial", "absent"],
+  ["initial", "inherited"],
+  ["reevaluation", "absent"],
+  ["reevaluation", "inherited"],
+])("%s capture with an %s revision key closes before publication", async (stage, presence) => {
+  let evaluations = 0;
+  let revision = "1";
+  const updates: string[] = [];
+  const reasons: string[] = [];
+  const poller = createRevisionCoordinator({
+    intervalMs: 60_000,
+    readRevisions: async () => {
+      const polled = { tasks: revision };
+      if (presence === "inherited") Object.setPrototypeOf(polled, { permissions: "0" });
+      return polled;
+    },
+  });
+  try {
+    poller.subscribe(session(), {
+      evaluate: async () => {
+        evaluations++;
+        return {
+          value: revision,
+          revisions:
+            stage === "initial" || evaluations > 1 ? { tasks: revision, permissions: "0" } : { tasks: revision },
+        };
+      },
+      publish: (value) => {
+        updates.push(value);
+        return true;
+      },
+      close: (reason) => reasons.push(reason),
+    });
+    await poller.poll();
+    if (stage === "reevaluation") {
+      expect(updates).toEqual(["1"]);
+      revision = "2";
+      await poller.poll();
+    }
+    expect(reasons).toEqual(["RESYNC_REQUIRED"]);
+    expect(updates).toEqual(stage === "initial" ? [] : ["1"]);
+    await poller.poll();
+    expect(evaluations).toBe(stage === "initial" ? 1 : 2);
+  } finally {
+    await poller.stop();
+  }
+});
+
+test.each([
+  ["poll", "absent"],
+  ["poll", "inherited"],
+  ["notify", "absent"],
+  ["notify", "inherited"],
+])("%s closes on an %s retained key without reevaluation", async (mode, presence) => {
+  let polled: TableRevisions = { tasks: "1", permissions: "0" };
+  let wake: (() => void) | undefined;
+  let reads = 0;
+  let evaluations = 0;
+  const updates: string[] = [];
+  const reasons: string[] = [];
+  const options = {
+    intervalMs: 60_000,
+    readRevisions: async () => {
+      reads++;
+      return polled;
+    },
+  };
+  const poller =
+    mode === "notify"
+      ? createRevisionCoordinator({
+          ...options,
+          wakeups: (notify) => {
+            wake = notify;
+            return { ready: Promise.resolve(), stop: async () => {} };
+          },
+        })
+      : createRevisionCoordinator(options);
+  try {
+    poller.subscribe(session(), {
+      evaluate: async () => {
+        evaluations++;
+        return { value: "authorized", revisions: { tasks: "1", permissions: "0" } };
+      },
+      publish: (value) => {
+        updates.push(value);
+        return true;
+      },
+      close: (reason) => reasons.push(reason),
+    });
+    await poller.poll();
+    expect(updates).toEqual(["authorized"]);
+    polled = { tasks: "1" };
+    if (presence === "inherited") Object.setPrototypeOf(polled, { permissions: "0" });
+    wake?.();
+    await poller.poll();
+    expect(reasons).toEqual(["RESYNC_REQUIRED"]);
+    expect(evaluations).toBe(1);
+    expect(updates).toEqual(["authorized"]);
+    expect(reads).toBe(2);
+  } finally {
+    await poller.stop();
+  }
+});
+
+test("a capture newer than the shared poll publishes and becomes the retained revision", async () => {
+  const started = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<Evaluation>();
+  let revision = "1";
+  let evaluations = 0;
+  const updates: string[] = [];
+  const reasons: string[] = [];
+  const poller = createRevisionCoordinator({
+    intervalMs: 60_000,
+    readRevisions: async () => ({ tasks: revision }),
+  });
+  try {
+    poller.subscribe(session(), {
+      evaluate: async () => {
+        evaluations++;
+        started.resolve();
+        return finish.promise;
+      },
+      publish: (value) => {
+        updates.push(value);
+        return true;
+      },
+      close: (reason) => reasons.push(reason),
+    });
+    const cycle = poller.poll();
+    await started.promise;
+    revision = "2";
+    finish.resolve(result("2"));
+    await cycle;
+    expect(updates).toEqual(["2"]);
+    expect(reasons).toEqual([]);
+    await poller.poll();
+    expect(evaluations).toBe(1);
+  } finally {
+    finish.resolve(result("2"));
+    await poller.stop();
+  }
+});
+
+test("selective subscriptions retain independent values and replace dependencies after successful publication", async () => {
+  let revisions = { selector: "1", tasks: "1", permissions: "1", unrelated: "1" };
+  let reads = 0;
+  const evaluations = { alice: 0, bob: 0 };
+  const updates: string[] = [];
+  const poller = createRevisionCoordinator({
+    intervalMs: 60_000,
+    readRevisions: async () => {
+      reads++;
+      return revisions;
+    },
+  });
+  try {
+    for (const subject of ["alice", "bob"] as const) {
+      const principalSession = { ...session(), identity: { issuer: "test", subject } };
+      poller.subscribe(principalSession, {
+        evaluate: async () => {
+          evaluations[subject]++;
+          return {
+            value: `${subject}:${revisions.selector}`,
+            revisions:
+              revisions.selector === "1"
+                ? { selector: revisions.selector, tasks: revisions.tasks }
+                : { selector: revisions.selector, permissions: revisions.permissions },
+          };
+        },
+        publish: (value) => {
+          updates.push(value);
+          return true;
+        },
+        close: () => {},
+      });
+    }
+    await poller.poll();
+    revisions = { ...revisions, unrelated: "2" };
+    await poller.poll();
+    expect(evaluations).toEqual({ alice: 1, bob: 1 });
+    revisions = { ...revisions, selector: "2" };
+    await poller.poll();
+    expect(evaluations).toEqual({ alice: 2, bob: 2 });
+    revisions = { ...revisions, tasks: "2" };
+    await poller.poll();
+    expect(evaluations).toEqual({ alice: 2, bob: 2 });
+    revisions = { ...revisions, permissions: "2" };
+    await poller.poll();
+    expect(evaluations).toEqual({ alice: 3, bob: 3 });
+    expect(updates).toEqual(["alice:1", "bob:1", "alice:2", "bob:2", "alice:2", "bob:2"]);
+    expect(reads).toBe(5);
+  } finally {
+    await poller.stop();
+  }
+});
+
+test("failed publication closes the stream and later polls cannot use its captured evidence", async () => {
+  let revision = "1";
+  let evaluations = 0;
+  const updates: string[] = [];
+  const reasons: string[] = [];
+  const poller = createRevisionCoordinator({
+    intervalMs: 60_000,
+    readRevisions: async () => ({ tasks: revision }),
+  });
+  try {
+    poller.subscribe(session(), {
+      evaluate: async () => {
+        evaluations++;
+        return result(revision);
+      },
+      publish: (value) => {
+        updates.push(value);
+        return value === "1";
+      },
+      close: (reason) => reasons.push(reason),
+    });
+    await poller.poll();
+    revision = "2";
+    await poller.poll();
+    expect(reasons).toEqual(["RESYNC_REQUIRED"]);
+    revision = "3";
+    await poller.poll();
+    expect(evaluations).toBe(2);
+    expect(updates).toEqual(["1", "2"]);
+  } finally {
+    await poller.stop();
+  }
 });
 
 test("LISTEN readiness precedes snapshots and burst wakeups reconcile an in-flight commit", async () => {

@@ -4,14 +4,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { generateRelease } from "kello/tooling";
 import type { NeonReleaseJournal } from "kello/tooling";
-import { applyMigrations } from "../../../apps/loom/src/tooling/migrations/runner";
-import { migrationStatus } from "../../../apps/loom/src/tooling/migrations/status";
-import { frameworkMigrations } from "../../../apps/loom/src/tooling/migrations/bootstrap";
-import { quoteIdentifier } from "../../../apps/loom/src/tooling/migrations/connection";
-import { ormHistoryTable } from "../../../apps/loom/src/tooling/migrations/state";
-import { withNeonReleaseDatabase } from "../../../apps/loom/src/tooling/deploy/neon/release-database";
-import { planProjectRelease } from "../../../apps/loom/src/tooling/deploy/neon/plan-release";
-import type { readProjectRelease } from "../../../apps/loom/src/tooling/deploy/neon/project";
+import { applyMigrations } from "../../../apps/kello/src/tooling/migrations/runner";
+import { migrationStatus } from "../../../apps/kello/src/tooling/migrations/status";
+import { frameworkMigrations } from "../../../apps/kello/src/tooling/migrations/bootstrap";
+import { quoteIdentifier } from "../../../apps/kello/src/tooling/migrations/connection";
+import { ormHistoryTable } from "../../../apps/kello/src/tooling/migrations/state";
+import { withNeonReleaseDatabase } from "../../../apps/kello/src/tooling/deploy/neon/release-database";
+import { planProjectRelease } from "../../../apps/kello/src/tooling/deploy/neon/plan-release";
+import type { readProjectRelease } from "../../../apps/kello/src/tooling/deploy/neon/project";
 import { withFrameworkPrefixFixture, makeVersion26, historySnapshot } from "../fixtures/framework-prefix-readiness";
 import type { FrameworkPrefixFixture } from "../fixtures/framework-prefix-readiness";
 
@@ -104,7 +104,7 @@ nativeTest(
         "utf8",
       );
       const original = await historySnapshot(fixture);
-      assert.equal(original.framework.length, 27);
+      assert.equal(original.framework.length, frameworkMigrations(fixture.metadataNamespace).length);
       await makeVersion26(fixture);
       const receipt = await applyMigrations(options);
       assert.deepEqual(receipt.applied, []);
@@ -161,7 +161,7 @@ nativeTest(
                 `SELECT max(version) AS version FROM ${quoteIdentifier(fixture.metadataNamespace)}.framework_migrations`,
               )
             ).rows[0]?.version,
-            27,
+            frameworkMigrations(fixture.metadataNamespace).length,
           );
           assert.equal(
             (

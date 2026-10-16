@@ -1,6 +1,6 @@
-import { applicationBase } from "../../../apps/loom/src/core/server/application/definition";
+import { applicationBase } from "../../../apps/kello/src/core/server/application/definition";
 import { oc, eventIterator } from "kello/contract";
-import { createRpcRuntime, defineRpcAuth, defineSchema } from "../../../apps/loom/src/core/server";
+import { createRpcRuntime, defineRpcAuth, defineSchema } from "../../../apps/kello/src/core/server";
 import { createRpcSocketSession } from "kello/neon";
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";

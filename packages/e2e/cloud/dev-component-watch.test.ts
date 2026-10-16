@@ -196,7 +196,7 @@ if(!row) throw new Error("Insert failed"); return row;
       assert.equal((await admin.query(`SELECT count(*)::int n FROM "${metadata}".component_namespaces`)).rows[0].n, 0);
       checks.push("packaged-cli-starts-without-component");
       await symlink(
-        fileURLToPath(new URL("../../../apps/loom/node_modules/@types", import.meta.url)),
+        fileURLToPath(new URL("../../../apps/kello/node_modules/@types", import.meta.url)),
         join(root, "node_modules/@types"),
       );
       await write(

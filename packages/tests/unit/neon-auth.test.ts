@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vite-plus/test";
 import { createNeonAuthVerifier, neonAuth } from "kello/neon";
-import { createRpcAuthentication, defineRpcAuth } from "../../../apps/loom/src/core/server/auth/rpc-definition";
+import { createRpcAuthentication, defineRpcAuth } from "../../../apps/kello/src/core/server/auth/rpc-definition";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
 test("managed policy reads branch-injected URLs at runtime and captures trusted origins", async () => {

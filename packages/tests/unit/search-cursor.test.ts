@@ -1,17 +1,21 @@
 import { describe, expect, it } from "vite-plus/test";
-import { createProjectContext, createProjectProcedures, createRpcRuntime } from "kello/server";
-import { oc } from "kello/contract";
+import {
+  createProjectContext,
+  createProjectProcedures,
+  createRpcRuntime,
+} from "../../../apps/kello/src/core/server/index";
+import { oc } from "../../../apps/kello/src/core/contract/index";
 import { searchSchema, searchRelations } from "../fixtures/search-schema";
-import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
-import { searchOrdering, searchKeyset } from "../../../apps/loom/src/core/search/ordering";
-import { createSearchCursor, searchCursorBinding } from "../../../apps/loom/src/core/search/cursor";
+import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
+import { searchOrdering, searchKeyset, searchOrderSQL } from "../../../apps/kello/src/core/search/ordering";
+import { createSearchCursor, searchCursorBinding } from "../../../apps/kello/src/core/search/cursor";
 import { PgDialect } from "drizzle-orm/pg-core";
 import {
   applicationEnvironmentSources,
   resolveReleaseEnvironment,
-} from "../../../apps/loom/src/tooling/deploy/neon/environment";
+} from "../../../apps/kello/src/tooling/deploy/neon/environment";
 import * as v from "valibot";
-import { EncryptJWT } from "jose";
+import { EncryptJWT, jwtDecrypt } from "jose";
 
 const { validators } = createProjectContext(searchSchema, searchRelations);
 const search = validators.tables.tasks.search({
@@ -28,6 +32,45 @@ const key = "01".repeat(32);
 const id = "7c21a867-46c8-4f0f-96d7-65a7bc10ee12";
 
 describe("authenticated exact search cursors", () => {
+  it("issues field v1 cursors with strict title and ID continuation in both directions", async () => {
+    const input = { columns: { title: true }, orderBy: [{ field: "title", direction: "desc" }] } as const;
+    const order = searchOrdering(descriptor, input);
+    expect(order).toEqual([
+      { field: "title", direction: "desc", nulls: "last" },
+      { field: "_id", direction: "asc", nulls: "last" },
+    ]);
+    const dialect = new PgDialect();
+    const codec = createSearchCursor(key, descriptor, input, context);
+    for (const direction of ["forward", "backward"] as const) {
+      const token = await codec.issue(["same", id], direction);
+      const { payload, protectedHeader } = await jwtDecrypt(token, Buffer.from(key, "hex"));
+      expect(protectedHeader).toEqual({ alg: "dir", enc: "A256GCM", typ: "kello.search.cursor.v1" });
+      expect(payload).toMatchObject({
+        v: 1,
+        direction,
+        keys: [
+          { kind: "string", value: "same" },
+          { kind: "string", value: id },
+        ],
+      });
+      expect(Object.keys(payload).sort()).toEqual(["binding", "direction", "exp", "iat", "keys", "v"]);
+      const keys = await createSearchCursor(key, descriptor, input, context).read(token, direction);
+      const boundary = dialect.sqlToQuery(searchKeyset(searchSchema.tables.tasks, order, keys, direction));
+      expect(boundary.params).toEqual(["same", "same", id]);
+      expect(boundary.sql).toContain(`"title" ${direction === "forward" ? "<" : ">"} $1`);
+      expect(boundary.sql).toContain('"title" = $2');
+      expect(boundary.sql).toContain(`"_id" ${direction === "forward" ? ">" : "<"} $3`);
+      expect(boundary.sql).not.toMatch(/<=|>=/);
+      const sorting = searchOrderSQL(searchSchema.tables.tasks, order, direction).map(
+        (entry) => dialect.sqlToQuery(entry).sql,
+      );
+      expect(sorting).toEqual(
+        direction === "forward"
+          ? ['"app"."tasks"."title" desc nulls last', '"app"."tasks"."_id" asc nulls last']
+          : ['"app"."tasks"."title" asc nulls first', '"app"."tasks"."_id" desc nulls first'],
+      );
+    }
+  });
   it("preserves exact mixed keys across replica instances and expiry", async () => {
     const input = {
       orderBy: [

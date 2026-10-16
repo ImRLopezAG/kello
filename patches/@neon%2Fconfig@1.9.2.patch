@@ -1,0 +1,19 @@
+diff --git a/dist/lib/neon-api-real.js b/dist/lib/neon-api-real.js
+--- a/dist/lib/neon-api-real.js
++++ b/dist/lib/neon-api-real.js
+@@ -1049,11 +1049,12 @@
+ }
+ /**
+ * The Neon API returns `access_level` as a free-form string (per the API guidelines:
+-* responses use plain strings, not enums). Map the known values onto our union and treat
+-* anything else as `private` — the safe default for an unrecognised access level.
++* responses use plain strings, not enums). Unknown or missing values cannot prove
++* private access, so reject them instead of silently treating them as private.
+ */
+ function normalizeBucketAccessLevel(value) {
+-	return value === "public_read" ? "public_read" : "private";
++	if (value === "private" || value === "public_read") return value;
++	throw new Error("Unrecognized bucket access level");
+ }
+ function functionToSnapshot(fn) {
+ 	const snapshot = {

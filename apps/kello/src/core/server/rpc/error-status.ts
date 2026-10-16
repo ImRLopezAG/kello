@@ -1,0 +1,15 @@
+import { COMMON_ERROR_STATUS_MAP } from "@orpc/server";
+
+/** oRPC v2 maps codes to HTTP statuses at the adapter, independently of error schemas. */
+export const rpcErrorStatusMap = {
+  ...COMMON_ERROR_STATUS_MAP,
+  RPC_VERSION_MISMATCH: 409,
+  INVALID_IDEMPOTENCY_KEY: 400,
+  IDEMPOTENCY_CONFLICT: 409,
+  IDEMPOTENCY_EXPIRED: 410,
+  INVALID_SELECTION: 400,
+  INVALID_CURSOR: 400,
+  QUERY_BUDGET_EXCEEDED: 400,
+  RATE_LIMITED: 429,
+  RATE_LIMIT_UNAVAILABLE: 503,
+};

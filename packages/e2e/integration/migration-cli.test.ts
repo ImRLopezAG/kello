@@ -19,7 +19,7 @@ test.skipIf(!connectionString)(
     const root = await mkdtemp(join(tmpdir(), "loom-migration-cli-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
-    const cli = fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url));
+    const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
     async function run(args: string[], exitCode = 0) {
       const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
         stdout: "pipe",

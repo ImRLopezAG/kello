@@ -2,7 +2,7 @@
 
 Use Bun for installation, scripts, the CLI, and unit tests. Pin dependencies and keep one root bun.lock. Use Oxlint with all bundled anti-slop rules enabled; fix violations instead of suppressing rules.
 
-This is a Bun/Turborepo workspace. apps/loom owns the public kello package: the compiled CLI, runtime, and build/migration/deployment implementation. Consumers use kello/... exports. Unit tests belong in packages/tests; database, browser, and cloud checks belong in packages/e2e. packages/examples is a grouping directory, not a package.
+This is a Bun/Turborepo workspace. apps/kello owns the public kello package: the compiled CLI, runtime, and build/migration/deployment implementation. Consumers use kello/... exports. Unit tests belong in packages/tests; database, browser, and cloud checks belong in packages/e2e. packages/examples is a grouping directory, not a package.
 
 Runtime libraries target Node 24 and browsers. Do not introduce Bun globals into deployed server or browser exports. Use the Node PostgreSQL adapter at that boundary. Astro's supported Vite, React, and MDX integration is required for apps/docs. Keep browser exports isolated from server code and credentials.
 

@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createAuthHttpApp } from "../../../apps/loom/src/core/adapters/neon/auth-http";
+import { createAuthHttpApp } from "../../../apps/kello/src/core/adapters/neon/auth-http";
 
 test("native auth preserves bytes, redirects and multiple cookies without exposing sibling paths", async () => {
   const body = '{ "signed": true }\n';

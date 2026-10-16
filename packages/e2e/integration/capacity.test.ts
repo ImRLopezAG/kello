@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { call } from "@orpc/server";
 import { Context } from "effect";
-import { evaluateSnapshot } from "../../../apps/loom/src/core/server/rpc/snapshot";
+import { evaluateSnapshot } from "../../../apps/kello/src/core/server/rpc/snapshot";
 import { channel } from "node:diagnostics_channel";
 import { setTimeout } from "node:timers/promises";
 import { cpus, platform, arch } from "node:os";
@@ -18,7 +18,7 @@ import {
   createRevisionCoordinator,
   defineSchema,
   runFunctionTransaction,
-} from "../../../apps/loom/src/core/server/index";
+} from "../../../apps/kello/src/core/server/index";
 import { bootstrapDatabase, installRevisionTracking } from "kello/tooling";
 
 function distribution(values: number[]) {

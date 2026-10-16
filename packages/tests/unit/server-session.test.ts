@@ -1,8 +1,8 @@
 import { expect, test } from "vite-plus/test";
 import { QueryClient, dehydrate } from "@tanstack/react-query";
 import { withKelloServerSession } from "kello/client";
-import { encodeHydration, decodeHydration } from "../../../apps/loom/src/core/client/hydration";
-import { createAuthLifecycle } from "../../../apps/loom/src/core/client/auth-lifecycle";
+import { encodeHydration, decodeHydration } from "../../../apps/kello/src/core/client/hydration";
+import { createAuthLifecycle } from "../../../apps/kello/src/core/client/auth-lifecycle";
 
 test("SSR requests own disjoint caches and dispose after success or callback failure", async () => {
   const disposed: string[] = [];

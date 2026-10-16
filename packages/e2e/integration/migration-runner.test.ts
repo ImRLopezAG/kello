@@ -18,7 +18,7 @@ import {
 } from "kello/tooling";
 import pg from "pg";
 import type { DeploymentDatabaseProvider } from "kello/tooling";
-import { catalogFingerprint } from "../../../apps/loom/src/tooling/migrations/drift";
+import { catalogFingerprint } from "../../../apps/kello/src/tooling/migrations/drift";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

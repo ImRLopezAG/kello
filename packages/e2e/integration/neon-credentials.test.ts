@@ -1,13 +1,13 @@
-import { createKelloNeonApi } from "../../../apps/loom/src/tooling/neon/api";
+import { createKelloNeonApi } from "../../../apps/kello/src/tooling/neon/api";
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createNeonCredentials, NeonCredentialError } from "../../../apps/loom/src/tooling/neon/credentials";
+import { createNeonCredentials, NeonCredentialError } from "../../../apps/kello/src/tooling/neon/credentials";
 
 async function storedKey(configDir: string, name: string, key: string) {
-  const cli = join(import.meta.dir, "../../../apps/loom/node_modules/neon/dist/cli.js");
+  const cli = join(import.meta.dir, "../../../apps/kello/node_modules/neon/dist/cli.js");
   const server = Bun.serve({
     port: 0,
     hostname: "127.0.0.1",

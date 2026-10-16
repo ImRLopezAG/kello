@@ -5,15 +5,15 @@ import { Context, Effect, Layer } from "effect";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as v from "valibot";
-import { bindRuntimeGraph } from "../../../apps/loom/src/core/server/rpc/runtime-graph";
-import { createEffectRuntime, Invocation } from "../../../apps/loom/src/core/server/effect/runtime";
-import { createRevisionCoordinator } from "../../../apps/loom/src/core/server/realtime/coordinator";
-import { defineComponent } from "../../../apps/loom/src/core/server/components/definition";
+import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
+import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
+import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
+import { defineComponent } from "../../../apps/kello/src/core/server/components/definition";
 import {
   defineApplication,
   prepareApplicationEnvironment,
-} from "../../../apps/loom/src/core/server/application/definition";
-import type { ProcedureContext } from "../../../apps/loom/src/core/server/rpc/procedure";
+} from "../../../apps/kello/src/core/server/application/definition";
+import type { ProcedureContext } from "../../../apps/kello/src/core/server/rpc/procedure";
 
 class VendorClient {
   constructor(readonly name: string) {}
@@ -154,8 +154,8 @@ function serviceInvocation(requestId: string, signal = new AbortController().sig
   return { ...invocation, "effect/context": Context.make(Invocation, invocation) };
 }
 
-import { componentDefinitionFor } from "../../../apps/loom/src/core/server/components/definition";
-import type { ComponentRegistration } from "../../../apps/loom/src/core/server/components/definition";
+import { componentDefinitionFor } from "../../../apps/kello/src/core/server/components/definition";
+import type { ComponentRegistration } from "../../../apps/kello/src/core/server/components/definition";
 
 test("dependent SDK factories initialize in order with isolated mount environment and defaults", async () => {
   const observed: string[] = [];
@@ -291,10 +291,10 @@ test("aborting one requester does not cancel shared SDK acquisition for another 
 });
 
 import { defineRelations } from "drizzle-orm";
-import { createProjectProcedures } from "../../../apps/loom/src/core/server/rpc/procedure";
-import { createDatabaseMiddleware } from "../../../apps/loom/src/core/server/rpc/database";
-import { connectDatabase } from "../../../apps/loom/src/core/server/database/connection";
-import { defineSchema } from "../../../apps/loom/src/core/schema/define-schema";
+import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
+import { createDatabaseMiddleware } from "../../../apps/kello/src/core/server/rpc/database";
+import { connectDatabase } from "../../../apps/kello/src/core/server/database/connection";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import type { RouterClient } from "@orpc/server";
 
 const serviceDatabaseUrl = process.env.LOOM_TEST_DATABASE_URL;

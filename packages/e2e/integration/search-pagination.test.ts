@@ -8,11 +8,11 @@ import { createProjectContext } from "kello/server";
 import { oc } from "kello/contract";
 import * as v from "valibot";
 import { createSearchFixture } from "../fixtures/search-schema";
-import { searchContractDescriptor } from "../../../apps/loom/src/core/search/metadata";
-import { prepareSearchPage, finishSearchPage } from "../../../apps/loom/src/core/search/pagination";
-import { searchOrdering, searchOrderSQL } from "../../../apps/loom/src/core/search/ordering";
-import type { SearchPublicSelection } from "../../../apps/loom/src/core/search/public";
-import { storageRows } from "../../../apps/loom/src/core/validation/encoding";
+import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
+import { prepareSearchPage, finishSearchPage } from "../../../apps/kello/src/core/search/pagination";
+import { searchOrdering, searchOrderSQL } from "../../../apps/kello/src/core/search/ordering";
+import type { SearchPublicSelection } from "../../../apps/kello/src/core/search/public";
+import { storageRows } from "../../../apps/kello/src/core/validation/encoding";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

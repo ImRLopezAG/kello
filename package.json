@@ -6,7 +6,8 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "packages/examples/*"
+    "packages/examples/*",
+    "docs/research/neon-realtime/example"
   ],
   "type": "module",
   "scripts": {
@@ -33,6 +34,7 @@
   "packageManager": "bun@1.4.2",
   "patchedDependencies": {
     "drizzle-kit@1.0.0-rc.4": "patches/drizzle-kit@1.0.0-rc.4.patch",
-    "@neon/config@1.8.3": "patches/@neon%2Fconfig@1.8.3.patch"
+    "@neon/config@1.9.2": "patches/@neon%2Fconfig@1.9.2.patch",
+    "@neon/realtime-drizzle@0.1.0": "patches/@neon%2Frealtime-drizzle@0.1.0.patch"
   }
 }

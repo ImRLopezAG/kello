@@ -16,7 +16,7 @@ import {
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test("concurrent recovery refuses SQL outside its declared index expansion", async () => {
-  const { concurrentIndexOperations } = await import("../../../apps/loom/src/tooling/migrations/nontransactional");
+  const { concurrentIndexOperations } = await import("../../../apps/kello/src/tooling/migrations/nontransactional");
   const namespace = "recovery_validation";
   const baseline = (
     await planMigration(

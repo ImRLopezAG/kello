@@ -5,13 +5,52 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
+import { watch } from "node:fs";
+import { EventEmitter } from "node:events";
 import { watchDevelopment, prepareProject, activateProject } from "kello/tooling";
 
-async function until(check: () => boolean): Promise<void> {
+async function until(check: () => boolean | Promise<boolean>): Promise<void> {
   const deadline = Date.now() + 3000;
-  while (!check()) {
+  while (!(await check())) {
     if (Date.now() >= deadline) throw new Error("Watcher did not observe the source update");
     await setTimeout(10);
+  }
+}
+
+async function prepareMigrationDirectory(root: string): Promise<void> {
+  await mkdir(join(root, "_generated"), { recursive: true });
+  let ready = false;
+  let created = false;
+  let observed = false;
+  let closed = false;
+  const observer = watch(root, { recursive: true, encoding: "utf8" }, (_event, filename) => {
+    const path = filename?.replaceAll("\\", "/");
+    if (path === "_generated/.watch-ready") ready = true;
+    if (path === "_generated/migrations") observed = true;
+  });
+  try {
+    if (!(observer instanceof EventEmitter)) throw new Error("Native watcher is not an EventEmitter");
+    observer.once("close", () => {
+      closed = true;
+    });
+    // Native watch registration is asynchronous. Probe an ignored artifact until
+    // delivery proves registration before creating the directory we must drain.
+    await until(async () => {
+      if (!ready) {
+        await writeFile(join(root, "_generated/.watch-ready"), "ready");
+      } else if (!created) {
+        await mkdir(join(root, "_generated/migrations"), { recursive: true });
+        created = true;
+      }
+      return observed;
+    });
+  } finally {
+    observer.close();
+    try {
+      await until(() => closed);
+    } finally {
+      if (!observed) await rm(root, { recursive: true, force: true });
+    }
   }
 }
 
@@ -54,6 +93,7 @@ test("development watcher observes edits and stops and restarts cleanly", async 
 
 test("development watcher ignores artifact directories while observing source files", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-watch-artifacts-"));
+  await prepareMigrationDirectory(root);
   const artifacts = [
     ".git",
     ".loom",
@@ -82,10 +122,6 @@ test("development watcher ignores artifact directories while observing source fi
     }
     await setTimeout(100);
     expect(updates).toBe(1);
-    await mkdir(join(root, "_generated/migrations"), { recursive: true });
-    await writeFile(join(root, "_generated/migrations/initial.sql"), "-- observed history");
-    await until(() => updates > 1);
-    await watcher.settled();
     const beforeOwnership = updates;
     await writeFile(join(root, "_generated/migrations/.auth-ownership.json"), "{}");
     await writeFile(join(root, `_generated/migrations/.auth-ownership-${crypto.randomUUID()}.tmp`), "{}");
@@ -94,6 +130,29 @@ test("development watcher ignores artifact directories while observing source fi
     const beforeSource = updates;
     await writeFile(join(root, "source.ts"), "observed");
     await until(() => updates > beforeSource);
+    expect(watcher.failure).toBeNull();
+  } finally {
+    await watcher.stop();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("development watcher observes migration history files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-watch-migrations-"));
+  await prepareMigrationDirectory(root);
+  let updates = 0;
+  const watcher = await watchDevelopment(
+    root,
+    async () => {
+      updates++;
+    },
+    { debounceMs: 20 },
+  );
+  try {
+    await watcher.flush();
+    expect(updates).toBe(1);
+    await writeFile(join(root, "_generated/migrations/initial.sql"), "-- observed history");
+    await until(() => updates > 1);
     expect(watcher.failure).toBeNull();
   } finally {
     await watcher.stop();

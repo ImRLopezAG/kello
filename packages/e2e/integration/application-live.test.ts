@@ -11,8 +11,8 @@ import * as v from "valibot";
 import { z } from "zod";
 import { oc, eventIterator } from "kello/contract";
 import type { RouterContractClient } from "kello/contract";
-import { createRpcRuntime, defineRpcAuth, defineSchema, Invocation } from "../../../apps/loom/src/core/server";
-import { applicationBase } from "../../../apps/loom/src/core/server/application/definition";
+import { createRpcRuntime, defineRpcAuth, defineSchema, Invocation } from "../../../apps/kello/src/core/server";
+import { applicationBase } from "../../../apps/kello/src/core/server/application/definition";
 import { bootstrapDatabase, installRevisionTracking } from "kello/tooling";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;

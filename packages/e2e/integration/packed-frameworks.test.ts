@@ -40,7 +40,7 @@ test("CSR and SSR examples build as independent consumers of one packed Kello ar
   try {
     await run(
       ["bun", "pm", "pack", "--filename", archive, "--ignore-scripts"],
-      fileURLToPath(new URL("../../../apps/loom/", import.meta.url)),
+      fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
     const digest = createHash("sha256")
       .update(await readFile(archive))

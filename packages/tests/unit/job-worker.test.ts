@@ -1,9 +1,9 @@
 import { expect, test, vi } from "vite-plus/test";
 import { channel } from "node:diagnostics_channel";
 import * as v from "valibot";
-import { createDurableJobWorker } from "../../../apps/loom/src/core/server/jobs/durable-worker";
-import type { JobExecutionResult, DurableWorkerOptions } from "../../../apps/loom/src/core/server/jobs/durable-worker";
-import type { DurableJob } from "../../../apps/loom/src/core/server/jobs/durable-queue";
+import { createDurableJobWorker } from "../../../apps/kello/src/core/server/jobs/durable-worker";
+import type { JobExecutionResult, DurableWorkerOptions } from "../../../apps/kello/src/core/server/jobs/durable-worker";
+import type { DurableJob } from "../../../apps/kello/src/core/server/jobs/durable-queue";
 import { encodeRpcJobCall } from "kello/server";
 import type { RpcJobCall } from "kello/server";
 type ClaimedJob = DurableJob<RpcJobCall>;

@@ -42,12 +42,12 @@ test("Node 24 imports compiled exports and serves the HTTP protocol without Bun 
      assert.equal(refused.status, 409);
      assert.equal((await refused.json()).error.code, "VERSION_MISMATCH");`,
     ],
-    { cwd: fileURLToPath(new URL("../../../../apps/loom/", import.meta.url)), stdout: "pipe", stderr: "pipe" },
+    { cwd: fileURLToPath(new URL("../../../../apps/kello/", import.meta.url)), stdout: "pipe", stderr: "pipe" },
   );
   const stderr = await new Response(process.stderr).text();
   expect({ code: await process.exited, stderr }).toEqual({ code: 0, stderr: "" });
   const browser = await Bun.build({
-    entrypoints: [fileURLToPath(new URL("../../../../apps/loom/dist/core/client/index.js", import.meta.url))],
+    entrypoints: [fileURLToPath(new URL("../../../../apps/kello/dist/core/client/index.js", import.meta.url))],
     target: "browser",
   });
   expect(browser.success).toBe(true);
@@ -80,7 +80,7 @@ test.skipIf(!process.env.LOOM_TEST_DATABASE_URL)("Node 24 enforces database invo
     } finally { await connection.close(); }
     `,
     ],
-    { cwd: fileURLToPath(new URL("../../../../apps/loom/", import.meta.url)), stdout: "pipe", stderr: "pipe" },
+    { cwd: fileURLToPath(new URL("../../../../apps/kello/", import.meta.url)), stdout: "pipe", stderr: "pipe" },
   );
   const stderr = await new Response(child.stderr).text();
   expect({ code: await child.exited, stderr }).toEqual({ code: 0, stderr: "" });

@@ -3,7 +3,7 @@ import { test, expect } from "bun:test";
 import pg from "pg";
 import { bootstrapDatabase, defineConfig } from "kello/tooling";
 import type { DeploymentDatabaseProvider } from "kello/tooling";
-import { resolveManagedDeploymentCredentials } from "../../../apps/loom/src/tooling/deploy/neon/managed-credentials";
+import { resolveManagedDeploymentCredentials } from "../../../apps/kello/src/tooling/deploy/neon/managed-credentials";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -54,6 +54,9 @@ test.skipIf(!connectionString)(
     };
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
+      await admin.query(
+        `DROP TABLE "${metadataNamespace}".rate_limit_buckets, "${metadataNamespace}".rate_limit_policies`,
+      );
       await admin.query(`DROP TABLE "${metadataNamespace}".search_cursor_keys`);
       await admin.query(`DROP TABLE "${metadataNamespace}".deployment_secrets`);
       await admin.query(`ALTER TABLE "${metadataNamespace}".storage_intents DROP COLUMN owner_scope`);

@@ -16,8 +16,8 @@ import {
   withNeonReleasePreparation,
 } from "kello/tooling";
 
-import { withDeploymentConnection } from "../../../apps/loom/src/tooling/deploy/neon/connection";
-import { handoffNeonIngress, assertReleaseIngress } from "../../../apps/loom/src/tooling/deploy/neon/ingress";
+import { withDeploymentConnection } from "../../../apps/kello/src/tooling/deploy/neon/connection";
+import { handoffNeonIngress, assertReleaseIngress } from "../../../apps/kello/src/tooling/deploy/neon/ingress";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

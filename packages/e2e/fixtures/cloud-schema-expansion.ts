@@ -81,7 +81,7 @@ export async function verifyCloudSchemaExpansion(
   const command = Bun.spawn(
     [
       "bun",
-      fileURLToPath(new URL("../../../apps/loom/src/cli.ts", import.meta.url)),
+      fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url)),
       "migrations",
       "declare-compatibility",
       "--release",

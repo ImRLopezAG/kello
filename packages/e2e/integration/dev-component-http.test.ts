@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "bun:test";
 import type { ComponentHttpMount } from "kello/server";
-import { startDevelopmentServer } from "../../../apps/loom/src/tooling/dev/server";
-import type { DevelopmentServerRuntime } from "../../../apps/loom/src/tooling/dev/server";
+import { startDevelopmentServer } from "../../../apps/kello/src/tooling/dev/server";
+import type { DevelopmentServerRuntime } from "../../../apps/kello/src/tooling/dev/server";
 
 test("development serves scoped component HTTP with the production access policies", async () => {
   let handled = 0;

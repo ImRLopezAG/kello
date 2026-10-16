@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vite-plus/test";
 import { createAuthServer } from "@neondatabase/auth/server";
-import { neonServerToken } from "../../../apps/loom/src/core/server/auth/neon-token";
+import { neonServerToken } from "../../../apps/kello/src/core/server/auth/neon-token";
 
 test("SSR obtains the signed SDK token instead of forwarding the opaque session cookie", async () => {
   const now = new Date().toISOString();

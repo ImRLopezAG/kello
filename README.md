@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/docs/public/brand/loom-social.png" alt="Kello — Your backend. All connected." width="100%" />
+  <img src="apps/docs/public/brand/kello-social.png" alt="Kello — Your backend. All connected." width="100%" />
 </p>
 
 <p align="center">
@@ -53,7 +53,7 @@ Here `tasks.list` is an explicitly streaming contract. The [React guide](apps/do
 Use Bun 1.4.2 and Node 24:
 
 ```sh
-git clone https://github.com/ImRLopezAG/loom.git
+git clone https://github.com/ImRLopezAG/loom.git kello
 cd kello
 bun install --frozen-lockfile
 bunx turbo run build --filter=kello
@@ -76,7 +76,7 @@ Each example owns its backend. Link separate disposable Neon branches to keep th
 
 ## Repository map
 
-- [`apps/loom`](apps/loom) — the public `kello` package: CLI, runtime, client, React integrations, and tooling.
+- [`apps/kello`](apps/kello) — the public `kello` package: CLI, runtime, client, React integrations, and tooling.
 - [`apps/docs`](apps/docs) — Astro presentation site and Fumadocs documentation with compiled examples.
 - [`packages/examples`](packages/examples) — consumer applications using public package exports.
 - [`packages/tests`](packages/tests) — unit tests and type contracts.

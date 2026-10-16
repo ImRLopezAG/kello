@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { expect, test } from "vite-plus/test";
-import { createComponentHttpApp } from "../../../apps/loom/src/core/adapters/neon/component-http";
-import { validateComponentHttpMounts } from "../../../apps/loom/src/core/server/components/http";
+import { createComponentHttpApp } from "../../../apps/kello/src/core/adapters/neon/component-http";
+import { validateComponentHttpMounts } from "../../../apps/kello/src/core/server/components/http";
 
 const anonymous = { kind: "anonymous" as const };
 test("external health needs no Kello protocol and rejects reserved or overlapping ownership", async () => {

@@ -1,7 +1,9 @@
 import { initializeProject } from "kello/tooling";
 import assert from "node:assert/strict";
 import { callExample } from "../fixtures/rpc-call";
+import { RPCLink } from "@orpc/client/fetch";
 import { expect, test } from "bun:test";
+import { channel } from "node:diagnostics_channel";
 import { writeFileSync } from "node:fs";
 import { mkdtemp, mkdir, readFile, realpath, symlink, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -14,8 +16,9 @@ import {
   synchronizeDevelopment,
   startDevelopmentRuntime,
   startProjectDevelopment,
+  startDiagnostics,
 } from "kello/tooling";
-import type { DevelopmentDatabaseProvider } from "kello/tooling";
+import type { DevelopmentDatabaseProvider, DiagnosticsRecord } from "kello/tooling";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -74,7 +77,13 @@ test.skipIf(!connectionString)(
           [runtimeRole],
         );
         if (result.rows[0]?.count === expected) return;
-        if (Date.now() > deadline) assert.fail(`Expected ${expected} runtime connections`);
+        if (Date.now() > deadline) {
+          const activity = await admin.query(
+            "SELECT pid, state, wait_event, application_name, backend_start, query FROM pg_stat_activity WHERE usename = $1 ORDER BY pid",
+            [runtimeRole],
+          );
+          assert.fail(`Expected ${expected} runtime connections; observed ${JSON.stringify(activity.rows)}`);
+        }
         await setTimeout(10);
       }
     }
@@ -367,20 +376,173 @@ test.skipIf(!connectionString)(
             },
           }),
         );
-        const development = await startProjectDevelopment(root, "kello.dev.json", provider);
+        // This fixture uses built public exports throughout, including generated project modules.
+        const records: DiagnosticsRecord[] = [];
+        const runtimeChannel = channel("kello.runtime.metric");
+        const deploymentChannel = channel("kello.deployment.metric");
+        assert.equal(runtimeChannel.hasSubscribers, false);
+        assert.equal(deploymentChannel.hasSubscribers, false);
+        const diagnostics = await startDiagnostics({
+          output: {
+            format: "jsonl",
+            write(chunk, signal) {
+              assert.equal(signal.aborted, false);
+              records.push(JSON.parse(chunk));
+            },
+          },
+        });
+        let development: Awaited<ReturnType<typeof startProjectDevelopment>> | undefined;
+        const currentFailure = () => development?.failure;
+        async function waitFor(description: string, ready: () => boolean) {
+          const deadline = Date.now() + 10000;
+          while (!ready()) {
+            assert.ok(Date.now() < deadline, `Timed out waiting for ${description}`);
+            await setTimeout(10);
+          }
+        }
+        async function expectRpcEvents(count: number) {
+          await waitFor("diagnostics output", () => records.length === diagnostics.snapshot().accepted);
+          const rpc = records.filter((record) => record.source === "runtime" && record.event.type === "rpc.procedure");
+          assert.equal(rpc.length, count, "Each completed native RPC must be observed exactly once");
+          for (const record of rpc) {
+            assert.equal(record.source, "runtime");
+            if (record.source !== "runtime" || record.event.type !== "rpc.procedure")
+              throw new Error("Expected RPC diagnostics");
+            assert.equal(record.event.mode, "finite");
+            assert.equal(record.event.status, "success");
+            assert.ok(Number.isFinite(record.event.durationMs) && record.event.durationMs >= 0);
+          }
+          assert.equal(runtimeChannel.hasSubscribers, true);
+          assert.equal(deploymentChannel.hasSubscribers, true);
+          assert.deepEqual(diagnostics.snapshot(), {
+            accepted: records.length,
+            invalid: 0,
+            dropped: 0,
+            outputFailures: 0,
+            exportFailures: 0,
+          });
+        }
         try {
+          development = await startProjectDevelopment(root, "kello.dev.json", provider);
           await development.settled();
           assert.equal(development.failure, null);
           assert.ok(development.url);
+          assert.ok(development.active);
+          const firstVersion = development.active.version;
+          const serverUrl = development.url;
+          async function readTasks(version: string) {
+            const link = new RPCLink({
+              origin: serverUrl.origin,
+              url: "/api/kello/rpc",
+              headers: { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version },
+            });
+            return link.call(["tasks", "list"], undefined, { context: {} });
+          }
+          assert.deepEqual(await readTasks(firstVersion), []);
+          await expectRpcEvents(1);
           const response = await fetch(new URL("/api/kello/storage", development.url), {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: "{}",
           });
           assert.match(await response.text(), /UNAUTHENTICATED/);
+
+          const procedureFile = join(root, "kello/functions/tasks.ts");
+          const procedureSource = await readFile(procedureFile, "utf8");
+          // Use the filesystem watcher itself: neither flush nor manual prepare drives recovery.
+          await writeFile(procedureFile, 'throw new Error("watched-edit-failure-canary");\n');
+          await waitFor("failed watched edit", () => development!.failure !== null);
+          await development.settled();
+          const failedRevision = currentFailure()?.revision;
+          assert.ok(failedRevision !== undefined);
+          assert.equal(development.watchError, null);
+          assert.equal(development.active?.version, firstVersion);
+          assert.deepEqual(await readTasks(firstVersion), []);
+          await expectRpcEvents(2);
+          assert.equal(currentFailure()?.revision, failedRevision);
+
+          const recoveredSource = procedureSource.replace(
+            ").map((row) => row.title)",
+            ').map((row) => row.title).concat("recovered")',
+          );
+          assert.notEqual(recoveredSource, procedureSource, "Fixture must change the native handler result");
+          const previousConnections = await admin.query<{ pid: number }>(
+            "SELECT pid FROM pg_stat_activity WHERE usename = $1",
+            [runtimeRole],
+          );
+          assert.ok(previousConnections.rows.length > 0);
+          await writeFile(procedureFile, recoveredSource);
+          await waitFor(
+            "healthy recovered generation",
+            () =>
+              development!.failure === null &&
+              development!.active !== null &&
+              development!.active.version !== firstVersion,
+          );
+          await development.settled();
+          assert.equal(development.failure, null);
+          assert.equal(development.watchError, null);
+          assert.equal(development.url?.href, serverUrl.href);
+          assert.ok(development.active);
+          assert.notEqual(development.active.version, firstVersion);
+          // Hold a real empty job claim so native RPC deterministically needs a second pooled connection.
+          await admin.query("BEGIN");
+          await admin.query(`LOCK TABLE "${metadataNamespace}".jobs IN ACCESS EXCLUSIVE MODE`);
+          try {
+            const deadline = Date.now() + 5000;
+            for (;;) {
+              const blocked = await admin.query<{ count: number }>(
+                "SELECT count(*)::integer AS count FROM pg_stat_activity WHERE usename = $1 AND wait_event_type = 'Lock'",
+                [runtimeRole],
+              );
+              if (blocked.rows[0]?.count) break;
+              assert.ok(Date.now() < deadline, "Expected native worker claim to wait on fixture lock");
+              await setTimeout(10);
+            }
+            assert.deepEqual(await readTasks(development.active.version), ["recovered"]);
+          } finally {
+            await admin.query("ROLLBACK");
+          }
+          await expectRpcEvents(3);
+          const recoveredConnections = await admin.query<{ pid: number }>(
+            "SELECT pid FROM pg_stat_activity WHERE usename = $1",
+            [runtimeRole],
+          );
+          assert.equal(recoveredConnections.rows.length, 2, "Worker and RPC share the active generation pool");
+          const previousPids = new Set(previousConnections.rows.map(({ pid }) => pid));
+          assert.ok(
+            recoveredConnections.rows.every(({ pid }) => !previousPids.has(pid)),
+            "Every previous generation connection must retire before replacement settles",
+          );
         } finally {
-          await development.stop();
+          try {
+            await development?.stop();
+            await waitFor("final diagnostics output", () => records.length === diagnostics.snapshot().accepted);
+          } finally {
+            await diagnostics.stop();
+          }
         }
+        assert.equal(runtimeChannel.hasSubscribers, false);
+        assert.equal(deploymentChannel.hasSubscribers, false);
+        assert.deepEqual(
+          records.map((record) => record.sequence),
+          records.map((_record, index) => index + 1),
+        );
+        assert.ok(records.every((record) => record.schemaVersion === 1 && record.scope === "local-process"));
+        assert.ok(!JSON.stringify(records).includes("watched-edit-failure-canary"));
+        assert.deepEqual(diagnostics.snapshot(), {
+          accepted: records.length,
+          invalid: 0,
+          dropped: 0,
+          outputFailures: 0,
+          exportFailures: 0,
+        });
+        const stoppedStats = diagnostics.snapshot();
+        const stoppedRecords = records.length;
+        runtimeChannel.publish({ type: "rpc.procedure", mode: "finite", status: "success", durationMs: 1 });
+        await setTimeout(20);
+        assert.deepEqual(diagnostics.snapshot(), stoppedStats);
+        assert.equal(records.length, stoppedRecords);
         await expectConnections(0);
       } finally {
         for (const [name, value] of Object.entries(previousEnvironment)) {
@@ -397,4 +559,5 @@ test.skipIf(!connectionString)(
       await rm(root, { recursive: true, force: true });
     }
   },
+  60000,
 );

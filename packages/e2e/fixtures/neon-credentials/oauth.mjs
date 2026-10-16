@@ -1,7 +1,7 @@
 // Fixture uses the pinned CLI's persistence API, not a second credential-file writer.
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
-const require = createRequire(new URL("../../../../apps/loom/package.json", import.meta.url));
+const require = createRequire(new URL("../../../../apps/kello/package.json", import.meta.url));
 const { storeFor } = await import(pathToFileURL(require.resolve("neon/dist/credential_io.js")).href);
 const { locationForAuth } = await import(pathToFileURL(require.resolve("neon/dist/commands/auth.js")).href);
 const dir = process.argv[2];
