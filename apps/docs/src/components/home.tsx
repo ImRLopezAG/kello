@@ -17,9 +17,9 @@ export function Home({ pathname, children }: { pathname: string; children: React
         nav={{ title: <Brand />, url: "/" }}
         links={[
           { text: "Documentation", url: "/overview" },
-          { text: "Examples", url: "https://github.com/ImRLopezAG/loom/tree/main/packages/examples", external: true },
+          { text: "Examples", url: "https://github.com/ImRLopezAG/kello/tree/main/packages/examples", external: true },
         ]}
-        githubUrl="https://github.com/ImRLopezAG/loom"
+        githubUrl="https://github.com/ImRLopezAG/kello"
         themeSwitch={{ enabled: true }}
       >
         {children}
