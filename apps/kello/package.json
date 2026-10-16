@@ -1,6 +1,6 @@
 {
   "name": "kello",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "A contract-first reactive TypeScript backend framework for Neon and PostgreSQL.",
   "homepage": "https://github.com/ImRLopezAG/kello#readme",
   "bugs": {

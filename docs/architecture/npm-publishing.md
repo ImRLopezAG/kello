@@ -11,13 +11,13 @@ Kello uses the same GitHub Actions OIDC approach as cvx-kit. The publish workflo
 - Distribution tag: `alpha`
 - Project license: MIT
 
-The package repository metadata must match the renamed repository. The current `0.0.0` version is deliberately not publishable by this workflow. A reviewed `x.y.z-alpha.n` version must be committed first.
+The package repository metadata must match the renamed repository. The initial release candidate is `0.1.0-alpha.0`. The workflow accepts reviewed `x.y.z-alpha.n` versions and rejects stable or placeholder versions.
 
 ## npm account setup
 
 Authenticate locally with `npm login --registry=https://registry.npmjs.org`, then verify `npm whoami`. Do not paste tokens into chat or commit them. Existing local credentials returned HTTP 401 during setup and were left unchanged.
 
-The registry returned 404 for `kello` during setup; this is not a reservation or a guarantee of publish permission. Establish package ownership under the intended npm profile before relying on CI publication. If a first authenticated publication is required to establish ownership, review the built artifact and authorize that initial publication separately.
+The registry returned 404 for `kello` during setup; this is not a reservation or a guarantee of publish permission. npm requires the package to exist before configuring its trusted publisher. Establish ownership with the reviewed initial alpha artifact under the intended npm profile, after successful CI for the exact main commit. This first publication uses local authenticated npm access; subsequent releases use OIDC. Do not add that local credential to GitHub secrets.
 
 In the package's npm settings, configure a GitHub Actions trusted publisher with owner `ImRLopezAG`, repository `kello`, workflow `release.yml`, and environment `npm`. Allow direct `npm publish` for this workflow. Alternatively, after authentication, use the current npm CLI's `npm trust` command with those exact bindings. Do not create a trust binding to the former `loom` repository name.
 
