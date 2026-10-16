@@ -48,7 +48,7 @@ test("fresh workspace installation links the CLI before compiled output exists",
 test("packed tooling preserves migration and bucket privacy patches without consumer configuration", async () => {
   const publicManifest = await Bun.file(new URL("../../../apps/kello/package.json", import.meta.url)).json();
   assert.equal(publicManifest.name, "kello");
-  assert.equal(publicManifest.version, "0.0.0");
+  assert.match(publicManifest.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
   assert.equal(publicManifest.bin.kello, "cli.js");
   assert(!Object.keys(publicManifest.dependencies).some((name) => name.startsWith("@kello/")));
   const root = await mkdtemp(join(tmpdir(), "loom-packed-consumer-"));

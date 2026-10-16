@@ -48,7 +48,7 @@
     },
     "apps/kello": {
       "name": "kello",
-      "version": "0.0.0",
+      "version": "0.1.0-alpha.0",
       "bin": {
         "kello": "./cli.js",
       },
