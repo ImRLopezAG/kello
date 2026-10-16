@@ -40,7 +40,14 @@ export { RateLimits } from "./rate-limits/service";
 export type { InvocationRateLimits } from "./rate-limits/service";
 export { RateLimitExceeded, RateLimitUnavailable } from "./rate-limits/errors";
 export { searchPublicNode } from "../search/contract";
-export type { SearchPolicy, SearchSelection, SearchPage, SearchRow, SearchDescriptor } from "../search/types";
+export type {
+  SearchPolicy,
+  SearchSelection,
+  SearchPage,
+  SearchRow,
+  SearchDescriptor,
+  FullTextPolicyCheck,
+} from "../search/types";
 export type {
   SchemaSearchProjector,
   SchemaLiveSearchProjector,
@@ -58,7 +65,7 @@ export { defineTable } from "../schema/table";
 export { fields } from "../schema/fields";
 export { systemFieldSql } from "../schema/system-fields";
 export type { Id, JsonValue } from "../schema/fields";
-export type { NativeTables, SchemaMetadata } from "../schema/compile";
+export type { NativeTables, SchemaMetadata, CompiledSchemaMetadata } from "../schema/compile";
 export { encodeWire } from "../validation/encoding";
 export type { TableValidators, SchemaValidators } from "../validation/types";
 export { isNativeRelations, validateSchemaRelations } from "./database/relations";

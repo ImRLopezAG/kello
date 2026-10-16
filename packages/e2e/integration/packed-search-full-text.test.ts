@@ -327,7 +327,7 @@ await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: 
     );
     await succeed(["bun", "initialize.mjs"]);
     for (const [path, source] of Object.entries(packedFullTextFiles)) {
-      assert.doesNotMatch(source, /apps\/loom\/src|@ts-ignore|@ts-expect-error/);
+      assert.doesNotMatch(source, /apps\/kello\/src|@ts-ignore|@ts-expect-error/);
       await writeFile(join(root, path), source);
     }
     // Sole generation route: the installed public CLI, with authored contracts
@@ -355,7 +355,7 @@ await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: 
         else if (entry.isDirectory()) await checkDeclarations(path);
         else if (entry.name.endsWith(".d.ts")) {
           const source = await readFile(path, "utf8");
-          assert.doesNotMatch(source, /apps\/loom\/src/);
+          assert.doesNotMatch(source, /apps\/kello\/src/);
           const checked = path.replace(/\.d\.ts$/, ".checked.ts");
           await writeFile(checked, source);
           checkedDeclarations.push(checked);
@@ -370,7 +370,7 @@ await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: 
       checkedDeclarations.some((path) => path.endsWith(`${sep}current${sep}api.checked.ts`)),
       "generated native declarations must be checked as source",
     );
-    assert.doesNotMatch(packedFullTextPositive, /@ts-ignore|@ts-expect-error|apps\/loom\/src|\bas (?!const\b)/);
+    assert.doesNotMatch(packedFullTextPositive, /@ts-ignore|@ts-expect-error|apps\/kello\/src|\bas (?!const\b)/);
     await writeFile(join(root, "positive.ts"), packedFullTextPositive);
     // Legal counterparts catch same-line false reds (for example a missing
     // native infinite option). They compile with the positive inference proof.

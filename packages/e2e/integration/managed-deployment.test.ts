@@ -54,6 +54,9 @@ test.skipIf(!connectionString)(
     };
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
+      await admin.query(
+        `DROP TABLE "${metadataNamespace}".rate_limit_buckets, "${metadataNamespace}".rate_limit_policies`,
+      );
       await admin.query(`DROP TABLE "${metadataNamespace}".search_cursor_keys`);
       await admin.query(`DROP TABLE "${metadataNamespace}".deployment_secrets`);
       await admin.query(`ALTER TABLE "${metadataNamespace}".storage_intents DROP COLUMN owner_scope`);

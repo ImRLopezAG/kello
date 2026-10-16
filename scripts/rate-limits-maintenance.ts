@@ -47,7 +47,9 @@ async function main(): Promise<void> {
     if (!["postgres:", "postgresql:"].includes(url.protocol)) throw new Error();
     // The root workspace intentionally has no runtime package dependency. Resolve
     // the public built kello/tooling export from the package's own scope.
-    const { cleanupRateLimits } = await import(require.resolve("kello/tooling"));
+    const { cleanupRateLimits } = await import(
+      import.meta.resolve("kello/tooling", new URL("../apps/kello/package.json", import.meta.url).href)
+    );
     const result = await cleanupRateLimits({
       connectionString,
       metadataNamespace,

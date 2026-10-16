@@ -73,7 +73,7 @@ jobs:
           pool_mode = transaction
           default_pool_size = 20
           max_client_conn = 100
-          ignore_startup_parameters = options
+          ignore_startup_parameters = options,statement_timeout,lock_timeout
           logfile = $RUNNER_TEMP/kello-pgbouncer/pgbouncer.log
           pidfile = $RUNNER_TEMP/kello-pgbouncer/pgbouncer.pid
           EOF

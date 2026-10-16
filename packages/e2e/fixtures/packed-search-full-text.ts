@@ -489,7 +489,10 @@ const inputs = Object.keys(result.metafile.inputs);
 assert.ok(inputs.some(input => input.includes("node_modules/kello/")), "bundle must traverse the installed public package");
 for (const input of inputs) {
   const parts = input.split("/");
-  for (const dependency of ["pg", "pg-pool", "pg-protocol", "drizzle-orm", "drizzle-kit", "libpg-query", "@neon", "@neondatabase", "@aws-sdk"]) {
+  if (parts.includes("@neon")) {
+    assert.match(input, /node_modules\\/@neon\\/realtime\\/dist\\/client(?:\\.js$|\\/)/, "only the public Neon browser client is permitted: " + input);
+  }
+  for (const dependency of ["pg", "pg-pool", "pg-protocol", "drizzle-orm", "drizzle-kit", "libpg-query", "@neondatabase", "@aws-sdk"]) {
     assert.equal(parts.includes(dependency), false, "server-only browser dependency: " + input);
   }
   for (const fragment of ["kello/dist/core/server/", "kello/dist/tooling/", "core/search/compiler", "core/search/executor", "core/search/full-text", "core/search/rank", "core/search/cursor"]) {

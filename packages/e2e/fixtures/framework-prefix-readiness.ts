@@ -175,6 +175,7 @@ export async function makeVersion26(fixture: FrameworkPrefixFixture) {
   const meta = quoteIdentifier(fixture.metadataNamespace);
   await fixture.admin.query("BEGIN");
   try {
+    await fixture.admin.query(`DROP TABLE ${meta}.rate_limit_buckets, ${meta}.rate_limit_policies`);
     await fixture.admin.query(`DROP TABLE ${meta}.search_cursor_keys`);
     await fixture.admin.query(`DELETE FROM ${meta}.framework_migrations WHERE version>=27`);
     await fixture.admin.query("COMMIT");

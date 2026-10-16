@@ -446,7 +446,7 @@ test("packed public full-text consumer executes under independently pinned Node 
     await writeFile(join(root, "initialize.mjs"), packedFullTextNodeInitialize, { flag: "wx" });
     await run("public-initialize-Bun", [bunExecutable, "initialize.mjs"], 30_000, root);
     for (const [path, source] of Object.entries(packedFullTextNodeFiles)) {
-      assert.doesNotMatch(source, /apps\/loom\/src|@ts-ignore|@ts-expect-error/);
+      assert.doesNotMatch(source, /apps\/kello\/src|@ts-ignore|@ts-expect-error/);
       await writeFile(join(root, path), source);
     }
     // Explicit Bun runtime for the public CLI's documented Bun shebang.
@@ -485,7 +485,7 @@ test("packed public full-text consumer executes under independently pinned Node 
       JSON.stringify({ nodeExecutable, installedPackage, currentGeneration, generationVersion }),
       { flag: "wx" },
     );
-    assert.doesNotMatch(packedFullTextNodeConsumer, /apps\/loom\/src|@ts-ignore|@ts-expect-error|\bas (?!const\b)/);
+    assert.doesNotMatch(packedFullTextNodeConsumer, /apps\/kello\/src|@ts-ignore|@ts-expect-error|\bas (?!const\b)/);
     await writeFile(join(root, "consumer.mjs"), packedFullTextNodeConsumer, { flag: "wx" });
     const consumer = parseProof(
       await run("actual-node24-mjs-consumer", [nodeExecutable, join(root, "consumer.mjs")], 30_000, root),

@@ -104,7 +104,7 @@ nativeTest(
         "utf8",
       );
       const original = await historySnapshot(fixture);
-      assert.equal(original.framework.length, 27);
+      assert.equal(original.framework.length, frameworkMigrations(fixture.metadataNamespace).length);
       await makeVersion26(fixture);
       const receipt = await applyMigrations(options);
       assert.deepEqual(receipt.applied, []);
@@ -161,7 +161,7 @@ nativeTest(
                 `SELECT max(version) AS version FROM ${quoteIdentifier(fixture.metadataNamespace)}.framework_migrations`,
               )
             ).rows[0]?.version,
-            27,
+            frameworkMigrations(fixture.metadataNamespace).length,
           );
           assert.equal(
             (

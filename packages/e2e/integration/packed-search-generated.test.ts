@@ -60,7 +60,7 @@ await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: 
     // Internal proofs use source modules; the isolated consumer must resolve only published exports.
     function publicImports(source: string) {
       return source.replaceAll(
-        /from "\.\.\/\.\.\/\.\.\/apps\/loom\/src\/core\/(server|client|contract)\/index"/g,
+        /from "\.\.\/\.\.\/\.\.\/apps\/kello\/src\/core\/(server|client|contract)\/index"/g,
         'from "kello/$1"',
       );
     }
@@ -142,7 +142,7 @@ const client = connection.client.tasks;`,
       )
       .replace("declare const rpc: SearchRouterUtils<Native>;", "const rpc = connection.rpc.tasks;");
     assert.doesNotMatch(probe, /@ts-expect-error|@ts-ignore/);
-    assert.doesNotMatch(fixture + probe, /apps\/loom\/src/);
+    assert.doesNotMatch(fixture + probe, /apps\/kello\/src/);
     await writeFile(
       join(root, "probe.ts"),
       probe +

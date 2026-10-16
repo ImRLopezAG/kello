@@ -12,6 +12,7 @@ test("branch provisioning CLI rejects unrelated options and redacts invalid decl
     const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
       stdout: "pipe",
       stderr: "pipe",
+      timeout: 5000,
     });
     const [stdout, stderr, exit] = await Promise.all([
       new Response(child.stdout).text(),
@@ -37,4 +38,4 @@ test("branch provisioning CLI rejects unrelated options and redacts invalid decl
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 45_000);
