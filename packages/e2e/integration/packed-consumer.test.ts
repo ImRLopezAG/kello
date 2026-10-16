@@ -49,7 +49,7 @@ test("packed tooling preserves migration and bucket privacy patches without cons
   const publicManifest = await Bun.file(new URL("../../../apps/kello/package.json", import.meta.url)).json();
   assert.equal(publicManifest.name, "kello");
   assert.equal(publicManifest.version, "0.0.0");
-  assert.equal(publicManifest.bin.kello, "./cli.js");
+  assert.equal(publicManifest.bin.kello, "cli.js");
   assert(!Object.keys(publicManifest.dependencies).some((name) => name.startsWith("@kello/")));
   const root = await mkdtemp(join(tmpdir(), "loom-packed-consumer-"));
   async function run(command: string[], cwd = root) {
@@ -70,9 +70,15 @@ test("packed tooling preserves migration and bucket privacy patches without cons
     const entries = (await run(["tar", "-tzf", join(root, "kello.tgz")])).trim().split("\n");
     assert(
       entries.every(
-        (path) => path === "package/package.json" || path.startsWith("package/dist/") || path === "package/cli.js",
+        (path) =>
+          path === "package/package.json" ||
+          path.startsWith("package/dist/") ||
+          path === "package/cli.js" ||
+          path === "package/README.md" ||
+          path === "package/LICENSE",
       ),
     );
+    for (const required of ["package/README.md", "package/LICENSE"]) assert(entries.includes(required), required);
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({
