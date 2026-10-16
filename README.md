@@ -53,7 +53,7 @@ Here `tasks.list` is an explicitly streaming contract. The [React guide](apps/do
 Use Bun 1.4.2 and Node 24:
 
 ```sh
-git clone https://github.com/ImRLopezAG/loom.git kello
+git clone https://github.com/ImRLopezAG/kello.git kello
 cd kello
 bun install --frozen-lockfile
 bunx turbo run build --filter=kello

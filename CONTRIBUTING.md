@@ -32,7 +32,7 @@ The manual **Neon backend acceptance** workflow runs only from the default branc
 
 Actual Neon runs have exercised native Auth sign-up/sign-in, tasks, live subscriptions, signed Object Storage bytes, provider events, durable jobs, safe schema expansion and historical upgrades. The [acceptance record](docs/architecture/orpc-acceptance.md) links functional and performance receipts with their tested runtime versions. GitHub-hosted Neon execution remains unverified. To run locally, supply `LOOM_CLOUD_SUITE` (`tasks`, `jobs-storage`, `services`, `live` or `upgrade`), `LOOM_CLOUD_PROJECT_ID`, `LOOM_CLOUD_BRANCH_ID` and `NEON_API_KEY`, then run `bun run test:cloud` with Playwright Chromium installed. The branch must be unprotected and named `loom-acceptance-*`.
 
-The manual release workflow deliberately fails with an explicit publication-disabled message. It has no checkout, registry credentials or write permissions. Namespace, owner, license review and publishing credentials must be settled before a reviewed CI publication workflow replaces that gate. No local publication is part of development verification.
+The manual **Publish alpha** workflow uses npm trusted publishing (GitHub OIDC), restricted to `main` through the `npm` environment. It requires successful main push CI for the exact commit and a reviewed alpha version before publishing. The current `0.0.0` version cannot pass that gate. Package ownership and the npm trusted-publisher binding must be established before the first release; see [npm publishing](docs/architecture/npm-publishing.md). No local publication is part of development verification.
 
 ## Documentation
 

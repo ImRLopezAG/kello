@@ -1,17 +1,72 @@
-name: Release gate
+name: Publish alpha
 
 on:
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-alpha
+  cancel-in-progress: false
 
 jobs:
-  publication-disabled:
+  publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 2
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     steps:
-      - name: Require settled publication decisions
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.2"
+      - name: Require successful main CI for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo 'Publication is disabled: package namespace, registry owner, license review and CI credentials remain unsettled.' >> "$GITHUB_STEP_SUMMARY"
-          echo '::error::No packages were published. Complete the release decisions and review a publishing workflow before enabling publication.'
-          exit 1
+          passed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --branch main --event push --limit 1 --json status,conclusion --jq '.[0] | .status == "completed" and .conclusion == "success"')"
+          if [ "$passed" != true ]; then
+            echo '::error::Publishing requires successful main push CI for this exact commit.'
+            exit 1
+          fi
+      - name: Require a reviewed alpha version and package identity
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const pkg = JSON.parse(readFileSync('apps/kello/package.json', 'utf8'));
+          assert.equal(pkg.name, 'kello');
+          assert.match(pkg.version, /^\d+\.\d+\.\d+-alpha\.\d+$/);
+          assert.equal(pkg.license, 'MIT');
+          assert.equal(pkg.repository.url, `git+https://github.com/${process.env.GITHUB_REPOSITORY}.git`);
+          assert.equal(pkg.publishConfig.tag, 'alpha');
+          assert.equal(pkg.publishConfig.access, 'public');
+          assert.equal(readFileSync('LICENSE', 'utf8'), readFileSync('apps/kello/LICENSE', 'utf8'));
+          JS
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build package
+        run: bun run --cwd apps/kello build
+      - name: Update npm for trusted publishing
+        run: npm install --global npm@11
+      - name: Inspect package contents
+        working-directory: apps/kello
+        run: npm publish --dry-run --ignore-scripts --access public --tag alpha
+      - name: Publish using npm trusted publishing
+        working-directory: apps/kello
+        env:
+          NODE_AUTH_TOKEN: ""
+          NPM_TOKEN: ""
+        run: npm publish --ignore-scripts --access public --tag alpha

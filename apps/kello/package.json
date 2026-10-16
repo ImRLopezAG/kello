@@ -2,12 +2,25 @@
   "name": "kello",
   "version": "0.0.0",
   "description": "A contract-first reactive TypeScript backend framework for Neon and PostgreSQL.",
+  "homepage": "https://github.com/ImRLopezAG/kello#readme",
+  "bugs": {
+    "url": "https://github.com/ImRLopezAG/kello/issues"
+  },
+  "license": "MIT",
+  "author": "Angel Lopez",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ImRLopezAG/kello.git",
+    "directory": "apps/kello"
+  },
   "bin": {
-    "kello": "./cli.js"
+    "kello": "cli.js"
   },
   "files": [
     "dist",
-    "cli.js"
+    "cli.js",
+    "README.md",
+    "LICENSE"
   ],
   "type": "module",
   "exports": {
@@ -55,6 +68,11 @@
       "types": "./dist/core/better-auth/index.d.ts",
       "import": "./dist/core/better-auth/index.js"
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "alpha"
   },
   "scripts": {
     "build": "vp pack && bun scripts/third-party.ts",
