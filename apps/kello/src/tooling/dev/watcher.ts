@@ -3,7 +3,7 @@ import { resolveProjectPath } from "../config/paths";
 import { createDevelopmentCoordinator } from "./coordinator";
 import type { DevelopmentCoordinatorOptions, DevelopmentRevision } from "./coordinator";
 
-const ignoredDirectories = new Set([".git", ".loom", "node_modules", "dist", ".astro"]);
+const ignoredDirectories = new Set([".git", ".kello", "node_modules", "dist", ".astro"]);
 // Release publication owns the root .env.local and its temporary sibling; neither is part of the source version.
 const publicationOutput =
   /^(?:\.env\.local|\.\.env\.local-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp)$/;

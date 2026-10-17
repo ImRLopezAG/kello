@@ -25,12 +25,9 @@ export async function runHistoricalAcceptance(env: NodeJS.ProcessEnv, receipt: s
       ["baseline-live.test.ts.fixture", "cloud/baseline-live.test.ts"],
       ["cloud-baseline-browser.ts.fixture", "fixtures/cloud-baseline-browser.ts"],
       ["cloud-live-services.ts.fixture", "fixtures/cloud-live-services.ts"],
+      ["cloud-issuer.ts.fixture", "fixtures/cloud-issuer.ts"],
     ] as const)
       await cp(join(fixtures, source), join(root, "packages/e2e", target));
-    await cp(
-      fileURLToPath(new URL("../fixtures/cloud-issuer.ts", import.meta.url)),
-      join(root, "packages/e2e/fixtures/cloud-issuer.ts"),
-    );
     // Build tooling needs no provider credentials. Frozen pins are the historical baseline.
     const buildEnv = { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR };
     for (const args of [

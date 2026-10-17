@@ -3,7 +3,6 @@
 import { createElement, useMemo, useSyncExternalStore } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { createAuthClient } from "@neondatabase/auth";
-import { createAuthClient as createProxyAuthClient } from "@neondatabase/auth/next";
 import type { ReactBetterAuthClient } from "@neondatabase/auth";
 import { BetterAuthReactAdapter } from "@neondatabase/auth/react/adapters";
 import { createKelloReact } from "./provider";
@@ -27,15 +26,10 @@ export interface KelloNeonReact<T extends SessionConnection> {
 /** Neon owns cookies, refresh, cross-tab state, and all sign-in methods. */
 export function createKelloNeonReact<T extends SessionConnection>(
   createClient: (options: SessionClientOptions) => T,
-  options:
-    | { readonly serviceUrl: string }
-    | { readonly authUrl: string }
-    | { readonly auth: ReactBetterAuthClient }
-    | { readonly proxy: true },
+  options: { readonly serviceUrl: string } | { readonly authUrl: string } | { readonly auth: ReactBetterAuthClient },
 ): KelloNeonReact<T> {
   function resolveAuth() {
     if ("auth" in options) return options.auth;
-    if ("proxy" in options) return createProxyAuthClient();
     const url = new URL("serviceUrl" in options ? options.serviceUrl : options.authUrl);
     if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash)
       throw new Error("Neon Auth requires an HTTPS service URL");
@@ -66,9 +60,7 @@ export function createKelloNeonReact<T extends SessionConnection>(
             sessionId,
             "serviceUrl" in options
               ? { url: `${options.serviceUrl.replace(/\/$/, "")}/api/auth/token`, credentials: "include" }
-              : "proxy" in options
-                ? { url: "/api/auth/token", credentials: "same-origin" }
-                : false,
+              : false,
           );
         },
       }),

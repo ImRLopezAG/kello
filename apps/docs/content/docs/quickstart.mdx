@@ -60,14 +60,14 @@ bun run deploy
 
 The linked deployment flow prepares the restricted runtime role, applies eligible migrations, deploys the service and worker, and activates the verified runtime. Changes requiring review must be explicitly approved by migration hash; do not bypass a rejected migration.
 
-For Next.js set `NEXT_PUBLIC_LOOM_SERVICE_URL`; for Start set `VITE_LOOM_SERVICE_URL`. Use the deployed service URL before building:
+For Next.js set `NEXT_PUBLIC_KELLO_SERVICE_URL`; for Start set `VITE_KELLO_SERVICE_URL`. Use the deployed service URL before building:
 
 ```sh
 bun run build
 bun run start
 ```
 
-Open `/client` to see browser-owned authentication and live data without a server loader or hydration. Open `/` for the optional SSR path. Backend and frontend processes are separate: `kello dev` watches the backend; each framework's frontend dev server serves its UI.
+Open `/` or `/client` for the browser client. Both connect directly to the deployed Neon Function for authentication and RPC, and to Neon Realtime for live queries. The frontend does not host auth, session, or RPC handlers. `kello dev` watches the cloud backend; each framework’s frontend dev server serves its UI.
 
 Before using managed Neon browser login, review the [hosted cookie-delivery limitation](/authoring/auth#custom-better-auth-sessions-and-jwts).
 

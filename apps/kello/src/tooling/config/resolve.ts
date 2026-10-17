@@ -94,7 +94,7 @@ async function optionalJson<TSchema extends v.GenericSchema>(
   }
 }
 export async function readResolvedProject(root: string): Promise<ResolvedNeonProject | undefined> {
-  return optionalJson(root, ".loom/project.json", resolvedProjectValidator);
+  return optionalJson(root, ".kello/project.json", resolvedProjectValidator);
 }
 /** Read only. A returned invocation URL is discovery evidence, not a health check. */
 export async function resolveNeonProject(
@@ -283,7 +283,7 @@ export async function saveResolvedProject(root: string, value: ResolvedNeonProje
         "PROJECT_CONFLICT",
         "Refusing to replace discovery for another project without an explicit relink.",
       );
-    const directory = await resolveProjectPath(root, ".loom");
+    const directory = await resolveProjectPath(root, ".kello");
     await mkdir(directory, { recursive: true });
     await writeReceiptFile(directory, "project.json", JSON.stringify(parsed, null, 2) + "\n");
   });

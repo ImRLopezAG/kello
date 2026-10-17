@@ -12,7 +12,7 @@ import { createDevelopmentCoordinator } from "../../../apps/kello/src/tooling/de
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "loom-function-apply-"));
   const hash = "b".repeat(64);
-  const directory = join(root, ".loom/deploy", hash);
+  const directory = join(root, ".kello/deploy", hash);
   await mkdir(directory, { recursive: true });
   for (const role of ["service", "worker"])
     await writeFile(join(directory, `${role}.mjs`), 'export default { fetch() { return new Response("ready"); } };');

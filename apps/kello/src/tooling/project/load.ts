@@ -58,8 +58,8 @@ import {
 async function bundleModule(root: string, source: string, plugins: BunPlugin[] = [], readOnly = false) {
   const { build } = await import("bun");
   // Bun resolves external packages relative to the virtual entry's existing parent.
-  if (!readOnly) await mkdir(await resolveProjectPath(root, ".loom/modules"), { recursive: true });
-  const entry = readOnly ? join(root, "entry.ts") : join(root, ".loom", "entry.ts");
+  if (!readOnly) await mkdir(await resolveProjectPath(root, ".kello/modules"), { recursive: true });
+  const entry = readOnly ? join(root, "entry.ts") : join(root, ".kello", "entry.ts");
   const result = await build({
     entrypoints: [entry],
     files: { [entry]: source },
@@ -92,7 +92,7 @@ async function bundleModule(root: string, source: string, plugins: BunPlugin[] =
 }
 
 async function importBundle(root: string, content: string, version: string) {
-  const parent = await resolveProjectPath(root, ".loom/modules");
+  const parent = await resolveProjectPath(root, ".kello/modules");
   await mkdir(parent, { recursive: true });
   const directory = join(parent, version);
   const staging = join(parent, `.loading-${crypto.randomUUID()}`);

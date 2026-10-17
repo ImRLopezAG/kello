@@ -95,7 +95,7 @@ test.skipIf(process.env.LOOM_CLOUD_UPGRADE !== "1")(
       stage = "copy historical successor";
       await cp(source, root, {
         recursive: true,
-        filter: (path) => !["node_modules", "dist", "_generated", ".loom", ".turbo"].includes(basename(path)),
+        filter: (path) => !["node_modules", "dist", "_generated", ".kello", ".turbo"].includes(basename(path)),
       });
       await cp(join(source, "kello/migrations"), join(root, "kello/migrations"), {
         recursive: true,

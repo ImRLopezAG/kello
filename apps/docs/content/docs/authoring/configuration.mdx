@@ -9,7 +9,7 @@ import { ProjectFiles } from "../../../src/components/project-files";
 
 <ProjectFiles client:load />
 
-Import generated facades through their stable paths. Never import `.loom/generations` directly. Source imports are extensionless; the build produces runnable package exports.
+Import generated facades through their stable paths. Never import `.kello/generations` directly. Source imports are extensionless; the build produces runnable package exports.
 
 ## Which file owns what?
 
@@ -55,11 +55,11 @@ Default migration history is `<backend>/_generated/migrations`; default backend 
 
 ## Three kinds of environment values
 
-| Kind                       | Examples                                                | Consumer                     |
-| -------------------------- | ------------------------------------------------------- | ---------------------------- |
-| Provider credentials       | Neon login profile, `NEON_API_KEY`                      | CLI only                     |
-| Backend configuration      | database connections, SDK keys, auth signing secret     | Kello runtime and deployment |
-| Public connection settings | `NEXT_PUBLIC_LOOM_SERVICE_URL`, `VITE_LOOM_SERVICE_URL` | Browser bundle               |
+| Kind                       | Examples                                                  | Consumer                     |
+| -------------------------- | --------------------------------------------------------- | ---------------------------- |
+| Provider credentials       | Neon login profile, `NEON_API_KEY`                        | CLI only                     |
+| Backend configuration      | database connections, SDK keys, auth signing secret       | Kello runtime and deployment |
+| Public connection settings | `NEXT_PUBLIC_KELLO_SERVICE_URL`, `VITE_KELLO_SERVICE_URL` | Browser bundle               |
 
 Client frameworks bake public variables into their build. Changing the deployment URL requires rebuilding that frontend. A public URL is not a credential; never place private values behind a public prefix.
 
@@ -68,3 +68,5 @@ For component overrides, declare the parent variable in `app.env` and bind the c
 ## References and next steps
 
 - [Neon Function environment variables](https://neon.com/docs/compute/functions/environment-variables)
+
+CLI state, generated runtime bundles, locks and deployment receipts live in `.kello/`. Public bindings remain in `kello/_generated/`; generated `.js` and `.d.ts` files supply runtime imports and TypeScript types. Existing `.loom/` state is not automatically moved or deleted. This alpha rename requires relinking an existing project and regenerating bindings in a fresh checkout; preserve committed migration history.

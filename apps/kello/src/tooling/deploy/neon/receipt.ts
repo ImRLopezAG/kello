@@ -54,7 +54,7 @@ export async function loadFunctionReceipt(directory: string): Promise<NeonFuncti
 
 export async function receiptDirectory(root: string, artifactHash: string): Promise<string> {
   if (!v.is(hash, artifactHash)) throw new Error("Invalid deployment artifact hash");
-  return resolveProjectPath(root, `.loom/deploy/${artifactHash}`);
+  return resolveProjectPath(root, `.kello/deploy/${artifactHash}`);
 }
 
 /** Atomic replacement plus file/directory sync preserves acknowledged provider progress across process interruption. */
@@ -65,7 +65,7 @@ export async function writeFunctionReceipt(directory: string, receipt: NeonFunct
 
 /** A local apply never takes over another process's or an abandoned process's lock. */
 export async function withFunctionApplyLock<T>(root: string, operation: () => Promise<T>): Promise<T> {
-  const state = await resolveProjectPath(root, ".loom/deploy");
+  const state = await resolveProjectPath(root, ".kello/deploy");
   await mkdir(state, { recursive: true });
   const lock = join(state, "functions.lock");
   try {

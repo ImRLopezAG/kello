@@ -66,7 +66,7 @@ export function projectTemplates(name: string) {
     ],
     [
       ".gitignore",
-      "node_modules/\n.loom/\nkello/_generated/*\n!kello/_generated/migrations/\n.env\n.env.*\n!.env.example\n",
+      "node_modules/\n.kello/\nkello/_generated/*\n!kello/_generated/migrations/\n.env\n.env.*\n!.env.example\n",
     ],
   ] as const;
   return files;

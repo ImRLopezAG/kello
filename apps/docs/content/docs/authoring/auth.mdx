@@ -40,7 +40,7 @@ export const { KelloProviderWithAuth, useKello } = createKelloReact(createClient
 export function BackendProvider({ children }: React.PropsWithChildren) {
   return (
     <KelloProviderWithAuth
-      url={import.meta.env.VITE_LOOM_SERVICE_URL}
+      url={import.meta.env.VITE_KELLO_SERVICE_URL}
       useAuth={useAuthFromAuthKit}
       loadingFallback={<p>Connecting…</p>}
       fallback={<p>Sign in with your identity provider to continue.</p>}

@@ -5,7 +5,7 @@ import { resolveProjectPath } from "../config/paths";
 
 /** Fail closed on an abandoned lock; only its current owner removes it. */
 export async function withGenerationLock<T>(root: string, operation: () => Promise<T>): Promise<T> {
-  const state = await resolveProjectPath(root, ".loom");
+  const state = await resolveProjectPath(root, ".kello");
   await mkdir(state, { recursive: true });
   const lock = join(state, "generation.lock");
   const deadline = Date.now() + 10_000;

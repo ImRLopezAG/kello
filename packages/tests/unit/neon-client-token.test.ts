@@ -1,8 +1,9 @@
 import { expect, test, vi } from "vite-plus/test";
-import { createAuthClient } from "@neondatabase/auth/next";
+import { createAuthClient } from "@neondatabase/auth";
+import { BetterAuthReactAdapter } from "@neondatabase/auth/react/adapters";
 import { neonClientToken } from "../../../apps/kello/src/core/client/neon-token";
 
-test("proxy credentials use the signed token endpoint and reject a different provider session", async () => {
+test("Function-hosted credentials use the signed token endpoint and reject a different provider session", async () => {
   let tokenRequests = 0;
   let unavailable = false;
   let malformed = false;
@@ -36,8 +37,10 @@ test("proxy credentials use the signed token endpoint and reject a different pro
     });
   });
   try {
-    const auth = createAuthClient();
-    const endpoint = { url: "/api/auth/token", credentials: "same-origin" } as const;
+    const auth = createAuthClient("https://kello.example.test/api/auth", {
+      adapter: BetterAuthReactAdapter({ fetchOptions: { credentials: "include" } }),
+    });
+    const endpoint = { url: "https://kello.example.test/api/auth/token", credentials: "include" } as const;
     expect(await neonClientToken(auth, "user", "session", endpoint)).toBe("signed-backend-jwt");
     expect(await neonClientToken(auth, "other-user", "session", endpoint)).toBeNull();
     expect(await neonClientToken(auth, "user", "other-session", endpoint)).toBeNull();

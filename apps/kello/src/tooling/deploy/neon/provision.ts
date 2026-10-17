@@ -140,7 +140,7 @@ export async function provisionNeonBranch(
   const options = parsed.output;
   signal?.throwIfAborted();
   const api = providerOrDefault(provider);
-  const directory = await resolveProjectPath(root, `.loom/provision/${options.key}`);
+  const directory = await resolveProjectPath(root, `.kello/provision/${options.key}`);
   await mkdir(directory, { recursive: true });
   const lock = join(directory, "branch.lock");
   try {
@@ -149,7 +149,7 @@ export async function provisionNeonBranch(
     throw new Error("Branch provisioning receipt is locked");
   }
   try {
-    const receiptPath = await resolveProjectPath(root, `.loom/provision/${options.key}/branch.json`);
+    const receiptPath = await resolveProjectPath(root, `.kello/provision/${options.key}/branch.json`);
     let receipt: NeonBranchProvisionReceipt | undefined;
     try {
       receipt = v.parse(receiptValidator, JSON.parse(await readFile(receiptPath, "utf8")));

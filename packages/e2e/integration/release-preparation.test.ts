@@ -301,7 +301,7 @@ test.skipIf(!connectionString)(
         },
         provider,
       );
-      const retainedReceiptPath = join(root, ".loom/deploy", final.artifactHash, "functions.json");
+      const retainedReceiptPath = join(root, ".kello/deploy", final.artifactHash, "functions.json");
       const retainedReceipt = await readFile(retainedReceiptPath, "utf8");
       await rm(retainedReceiptPath);
       await assert.rejects(

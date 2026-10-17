@@ -14,7 +14,7 @@ export async function deployLiveServices(options: {
   environment: Record<string, string>;
   slugs?: readonly string[];
 }) {
-  const source = join(options.root, ".loom/deploy", options.artifactHash, "service.mjs");
+  const source = join(options.root, ".kello/deploy", options.artifactHash, "service.mjs");
   const result = [];
   const existing = await options.provider.listBranchFunctions(options.projectId, options.branchId);
   for (const slug of options.slugs ?? ["loomlivea", "loomliveb"]) {

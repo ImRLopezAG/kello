@@ -36,6 +36,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # workspace and generated local state
 .turbo
 .astro
+.kello
+# Keep prior private CLI state excluded from Git.
 .loom
 playwright-report
 test-results

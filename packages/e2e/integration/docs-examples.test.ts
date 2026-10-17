@@ -25,7 +25,7 @@ test("documented authoring examples compile and validate through a packed public
     );
     await cp(examples, join(root, "examples"), {
       recursive: true,
-      filter: (path) => !["_generated", ".loom"].includes(path.split("/").at(-1) ?? ""),
+      filter: (path) => !["_generated", ".kello"].includes(path.split("/").at(-1) ?? ""),
     });
     await writeFile(
       join(root, "package.json"),

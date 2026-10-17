@@ -18,14 +18,19 @@ const manifestSchema = v.object({
   devDependencies: v.record(v.string(), v.string()),
 });
 
-test("CSR and SSR examples build as independent consumers of one packed Kello artifact", async () => {
+test("Frontend examples build as independent consumers of one packed Kello artifact", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-packed-frameworks-"));
   const archive = join(root, "kello.tgz");
   const privateMarker = `server-secret-${crypto.randomUUID()}`;
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, {
       cwd,
-      env: { ...process.env, NEON_AUTH_COOKIE_SECRET: privateMarker },
+      env: {
+        ...process.env,
+        NEXT_PUBLIC_KELLO_SERVICE_URL: "https://function.example.test",
+        VITE_KELLO_SERVICE_URL: "https://function.example.test",
+        NEON_AUTH_COOKIE_SECRET: privateMarker,
+      },
       stdout: "pipe",
       stderr: "pipe",
       timeout: 120000,
@@ -60,7 +65,7 @@ test("CSR and SSR examples build as independent consumers of one packed Kello ar
             ".tanstack",
             ".nitro",
             "_generated",
-            ".loom",
+            ".kello",
             ".turbo",
           ].includes(basename(path)) && !basename(path).startsWith("_generated.staging-"),
       });
@@ -87,6 +92,7 @@ test("CSR and SSR examples build as independent consumers of one packed Kello ar
       await writeFile(join(target, "tsconfig.base.json"), JSON.stringify(base, null, 2));
       if (name === "next" || name === "start") await writeFrameworkSearch(target, name);
       await run(["bun", "install", "--linker", "isolated"], target);
+      await run(["bun", "install", "--frozen-lockfile"], target);
       await run(["bun", "run", "build"], target);
       await run(["bun", "run", "typecheck"], target);
       const browserRoot = join(target, name === "next" ? ".next/static" : name === "start" ? ".output/public" : "dist");

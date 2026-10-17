@@ -45,7 +45,7 @@ export async function provisionSchemaBranch(
   const artifacts = await readMigrations(root, config.database.migrations);
   const scope = { namespace: config.database.namespace, metadataNamespace: config.database.metadataNamespace };
   const api = provider ?? createKelloNeonApi();
-  const directory = await resolveProjectPath(root, `.loom/provision/${options.key}`);
+  const directory = await resolveProjectPath(root, `.kello/provision/${options.key}`);
   await mkdir(directory, { recursive: true });
   const lock = join(directory, "baseline.lock");
   try {
@@ -55,7 +55,7 @@ export async function provisionSchemaBranch(
   }
   try {
     let prior: v.InferOutput<typeof receiptValidator> | undefined;
-    const path = await resolveProjectPath(root, `.loom/provision/${options.key}/baseline.json`);
+    const path = await resolveProjectPath(root, `.kello/provision/${options.key}/baseline.json`);
     try {
       prior = v.parse(receiptValidator, JSON.parse(await readFile(path, "utf8")));
     } catch (cause) {

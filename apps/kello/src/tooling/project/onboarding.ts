@@ -62,8 +62,8 @@ export async function createNeonProject(
   const parsed = v.parse(request, input);
   await mkdir(root, { recursive: true });
   return withProjectConfigurationLock(root, async () => {
-    const directory = await resolveProjectPath(root, ".loom");
-    const path = await resolveProjectPath(root, ".loom/onboarding.json");
+    const directory = await resolveProjectPath(root, ".kello");
+    const path = await resolveProjectPath(root, ".kello/onboarding.json");
     let receipt: v.InferOutput<typeof receiptSchema>;
     try {
       receipt = v.parse(receiptSchema, JSON.parse(await readFile(path, "utf8")));

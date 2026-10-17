@@ -58,7 +58,7 @@ test("config is optional and discovery keeps service, auth, and data URLs separa
       migrationRole: "neondb_owner",
       runtimeRole: "loom_runtime",
     });
-    expect(await readFile(join(root, ".loom/project.json"), "utf8")).not.toContain("secret-sentinel");
+    expect(await readFile(join(root, ".kello/project.json"), "utf8")).not.toContain("secret-sentinel");
     await writeFile(
       join(root, "kello.config.ts"),
       'export default { backend: "server", database: { namespace: "custom" } };',

@@ -40,7 +40,7 @@ Create `kello/components/health/setup.ts`:
 
 The generated `setup` import binds the component to its own context. Run `kello generate` after adding the file to create that facade.
 
-Import it into `kello/app.config.ts` and call `app.use(health)`. After publishing, request `GET <LOOM_SERVICE_URL>/api/components/health/ready`; expect `{ "ok": true }`. This confirms the route is serving, not database readiness or authentication health. The endpoint intentionally returns no private data.
+Import it into `kello/app.config.ts` and call `app.use(health)`. After publishing, request `GET <KELLO_SERVICE_URL>/api/components/health/ready`; expect `{ "ok": true }`. This confirms the route is serving, not database readiness or authentication health. The endpoint intentionally returns no private data.
 
 For a webhook, replace anonymous access with `signed-webhook` and the provider's signature verifier. Keep route registration, signature verification, payload validation, and durable processing distinct. An invalid signature should fail before your handler writes anything; a duplicate valid event should not duplicate its effect.
 

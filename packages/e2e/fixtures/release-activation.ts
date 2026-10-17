@@ -317,7 +317,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
     (await admin.query("SELECT to_regnamespace($1) AS namespace", [metadataNamespace])).rows[0].namespace,
     null,
   );
-  await assert.rejects(readFile(join(root, ".loom/releases", options.releaseKey, "release.json")), { code: "ENOENT" });
+  await assert.rejects(readFile(join(root, ".kello/releases", options.releaseKey, "release.json")), { code: "ENOENT" });
   assert.deepEqual([functions, triggers, buckets], [[], [], []]);
   buckets.push({ name: "uploads", accessLevel: "public_read" });
   assert.ok(
@@ -380,7 +380,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
   schedule.cron = "* * * * *";
   await assert.rejects(deployNeonRelease(root, options, provider), /Trigger activation incomplete/);
   assert.equal(triggers.filter((entry) => entry.enabled).length, 1);
-  const receiptPath = join(root, ".loom/releases", options.releaseKey, "release.json");
+  const receiptPath = join(root, ".kello/releases", options.releaseKey, "release.json");
   const saved = v.parse(
     v.looseObject({ completed: v.array(v.looseObject({ stage: v.string() })) }),
     JSON.parse(await readFile(receiptPath, "utf8")),
@@ -848,7 +848,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
     },
   });
   try {
-    const preload = join(root, ".loom/retirement-transport.mjs");
+    const preload = join(root, ".kello/retirement-transport.mjs");
     await writeFile(
       preload,
       `

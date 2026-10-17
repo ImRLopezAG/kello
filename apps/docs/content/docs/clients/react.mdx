@@ -9,11 +9,11 @@ description: Connect provider-owned authentication to native TanStack Query with
 import { createKelloNeonReact } from "kello/react/neon";
 import { createClient } from "../kello/_generated/react";
 
-export const serviceUrl = import.meta.env.VITE_LOOM_SERVICE_URL;
+export const serviceUrl = import.meta.env.VITE_KELLO_SERVICE_URL;
 export const { KelloProvider, useKello, auth, useAuth } = createKelloNeonReact(createClient, { serviceUrl });
 ```
 
-For Next.js use `process.env.NEXT_PUBLIC_LOOM_SERVICE_URL`. The `serviceUrl` mode connects Neon's official browser SDK to `/api/auth/*` on the Kello service. It does not create a frontend auth route. Managed Neon hosted acceptance has a separate cookie-delivery limitation; see [auth](/authoring/auth).
+For Next.js use `process.env.NEXT_PUBLIC_KELLO_SERVICE_URL`. The `serviceUrl` mode connects Neon's official browser SDK to `/api/auth/*` on the Kello service. It does not create a frontend auth route. Managed Neon hosted acceptance has a separate cookie-delivery limitation; see [auth](/authoring/auth).
 
 ```tsx
 <KelloProvider url={serviceUrl} loadingFallback={<p>Loading session…</p>} fallback={<SignIn />}>

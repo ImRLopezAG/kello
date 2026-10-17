@@ -81,7 +81,7 @@ async function writePlanningDeclaration(fixture: FrameworkPrefixFixture, retaine
 }
 
 async function observePlanWithoutWrites(fixture: FrameworkPrefixFixture) {
-  const path = join(fixture.root, ".loom/releases", fixture.options.releaseKey, "release.json");
+  const path = join(fixture.root, ".kello/releases", fixture.options.releaseKey, "release.json");
   const receipt = await readFile(path, "utf8");
   const before = await historySnapshot(fixture);
   const plan = await planProjectRelease(fixture.root, "release.json", fixture.planner);
@@ -144,7 +144,7 @@ nativeTest(
   async () => {
     await withFrameworkPrefixFixture(async (fixture) => {
       await completeRelease(fixture);
-      const path = join(fixture.root, ".loom/releases", fixture.options.releaseKey, "release.json");
+      const path = join(fixture.root, ".kello/releases", fixture.options.releaseKey, "release.json");
       const receipt = await readFile(path, "utf8");
       const before = await historySnapshot(fixture);
       await makeVersion26(fixture);
@@ -200,7 +200,7 @@ nativeTest(
         }),
       );
       await makeVersion26(fixture);
-      const path = join(fixture.root, ".loom/releases", fixture.options.releaseKey, "release.json");
+      const path = join(fixture.root, ".kello/releases", fixture.options.releaseKey, "release.json");
       const receipt = await readFile(path, "utf8");
       const before = await historySnapshot(fixture);
       const plan = await planProjectRelease(fixture.root, "release.json", fixture.planner);
@@ -269,7 +269,7 @@ nativeTest(
       assert.equal(prefix.metadata, "bootstrap-existing");
       assert(!prefix.blockers.some((blocker) => blocker.code === "RETAINED_RUNTIME_INACTIVE"));
       assert(!prefix.blockers.some((blocker) => blocker.code === "DATABASE_INCONSISTENT"));
-      await assert.rejects(readFile(join(fixture.root, ".loom/releases", "f".repeat(64), "release.json")), {
+      await assert.rejects(readFile(join(fixture.root, ".kello/releases", "f".repeat(64), "release.json")), {
         code: "ENOENT",
       });
     });
@@ -293,7 +293,7 @@ nativeTest(
       const prefix = await observePlanWithoutWrites(fixture);
       assert.equal(prefix.metadata, "bootstrap-existing");
       assert(prefix.blockers.some((blocker) => blocker.code === "RETAINED_RUNTIME_INACTIVE"));
-      await assert.rejects(readFile(join(fixture.root, ".loom/releases", "f".repeat(64), "release.json")), {
+      await assert.rejects(readFile(join(fixture.root, ".kello/releases", "f".repeat(64), "release.json")), {
         code: "ENOENT",
       });
     });
@@ -328,7 +328,7 @@ nativeTest(
       assert(prefix.blockers.some((blocker) => blocker.code === "FRAMEWORK_UPGRADE_REQUIRED"));
       assert(!prefix.blockers.some((blocker) => blocker.code === "RETAINED_RUNTIME_INACTIVE"));
       assert(!prefix.blockers.some((blocker) => blocker.code === "DATABASE_INCONSISTENT"));
-      await assert.rejects(readFile(join(fixture.root, ".loom/releases", "f".repeat(64), "release.json")), {
+      await assert.rejects(readFile(join(fixture.root, ".kello/releases", "f".repeat(64), "release.json")), {
         code: "ENOENT",
       });
     });
@@ -373,7 +373,7 @@ for (const corruption of ["hash", "gap", "newer", "unversioned", "application", 
           }
         };
         const before = await observe();
-        const path = join(fixture.root, ".loom/releases", fixture.options.releaseKey, "release.json");
+        const path = join(fixture.root, ".kello/releases", fixture.options.releaseKey, "release.json");
         const receipt = await readFile(path, "utf8");
         let callbacks = 0;
         await assert.rejects(

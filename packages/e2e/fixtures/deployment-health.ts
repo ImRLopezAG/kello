@@ -124,7 +124,7 @@ const receipt: NeonFunctionReceipt = {
   },
   functions: [functionReceipt("service"), functionReceipt("worker")],
 };
-const directory = join(root, ".loom/deploy", hash);
+const directory = join(root, ".kello/deploy", hash);
 await mkdir(directory, { recursive: true });
 const saved = JSON.stringify(receipt);
 await writeFile(join(directory, "functions.json"), saved);
@@ -153,8 +153,8 @@ try {
     assert.ok(!JSON.stringify(proof).includes(token));
     assert.equal(requests, 2);
     const previous = { ...receipt, artifactHash: previousHash };
-    await mkdir(join(root, ".loom/deploy", previousHash), { recursive: true });
-    await writeFile(join(root, ".loom/deploy", previousHash, "functions.json"), JSON.stringify(previous));
+    await mkdir(join(root, ".kello/deploy", previousHash), { recursive: true });
+    await writeFile(join(root, ".kello/deploy", previousHash, "functions.json"), JSON.stringify(previous));
     behavior = "previous-once";
     const propagated = await inspectNeonFunctionHealth(
       root,
@@ -171,7 +171,7 @@ try {
     await assert.rejects(inspectNeonFunctionHealth(root, options, provider), refused);
     behavior = "healthy";
     const invalidPrevious = { ...previous, version: "e".repeat(64) };
-    await writeFile(join(root, ".loom/deploy", previousHash, "functions.json"), JSON.stringify(invalidPrevious));
+    await writeFile(join(root, ".kello/deploy", previousHash, "functions.json"), JSON.stringify(invalidPrevious));
     const beforeInvalidPrevious = requests;
     await assert.rejects(
       inspectNeonFunctionHealth(root, { ...options, previousArtifactHash: previousHash }, provider),

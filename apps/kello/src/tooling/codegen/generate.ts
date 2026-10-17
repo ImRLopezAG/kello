@@ -61,7 +61,7 @@ async function writeGeneration(project: LoadedProject): Promise<ProcedureManifes
     project.root,
     relative(project.root, join(project.backend, "_generated")),
   );
-  const artifactsRoot = await resolveProjectPath(project.root, ".loom/generations");
+  const artifactsRoot = await resolveProjectPath(project.root, ".kello/generations");
   await mkdir(artifactsRoot, { recursive: true });
   const directory = join(artifactsRoot, project.version);
   const manifest: ProcedureManifest = {
@@ -83,7 +83,7 @@ async function writeGeneration(project: LoadedProject): Promise<ProcedureManifes
     await mkdir(generationRoot);
   } catch (cause) {
     if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EEXIST") throw cause;
-    if ((await readFile(join(generationRoot, ".loom-generated"), "utf8").catch(() => "")) !== "loom-generated-v1\n") {
+    if ((await readFile(join(generationRoot, ".kello-generated"), "utf8").catch(() => "")) !== "kello-generated-v1\n") {
       // A fresh checkout may contain only committed migration history.
       const entries = await readdir(generationRoot, { withFileTypes: true });
       if (entries.some((entry) => entry.name !== "migrations" || !entry.isDirectory()))
@@ -93,7 +93,7 @@ async function writeGeneration(project: LoadedProject): Promise<ProcedureManifes
     }
   }
   try {
-    await writeFile(join(generationRoot, ".loom-generated"), "loom-generated-v1\n", { flag: "wx" });
+    await writeFile(join(generationRoot, ".kello-generated"), "kello-generated-v1\n", { flag: "wx" });
   } catch (cause) {
     if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EEXIST") throw cause;
   }
@@ -210,7 +210,7 @@ async function activateGeneration(
     project.root,
     relative(project.root, join(project.backend, "_generated")),
   );
-  const artifactsRoot = await resolveProjectPath(project.root, ".loom/generations");
+  const artifactsRoot = await resolveProjectPath(project.root, ".kello/generations");
   await mkdir(artifactsRoot, { recursive: true });
   const directory = join(artifactsRoot, project.version);
   const active = join(generationRoot, "current");

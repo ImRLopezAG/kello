@@ -96,7 +96,7 @@ test("development watcher ignores artifact directories while observing source fi
   await prepareMigrationDirectory(root);
   const artifacts = [
     ".git",
-    ".loom",
+    ".kello",
     "_generated",
     "node_modules",
     "dist",
@@ -190,7 +190,7 @@ test("watching a consumer preserves generated contracts through a failed edit an
     const content = await readFile(source, "utf8");
     await writeFile(source, "export default {");
     await until(() => watcher.failure !== null);
-    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.loom/generations/" + previous);
+    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.kello/generations/" + previous);
     await writeFile(
       source,
       content.replace("title: s.text().notNull()", "title: s.text().notNull(), description: s.text()"),
@@ -198,7 +198,7 @@ test("watching a consumer preserves generated contracts through a failed edit an
     await until(() => activeVersion !== previous);
     await watcher.settled();
     expect(watcher.failure).toBeNull();
-    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.loom/generations/" + activeVersion);
+    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.kello/generations/" + activeVersion);
   } finally {
     await watcher.stop();
     await rm(root, { recursive: true, force: true });
