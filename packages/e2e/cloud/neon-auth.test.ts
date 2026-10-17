@@ -19,6 +19,7 @@ import {
   generateProject,
   readNeonFunctionReceipt,
 } from "kello/tooling";
+import { verifyCloudAppPeers } from "../fixtures/cloud-app-peers";
 import { verifyCloudComponentBrowser } from "../fixtures/cloud-component-browser";
 import { startCloudFramework, verifyCloudFramework } from "../fixtures/cloud-framework";
 import { startCloudFrontend } from "../fixtures/cloud-frontend";
@@ -204,6 +205,8 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
           stage = "provider uploads, events and durable processing";
           await verifyCloudUploadWorkflow(page);
         }
+        stage = "SDK peer delivery and account isolation";
+        await verifyCloudAppPeers(browser, page, frontendUrl, example);
         if (example === "tasks") {
           stage = "safe schema expansion and compatible deployment";
           await page.goto("about:blank");

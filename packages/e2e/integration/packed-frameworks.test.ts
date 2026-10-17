@@ -92,6 +92,7 @@ test("Frontend examples build as independent consumers of one packed Kello artif
       await writeFile(join(target, "tsconfig.base.json"), JSON.stringify(base, null, 2));
       if (name === "next" || name === "start") await writeFrameworkSearch(target, name);
       await run(["bun", "install", "--linker", "isolated"], target);
+      await run(["bun", "install", "--frozen-lockfile"], target);
       await run(["bun", "run", "build"], target);
       await run(["bun", "run", "typecheck"], target);
       const browserRoot = join(target, name === "next" ? ".next/static" : name === "start" ? ".output/public" : "dist");
