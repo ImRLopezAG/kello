@@ -53,7 +53,9 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
     const frontendUrl = new URL(frontend.url);
     frontendUrl.hostname = "localhost";
     const previousOrigins = process.env.APP_ORIGINS;
+    const previousCookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
     process.env.APP_ORIGINS = frontendUrl.origin;
+    process.env.NEON_AUTH_COOKIE_SECRET = crypto.randomUUID() + crypto.randomUUID();
     let framework: Awaited<ReturnType<typeof startCloudFramework>> | undefined;
     let stage = "copy";
     let passed = false;
@@ -90,6 +92,10 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
           migrationRole: decodeURIComponent(address.username),
           runtimeRole,
           quarantine: "preserve",
+          variables: {
+            APP_ORIGINS: "APP_ORIGINS",
+            NEON_AUTH_COOKIE_SECRET: "NEON_AUTH_COOKIE_SECRET",
+          },
         },
       } satisfies Parameters<typeof defineConfig>[0];
       await writeFile(
@@ -286,6 +292,8 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
     } finally {
       if (previousOrigins === undefined) delete process.env.APP_ORIGINS;
       else process.env.APP_ORIGINS = previousOrigins;
+      if (previousCookieSecret === undefined) delete process.env.NEON_AUTH_COOKIE_SECRET;
+      else process.env.NEON_AUTH_COOKIE_SECRET = previousCookieSecret;
       try {
         await browser.close();
       } finally {
