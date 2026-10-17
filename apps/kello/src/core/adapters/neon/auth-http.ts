@@ -55,11 +55,11 @@ export function createAuthHttpApp(options: {
           !origin ||
           !method ||
           !["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"].includes(method) ||
-          requested.some((name) => !["authorization", "content-type"].includes(name))
+          requested.some((name) => !["authorization", "content-type", "x-neon-client-info"].includes(name))
         )
           return fail(403);
         headers.set("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, HEAD");
-        headers.set("access-control-allow-headers", "authorization, content-type");
+        headers.set("access-control-allow-headers", "authorization, content-type, x-neon-client-info");
         headers.set("vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers");
         return fail(204);
       }

@@ -2,8 +2,7 @@ import * as v from "valibot";
 import { verifyCloudUploadWorkflow } from "../fixtures/cloud-upload-workflow";
 import assert from "node:assert/strict";
 import { test } from "bun:test";
-import { cp, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -17,6 +16,7 @@ import {
   inspectDeploymentTarget,
   defineConfig,
   generateProject,
+  loadProjectConfig,
   readNeonFunctionReceipt,
 } from "kello/tooling";
 import { verifyCloudAppPeers } from "../fixtures/cloud-app-peers";
@@ -43,7 +43,9 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
     );
     assert.match(target.branchName, /^loom-acceptance-/);
     const provider = createKelloNeonApi();
-    const root = await mkdtemp(join(tmpdir(), "loom-neon-auth-"));
+    const fixtures = fileURLToPath(new URL("../.cloud-receipts/", import.meta.url));
+    await mkdir(fixtures, { recursive: true, mode: 0o700 });
+    const root = await mkdtemp(join(fixtures, "neon-auth-"));
     const admin = new pg.Client({ connectionString });
     const browser = await chromium.launch({ headless: true });
     const frontend = startCloudFrontend(root, async () => {
@@ -77,9 +79,10 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
         runtimeRole && /^runtime_[a-f0-9]{32}$/.test(runtimeRole),
         "Use the runtime role from the owned acceptance branch",
       );
+      const { config: exampleConfig } = await loadProjectConfig(source);
       const config = {
         project: example,
-        database: { migrations: "kello/migrations" },
+        database: { ...exampleConfig.database, migrations: "kello/migrations" },
         provider: { projectId, targets: { preview: { branchId } } },
         auth: {
           origins: [frontendUrl.origin],
@@ -108,7 +111,8 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
         connectionString,
         root,
         runtimeRole,
-        namespace: "app",
+        namespace: config.database.namespace,
+        metadataNamespace: config.database.metadataNamespace,
         migrations: "kello/migrations",
       });
       await admin.connect();
@@ -138,20 +142,29 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
           cwd: root,
           env: {
             ...process.env,
+            NODE_ENV: "production",
             VITE_LOOM_ACCEPTANCE: "0",
             VITE_NEON_AUTH_URL: authUrl,
             VITE_LOOM_URL: invocationUrl,
             NEXT_PUBLIC_KELLO_SERVICE_URL: invocationUrl,
             VITE_KELLO_SERVICE_URL: invocationUrl,
           },
-          stdout: "ignore",
+          stdout: "pipe",
           stderr: "pipe",
         });
-        await new Response(build.stderr).text();
-        assert.equal(await build.exited, 0);
+        const [stdout, stderr, exitCode] = await Promise.all([
+          new Response(build.stdout).text(),
+          new Response(build.stderr).text(),
+          build.exited,
+        ]);
+        if (exitCode !== 0) {
+          await writeFile(join(root, "frontend-build.log"), `${stdout}\n${stderr}`, { mode: 0o600 });
+        }
+        assert.equal(exitCode, 0);
       }
       await buildFrontend(url);
       if (example === "next" || example === "start") {
+        stage = "start production framework frontend";
         await frontend.stop();
         framework = await startCloudFramework(root, example, frontendUrl);
       }
@@ -165,7 +178,8 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
         stage = "component SDK browser isolation, pause and validation";
         await verifyCloudComponentBrowser(browser, frontendUrl, diagnostics);
       } else {
-        const page = await browser.newPage();
+        const context = await browser.newContext();
+        const page = await context.newPage();
         const errors: string[] = [];
         page.on("pageerror", (error) => errors.push(error.name));
         page.on("response", (response) => {

@@ -11,6 +11,9 @@
   ],
   "type": "module",
   "scripts": {
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "test:precommit": "node --test scripts/neon-precommit.test.mjs",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
