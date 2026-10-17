@@ -37,3 +37,21 @@ Limits: no exhaustive transitive dependency review, forced cleanup-failure runti
 **U6 implementation checkpoint source-reviewed; full plan not ready for release.** The inspected source has no unresolved actionable defect after #1. Commit the tested fixtures, then require exact-revision CI/provider results before closing U6 or publishing.
 
 Actionable source findings: none. Remaining release action: provision protected GitHub provider configuration and obtain current-revision CI results.
+
+## Provider coverage follow-up
+
+Reviewed the single-fixture delta against `b965fd30` through the ce-code-review lite path. Intent: make the existing CI fixture reproduce required external-writer, filtered/unchanged progress, overlapping receipts, pending logout and actual scheduled renewal cases. Production APIs, authorization and transport are unchanged. Assertions fail locally through the fixture's recorded failing exit; no new acceptance bypass or compatibility mechanism is introduced.
+
+### Actionable Findings
+
+None in the final delta. A conditional empty-object spread was replaced with explicit property assignment after lint rejected it; the final typecheck, lint, format and whitespace checks passed.
+
+### Coverage
+
+Read the entire added delta, surrounding issuer/relay/cleanup code, root CLAUDE.md and the plan's requirements/DoD. Compared the ported cases with retained real-provider fixtures. The final clocked renewal checks assert same authorization and expiry with a different fingerprint outside the SDK callback catch. In-flight renewal cleanup releases its gate and refuses further database work when stopping. Existing independent cleanup categories remain intact. No new abstraction offered a useful simplification.
+
+Actual run `aa6793e6-5253-4ccf-951f-4ba627164199` passed all16 checks on the admitted Neon PG180006 target; report records relay CLOSED, own schema dropped, pool CLOSED and no cleanup errors. Raw log: `/tmp/kello-cloud-u6-required-provider.log`. The run precedes only the behavior-equivalent lint rewrite of observation object construction; final source typing/lint/format passed afterward. No independent or cross-model reviewer ran for this follow-up under the user's sequential-main mapping. No learnings, agent-native, deployment or exhaustive dependency assessment is claimed.
+
+### Verdict
+
+The scoped test addition is ready to commit. U6 and release remain open pending exact-revision Linux CI and protected provider-workflow execution; the provider run above is actual local execution, not a GitHub Actions pass.

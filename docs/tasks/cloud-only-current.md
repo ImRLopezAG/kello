@@ -9,6 +9,8 @@ Plan: [Neon cloud-only runtime and live queries](../plans/2026-10-16-1919-refact
 - [x] U5: prune package, exports, dependencies, examples and docs.
 - [ ] U6: current cloud/browser integration, package and release checks.
 
+Latest checkpoint: U1–U5 and U6 verification sources are committed through `b965fd30`; draft PR #9 is open. The durable actual-provider fixture now covers all16 required transaction/progress/lifecycle checks, including external writer, filtered/unchanged writes, distinct-key overlap, pending logout with late actual frames and scheduled generation/fingerprint renewal rejection. Actual run `aa6793e6-5253-4ccf-951f-4ba627164199` passed on PG180006 with own schema dropped, relay/pool closed and no cleanup errors. Final e2e typing and focused lint/format pass. Follow-up review is recorded in the existing U6 source-review report. Current-revision GitHub CI is still running; protected `neon-acceptance` credentials/configuration and its actual workflow result remain required. No publication or whole-plan completion is claimed.
+
 U1 verification: four reproduced review regressions fixed; main rerun 24 tests/121 assertions green (Bun 1.4.3); app three-tsconfig and e2e typechecks green. Worker build/lint/format green. Astra-low affected code/implementation/security review approved the bounded phase with no findings. Status avoids loader-owned persistent writes; authored configuration remains executable code, not a sandbox.
 
 Real provider enablement and cloud/browser acceptance remain U6. Saved public URLs are discovery information, not fresh readiness evidence. Earlier bundler/local-job removal work remains preserved for the later units. No release acceptance is claimed.

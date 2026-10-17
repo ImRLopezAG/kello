@@ -61,6 +61,8 @@ const upstreams = new Set<WebSocket>();
 let hold = false;
 const buffered: (() => void)[] = [];
 let delivered = 0;
+let releaseRefreshOnExit: (() => void) | undefined;
+let stopping = false;
 
 async function check(name: string, work: () => Promise<void>) {
   const start = Date.now();
@@ -192,8 +194,20 @@ try {
         .where(and(eq(tasks.tenant, "A"), member(identity.subject)))
         .orderBy(tasks.id),
   });
+  const narrowed = createNeonLiveQuery({
+    name: "acceptance.tasks.narrow.v1",
+    input: v.null(),
+    rows,
+    authorize: definition.authorize,
+    query: ({ identity }) =>
+      db
+        .select({ id: tasks.id, title: tasks.title, n: tasks.n, enabled: tasks.enabled, ratio: tasks.ratio })
+        .from(tasks)
+        .where(and(eq(tasks.tenant, "A"), eq(tasks.id, "task"), member(identity.subject)))
+        .orderBy(tasks.id),
+  });
   const target = { secret: secret.secret, database: "neondb", deployment: runId };
-  const issuer = createNeonQueryIssuer({ ...target, queries: [definition] });
+  const issuer = createNeonQueryIssuer({ ...target, queries: [definition, narrowed] });
   const mutate = async (
     title: string,
     key: string,
@@ -402,17 +416,69 @@ try {
     assert.deepEqual(rs[1], rs[2]);
     assert.equal((await db.select().from(tasks).where(eq(tasks.id, "task")))[0]!.n, before + 1);
   });
+  await check("external writer appears; filtered and unchanged writes confirm without inventing rows", async () => {
+    await db.update(tasks).set({ title: "external-writer" }).where(eq(tasks.id, "task"));
+    await waitFor(() => sub.getSnapshot().data?.[0]?.title === "external-writer");
+    const before = sub.getSnapshot().data;
+    const filtered = await runNeonMutation({
+      ...target,
+      connection: connection!,
+      metadataNamespace: namespace,
+      operation: "acceptance.filtered.v1",
+      idempotencyKey: "filtered",
+      input: null,
+      authority: alice,
+      output: v.null(),
+      authorize: async () => {},
+      execute: async (tx) => {
+        await tx.update(tasks).set({ title: "filtered-update" }).where(eq(tasks.id, "foreign"));
+        return { kind: "write", value: null };
+      },
+    });
+    assert.equal(await sub.confirm(filtered, 15000), "confirmed");
+    assert.deepEqual(sub.getSnapshot().data, before);
+    const unchanged = await mutate("external-writer", "same-value");
+    assert.equal(await sub.confirm(unchanged.receipt, 15000), "confirmed");
+    assert.deepEqual(sub.getSnapshot().data, before);
+  });
+  await check("different-key concurrent same-row receipts both confirm latest installed state", async () => {
+    const [a, b] = await Promise.all([mutate("overlap-A", "overlap-A"), mutate("overlap-B", "overlap-B")]);
+    assert(a.receipt.transaction.kind === "committed" && b.receipt.transaction.kind === "committed");
+    assert.notEqual(a.receipt.transaction.txid, b.receipt.transaction.txid);
+    assert.deepEqual(await Promise.all([sub.confirm(a.receipt, 15000), sub.confirm(b.receipt, 15000)]), [
+      "confirmed",
+      "confirmed",
+    ]);
+    const native = (await db.select().from(tasks).where(eq(tasks.id, "task")))[0]!.title;
+    assert.equal(sub.getSnapshot().data?.[0]?.title, native);
+    assert(["overlap-A", "overlap-B"].includes(native));
+  });
   await check("different identity and new login generation cannot confirm on old owner", async () => {
     const b = await mutate("bob", "bob", { who: bob });
     assert.equal(await sub.confirm(b.receipt, 500), "unknown");
     const next = await mutate("new-login", "new-login", { who: authority("alice", "different-login") });
     assert.equal(await sub.confirm(next.receipt, 500), "unknown");
   });
-  await check("no-write returns explicit no-write and disposal makes receipt unknown", async () => {
+  await check("no-write and pending logout remain unknown after late actual frames", async () => {
     const n = await mutate("unchanged", "no-write", { noWrite: true });
     assert.equal(await sub.confirm(n.receipt, 500), "no-write");
-    sub.dispose();
+    hold = true;
+    const late = await mutate("late-after-logout", "late-after-logout");
+    await waitFor(() => buffered.length > 0);
+    let settled = false;
+    const pending = sub.confirm(late.receipt, 15000).then((value) => {
+      settled = true;
+      return value;
+    });
+    await Promise.resolve();
+    assert.equal(settled, false);
+    client.dispose();
+    assert.equal(await pending, "unknown");
     assert.equal(await sub.confirm(n.receipt, 500), "unknown");
+    hold = false;
+    for (const send of buffered.splice(0)) send();
+    assert.equal(sub.getSnapshot().status, "closed");
+    assert.equal(sub.getSnapshot().data, undefined);
   });
   const secondClient = createNeonLiveClient({ url: url.href });
   clients.push(secondClient);
@@ -427,11 +493,117 @@ try {
     await assert.rejects(bobIssue());
     await assert.rejects(mutate("forbidden", "forbidden", { who: bob }));
   });
+  const observations: { owner: string; type: string; outcome?: string }[] = [];
+  const makeClient = (owner: string) => {
+    const c = createNeonLiveClient({
+      url: url.href,
+      observe: (event) => {
+        const observation: (typeof observations)[number] = { owner, type: event.type };
+        if ("outcome" in event) observation.outcome = event.outcome;
+        observations.push(observation);
+      },
+    });
+    clients.push(c);
+    return c;
+  };
+  let fingerprintPredicate:
+    | { sameAuthorization: boolean; sameSessionExpiry: boolean; differentFingerprint: boolean }
+    | undefined;
+  let refreshEntered = false;
+  let returnedOld = false;
+  let releaseRefresh: () => void = () => {};
+  const refreshGate = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+    releaseRefreshOnExit = resolve;
+  });
+  const oldClient = makeClient("old");
+  const generationClient = makeClient("changed-generation");
+  const fingerprintClient = makeClient("changed-fingerprint");
+  const old = oldClient.open(await issue(), {
+    rows,
+    refresh: async () => {
+      refreshEntered = true;
+      await refreshGate;
+      if (stopping) throw new Error("Fixture stopped");
+      const fresh = await issue();
+      returnedOld = true;
+      return fresh;
+    },
+  });
+  const changedGeneration = generationClient.open(await issue(), {
+    rows,
+    refresh: () => issuer.issue(definition, null, authority("alice", "different-generation")),
+  });
+  const changedFingerprint = fingerprintClient.open(await issue(), {
+    rows,
+    refresh: async () => {
+      const initial = await issue();
+      const next = await issuer.issue(narrowed, null, alice);
+      fingerprintPredicate = {
+        sameAuthorization: next.authorization === initial.authorization,
+        sameSessionExpiry: next.sessionExpiresAt === initial.sessionExpiresAt,
+        differentFingerprint: next.query.queryFingerprint !== initial.query.queryFingerprint,
+      };
+      return next;
+    },
+  });
+  await waitFor(
+    () =>
+      old.getSnapshot().status === "live" &&
+      changedGeneration.getSnapshot().status === "live" &&
+      changedFingerprint.getSnapshot().status === "live",
+  );
+  await check("scheduled renewal rejects changed generation and independently changed fingerprint", async () => {
+    await waitFor(
+      () =>
+        refreshEntered &&
+        changedGeneration.getSnapshot().status === "closed" &&
+        changedFingerprint.getSnapshot().status === "closed",
+      65000,
+    );
+    assert.deepEqual(fingerprintPredicate, {
+      sameAuthorization: true,
+      sameSessionExpiry: true,
+      differentFingerprint: true,
+    });
+    assert.equal(changedGeneration.getSnapshot().data, undefined);
+    assert.equal(changedFingerprint.getSnapshot().data, undefined);
+    assert.equal(
+      observations.filter(
+        (e) =>
+          ["changed-generation", "changed-fingerprint"].includes(e.owner) &&
+          e.type === "renewal" &&
+          e.outcome === "renewed",
+      ).length,
+      0,
+    );
+  });
+  await check("disposed in-flight renewal cannot revive an owner after replacement login", async () => {
+    assert(refreshEntered);
+    oldClient.dispose();
+    const oldEvents = observations.filter((e) => e.owner === "old" && e.type !== "confirmation").length;
+    const replacementAuthority = authority("alice", "new-login-generation");
+    const replacementIssue = () => issuer.issue(definition, null, replacementAuthority);
+    const replacementClient = makeClient("replacement");
+    const replacement = replacementClient.open(await replacementIssue(), { rows, refresh: replacementIssue });
+    await waitFor(() => replacement.getSnapshot().status === "live");
+    releaseRefresh();
+    await waitFor(() => returnedOld);
+    const r = await mutate("replacement-positive", "replacement-positive", { who: replacementAuthority });
+    assert.equal(await replacement.confirm(r.receipt, 15000), "confirmed");
+    assert.equal(replacement.getSnapshot().data?.[0]?.title, "replacement-positive");
+    assert.equal(old.getSnapshot().status, "closed");
+    assert.equal(old.getSnapshot().data, undefined);
+    assert.equal(await old.confirm(r.receipt, 100), "unknown");
+    assert.equal(observations.filter((e) => e.owner === "old" && e.type !== "confirmation").length, oldEvents);
+  });
   report.status = "PASS";
 } catch (e) {
   report.status = "FAIL";
   report.errorClass = e instanceof Error ? e.name : "Unknown"; /* no raw errors/SQL/capabilities/URI */
 } finally {
+  stopping = true;
+  releaseRefreshOnExit?.();
   hold = false;
   buffered.length = 0;
   for (const c of clients) {
