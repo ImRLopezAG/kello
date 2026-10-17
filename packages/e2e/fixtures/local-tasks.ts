@@ -135,7 +135,7 @@ export async function startLocalTasks(options: {
       deployment: "local-tasks",
       ...tooling.projectRuntimeGraph(project),
       auth: core.defineRpcAuth({ authorize: project.auth.authorize, allowAnonymous: project.auth.allowAnonymous }),
-      config: { auth: { origins: [frontend.url.origin] }, realtime: { pollIntervalMs: 100 } },
+      config: { auth: { origins: [frontend.url.origin] } },
       assertActive: async (signal) => {
         signal.throwIfAborted();
         if (stopped) throw new Error("Local example stopped");

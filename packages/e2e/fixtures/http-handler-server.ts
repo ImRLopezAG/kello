@@ -2,7 +2,7 @@ import { createNeonRpcApplication, createStorageHttpApp } from "kello/neon";
 import type { createRpcRuntime } from "kello/server";
 
 type Runtime = Awaited<ReturnType<typeof createRpcRuntime>>;
-export type HttpFixtureRuntime = Pick<Runtime, "router" | "snapshots" | "version" | "tickets" | "stop"> &
+export type HttpFixtureRuntime = Pick<Runtime, "router" | "version" | "stop"> &
   Partial<Pick<Runtime, "storage" | "componentHttp">> & {
     readonly auth: Pick<
       Parameters<typeof createNeonRpcApplication>[0],
@@ -17,9 +17,7 @@ export async function startHttpHandlerServer(runtime: HttpFixtureRuntime) {
     ...runtime.auth,
     router: runtime.router,
     version: runtime.version,
-    tickets: runtime.tickets,
     openapi: runtime.openapi ?? false,
-    openapiRouter: runtime.snapshots,
     componentHttp: runtime.componentHttp ?? [],
   };
   if (runtime.storage)

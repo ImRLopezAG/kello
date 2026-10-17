@@ -6,20 +6,7 @@ export type DiagnosticsRuntimeEvent =
       readonly status: "success" | "error";
       readonly durationMs: number;
     }
-  | { readonly type: "realtime.listener"; readonly status: "connected" | "degraded" | "idle" }
-  | {
-      readonly type: "realtime.coordinator";
-      readonly subscriptions: number;
-      readonly evaluating: number;
-      readonly queued: number;
-    }
   | { readonly type: "transaction.retry"; readonly kind: "query" | "mutation"; readonly attempt: number }
-  | {
-      readonly type: "revision.read";
-      readonly status: "success" | "error";
-      readonly durationMs: number;
-      readonly tableCount: number;
-    }
   | {
       readonly type: "job.claim";
       readonly ageMs: number;

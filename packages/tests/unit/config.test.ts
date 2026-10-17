@@ -11,11 +11,9 @@ test("configuration has bounded defaults and rejects unknown settings and protec
     "backend/_generated/migrations",
   );
   expect(defineConfig({ project: "tasks", database: { migrations: "history" } }).database.migrations).toBe("history");
-  expect(defineConfig({ project: "tasks" }).realtime.pollIntervalMs).toBeGreaterThan(0);
+  expect(defineConfig({ project: "tasks" })).not.toHaveProperty("realtime");
   expect(() => defineConfig({ project: "tasks", database: { namespace: "pg_catalog" } })).toThrow();
   expect(() => defineConfig({ database: { namespace: "uuid-ossp" } })).toThrow();
-  expect(() => defineConfig({ project: "tasks", realtime: { pollIntervalMs: 0 } })).toThrow();
-  expect(() => defineConfig({ project: "tasks", realtime: { heartbeatMs: 30001 } })).toThrow();
   expect(() =>
     defineConfig({ project: "tasks", database: { runtimeUrlEnv: "DATABASE_URL", migrationUrlEnv: "DATABASE_URL" } }),
   ).toThrow("separate");

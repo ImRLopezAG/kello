@@ -67,11 +67,11 @@ export default defineRpcAuth({ allowAnonymous: true, authorize: async () => {} }
 export default os.tasks.router({
  get: auth.tasks.get.handler(({ context, input }) => ({ title: context.user.id + input.id + context.tables.tasks.title.name + context.env.PRIVATE_TOKEN })),
  update: auth.tasks.update.handler(({ input }) => input.title.length > 0),
- watch: os.tasks.watch.handler(({ context }) => context.live(({ tables, env }) => {
-   // @ts-expect-error only project tables exist in a fresh snapshot context
-   tables.unknownTable;
-   return { title: tables.tasks.title.name + env.PRIVATE_TOKEN };
- })),
+ watch: os.tasks.watch.handler(async function* ({ context }) {
+   // @ts-expect-error only project tables exist in the ordinary procedure context
+   context.tables.unknownTable;
+   yield { title: context.tables.tasks.title.name + context.env.PRIVATE_TOKEN };
+ }),
 });`;
     await writeFile(join(root, "kello/functions/tasks.ts"), functions);
     const generated = await generateProject(root);

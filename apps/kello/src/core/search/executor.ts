@@ -4,7 +4,6 @@ import type { AnyRelations } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { ORPCError } from "@orpc/server";
-import { isAsyncIteratorObject, wrapAsyncIterator } from "@orpc/shared";
 import * as v from "valibot";
 import { acceptsSearchPage, acceptsSearchOutput, validSearchSelection } from "./public";
 import type { SearchPublicSelection } from "./public";
@@ -16,7 +15,6 @@ import type { SearchPagePlan } from "./pagination";
 import type { StorageRow } from "../validation/encoding";
 import { storageRows } from "../validation/encoding";
 import { scopedDatabase } from "../server/database/context";
-import { liveSnapshot } from "../server/rpc/live-context";
 import { withSearchDeadline } from "./deadline";
 import { fullTextPreflightSQL, resolveFullText } from "./full-text";
 import { defaultFullTextBudgets } from "./public";
@@ -29,9 +27,6 @@ interface SearchInvocation {
   readonly db: NodePgDatabase;
   readonly signal: AbortSignal;
   readonly assertCurrent: () => void;
-  readonly recordDependencies?:
-    | ((evidence: { readonly dependencies: ReadonlySet<string>; readonly complete: boolean }) => void)
-    | undefined;
   readonly pending: Set<Promise<void>>;
   active: boolean;
   failure?: Error;
@@ -91,10 +86,6 @@ export type SearchContext<Graph extends AnyRelations> = {
     readonly paginate: <const Input extends SearchPublicSelection>(
       input: Input & SearchInputMode<Input, "rows">,
     ) => Promise<SearchProjection<InferSearchInputProjector<Input>, Input>>;
-    /** Subscribe to this explicitly declared live contract. Each event replaces the whole loaded window. */
-    readonly watch: <const Input extends SearchPublicSelection>(
-      input: Input & SearchInputMode<Input, "pages">,
-    ) => Promise<AsyncIteratorObject<SearchProjection<InferSearchInputProjector<Input>, Input>, void>>;
   };
 };
 
@@ -117,11 +108,6 @@ export function createSearchContext<Graph extends AnyRelations>(graph: Graph): S
         const scope = currentSearch(graph, entity, input);
         if (scope.descriptor.mode !== "finite") throw new Error("Pagination requires a finite search contract");
         return ownSearchWork(scope, () => readSearchPage(scope));
-      },
-      watch(input: SearchPublicSelection) {
-        const scope = currentSearch(graph, entity, input);
-        if (scope.descriptor.mode !== "live") throw new Error("Watch requires an explicit live search contract");
-        return liveSnapshot(() => ownSearchWork(scope, () => readSearchPage(scope)));
       },
     }),
   ]);
@@ -186,7 +172,6 @@ async function executeSearchPage(
   scope.signal.throwIfAborted();
   scope.assertCurrent();
   const output = validateSelectedSearchOutput(scope.descriptor, input, page);
-  scope.recordDependencies?.(plan.dependencyEvidence);
   return output;
 }
 
@@ -208,16 +193,11 @@ export function validateSelectedSearchOutput<Value>(
   return value;
 }
 
-/** Streaming values are checked lazily at every yield, including manual generators. */
+/** Generated search returns a finite page; ordinary procedure streams are handled by HTTP. */
 export function validateSearchHandlerOutput<Value>(
   descriptor: SearchRuntimeDescriptor,
   input: SearchPublicSelection,
   value: Value,
 ) {
-  if (!isAsyncIteratorObject(value)) return validateSelectedSearchOutput(descriptor, input, value);
-  if (descriptor.mode !== "live") throw new Error("Search stream requires a live contract");
-  return wrapAsyncIterator(value, {
-    mapResult: (result) =>
-      result.done ? result : { ...result, value: validateSelectedSearchOutput(descriptor, input, result.value) },
-  });
+  return validateSelectedSearchOutput(descriptor, input, value);
 }

@@ -11,7 +11,6 @@ import { originPolicy } from "../../server/auth/policy";
 import { resolveTrustedLogin } from "../../server/auth/login";
 import type { TrustedLogin, TrustedLoginResolver } from "../../server/auth/login";
 import type { VerifiedSession } from "../../server/auth/verify";
-import type { createConnectionTickets } from "../../server/auth/tickets";
 import type { ProcedureContext } from "../../server/rpc/procedure";
 import { rpcProtocolVersion } from "../../server/rpc/serialization";
 import { rpcContext, rpcErrorStatusMap, rpcFailure, rpcTransportSerializer } from "./rpc-context";
@@ -33,14 +32,12 @@ export interface RpcHttpOptions {
   /** Optional trusted store lookup after verification; never supplied by RPC input. */
   readonly resolveLogin?: TrustedLoginResolver;
   readonly liveQueries?: import("../../server/realtime/procedure").LiveQueryTarget;
-  readonly tickets?: Pick<ReturnType<typeof createConnectionTickets>, "issue">;
   readonly allowAnonymous?: boolean;
   readonly maxRequestBytes?: number;
   readonly requestTimeoutMs?: number;
 }
 
-/** Fetch-only RPC and ticket ingress. Never pass provider upgrade responses
- * through this boundary or its CORS response handling. */
+/** Ordinary HTTP RPC ingress; live delivery belongs to the Neon SDK. */
 export function createRpcHttpApp(options: RpcHttpOptions) {
   const handler = new RPCHandler(options.router, {
     ...rateLimitInterceptors(),
@@ -53,7 +50,7 @@ export function createRpcHttpApp(options: RpcHttpOptions) {
 }
 
 /** Validate the public contract before exposing its REST adapter. */
-export async function createRpcOpenApiApp(options: Omit<RpcHttpOptions, "tickets">): Promise<{
+export async function createRpcOpenApiApp(options: RpcHttpOptions): Promise<{
   fetch(request: Request): Promise<Response>;
   document: OpenAPIDocument<"3.2.0">;
 }> {
@@ -147,30 +144,16 @@ function createHttpIngress(
   return {
     async fetch(request: Request): Promise<Response> {
       const pathname = new URL(request.url).pathname;
-      const ticket = pathname === "/api/kello/ticket" || pathname === "/api/loom/ticket";
       const sessionRequest = prefix === "/api/kello/rpc" && pathname === "/api/kello/session";
-      const retired =
-        pathname === "/api/loom/call" ||
-        pathname === "/api/loom/ticket" ||
-        pathname === "/api/kello/call" ||
-        (ticket && !request.headers.has("x-loom-protocol"));
       const headers = new Headers({ "cache-control": "no-store", vary: "Origin" });
       const fail = (code: string, status: number) => {
-        // A bounded refusal is the only retained legacy transport behavior. Do
-        // not decode arguments or dispatch historical procedure references.
-        if (retired)
-          return Response.json(
-            { protocol: 1, ok: false, requestId: crypto.randomUUID(), error: { code, message: code } },
-            { status, headers },
-          );
         return prefix === "/api/kello/openapi"
           ? Response.json(new ORPCError(code).toJSON(), { status, headers })
           : rpcFailure(code, status, headers);
       };
-      if (!retired && !ticket && !sessionRequest && !pathname.startsWith(`${prefix}/`)) return fail("NOT_FOUND", 404);
-      if (ticket && !options.tickets) return fail("NOT_FOUND", 404);
+      if (!sessionRequest && !pathname.startsWith(`${prefix}/`)) return fail("NOT_FOUND", 404);
       const origin = request.headers.get("origin");
-      if (!allowed(origin) || (ticket && !origin)) return fail("FORBIDDEN", 403);
+      if (!allowed(origin)) return fail("FORBIDDEN", 403);
       if (origin) {
         headers.set("access-control-allow-origin", origin);
         headers.set("access-control-expose-headers", "Retry-After");
@@ -183,16 +166,15 @@ function createHttpIngress(
           .filter(Boolean);
         if (
           !origin ||
-          !(ticket ? ["POST"] : methods).includes(request.headers.get("access-control-request-method") ?? "") ||
+          !methods.includes(request.headers.get("access-control-request-method") ?? "") ||
           requested.some((name) => !permittedHeaders.includes(name))
         )
           return fail("FORBIDDEN", 403);
-        headers.set("access-control-allow-methods", ticket ? "POST" : methods.join(", "));
+        headers.set("access-control-allow-methods", methods.join(", "));
         headers.set("access-control-allow-headers", permittedHeaders.join(", "));
         return new Response(null, { status: 204, headers });
       }
-      if (!(ticket ? ["POST"] : methods).includes(request.method)) return fail("METHOD_NOT_SUPPORTED", 405);
-      if (retired) return fail("VERSION_MISMATCH", 409);
+      if (!methods.includes(request.method)) return fail("METHOD_NOT_SUPPORTED", 405);
       if (
         request.headers.get("x-loom-protocol") !== rpcProtocolVersion ||
         request.headers.get("x-loom-version") !== options.version
@@ -237,7 +219,7 @@ function createHttpIngress(
             constrainInvocationDeadline(loginSignal, loginMonotonic + loginRemaining);
             signal = composeInvocationSignals([signal, loginSignal]);
           }
-        } else if (!options.allowAnonymous || ticket || sessionRequest) return fail("UNAUTHORIZED", 401);
+        } else if (!options.allowAnonymous || sessionRequest) return fail("UNAUTHORIZED", 401);
         signal.throwIfAborted();
         if (sessionRequest) {
           if (!session || (options.liveQueries && !login)) return fail("UNAUTHORIZED", 401);
@@ -253,20 +235,6 @@ function createHttpIngress(
             )
             .digest("hex");
           return Response.json({ key, expiresAt: login?.expiresAt ?? session.expiresAt }, { headers });
-        }
-        if (ticket) {
-          if (!session || !origin || !options.tickets) return fail("UNAUTHORIZED", 401);
-          const body = await readRequestBody(request, 1024, signal);
-          try {
-            const parsed: unknown = JSON.parse(body);
-            if (Array.isArray(parsed) || !v.is(v.strictObject({}), parsed)) return fail("BAD_REQUEST", 400);
-          } catch {
-            return fail("BAD_REQUEST", 400);
-          }
-          const issued = await options.tickets.issue(session, origin);
-          signal.throwIfAborted();
-          if (issued.expiresAt <= Date.now() / 1000) return fail("UNAUTHORIZED", 401);
-          return Response.json(issued, { headers });
         }
         // A Fetch Request signal does not cancel a custom body stream. Finish
         // bounded reading before oRPC can invoke a handler with an expired session.

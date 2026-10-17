@@ -62,3 +62,27 @@ test("ordinary HTTP RPC streams values and finalizes on cancellation without soc
     await stream.return().catch(() => {});
   }
 });
+
+test("retired socket and ticket routes do not issue credentials or invoke authentication", async () => {
+  let verified = 0;
+  const { procedure } = createProjectProcedures(defineSchema(() => ({})));
+  const app = createRpcHttpApp({
+    router: { read: procedure.handler(() => "ok") },
+    version: "a".repeat(64),
+    origins: ["https://app.test"],
+    verify: async () => {
+      verified++;
+      return { identity: { issuer: "fixture", subject: "alice" }, expiresAt: Date.now() / 1000 + 60 };
+    },
+  });
+  for (const path of ["/api/kello/socket", "/api/kello/ws", "/api/kello/ticket", "/api/loom/ws", "/api/loom/ticket"]) {
+    const response = await app.fetch(
+      new Request(`https://service.test${path}`, {
+        method: "POST",
+        headers: { origin: "https://app.test", authorization: "Bearer fixture" },
+      }),
+    );
+    expect(response.status).toBe(404);
+  }
+  expect(verified).toBe(0);
+});

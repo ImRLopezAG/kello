@@ -52,8 +52,8 @@ test("native generation bootstraps, isolates internal routes, and atomically rep
     ) => `import { defineContract, oc, eventIterator } from "kello/contract";
 import * as v from "valibot";
 export default defineContract(({ validators }) => ({ ${name}: oc.input(validators.id("tasks")).output(${live ? "eventIterator(" : ""}v.object({ id: v.string(), title: v.string() })${live ? ")" : ""}) }));`;
-    const source = (name: string, live = false) => `import { os } from "../_generated/rpc";
-export default os.tasks.router({ ${name}: os.tasks.${name}.handler(({ input, context }) => ${live ? "context.live(({ tables }) => ({ id: input, title: tables.tasks.title.name }))" : "({ id: input, title: context.tables.tasks.title.name })"}) });
+    const source = (name: string, streaming = false) => `import { os } from "../_generated/rpc";
+export default os.tasks.router({ ${name}: os.tasks.${name}.handler(({ input, context }) => ${streaming ? "(async function* () { yield { id: input, title: context.tables.tasks.title.name }; })()" : "({ id: input, title: context.tables.tasks.title.name })"}) });
 export const helper = () => "PRIVATE_HELPER_SENTINEL";
 `;
     await writeFile(join(root, "kello/contracts/tasks.ts"), contract("list"));

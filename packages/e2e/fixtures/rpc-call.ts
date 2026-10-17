@@ -12,7 +12,7 @@ export async function callExample(
   identity: InvocationIdentity | null,
 ) {
   const app = createRpcHttpApp({
-    router: runtime.snapshots,
+    router: runtime.router,
     version: runtime.version,
     origins: [],
     allowAnonymous: true,

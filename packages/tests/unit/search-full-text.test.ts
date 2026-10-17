@@ -51,7 +51,7 @@ const make = (value: PolicyFixture = policy) => validators.articles.search(v.par
 const node = () => searchPublicNode(make().input)!;
 
 describe("full-text policy and public contract", () => {
-  test("locks the legacy descriptor binding and budget shape", () => {
+  test("binds finite descriptors deterministically without retired live budgets", () => {
     const legacy = defineSchema(() => ({ articles: { title: fields.text().notNull(), body: fields.text() } }));
     const pair = createSearchValidators(legacy, defineRelations(legacy.tables)).articles.search({
       scope: "public",
@@ -61,7 +61,22 @@ describe("full-text policy and public contract", () => {
       order: ["title"],
     });
     const runtime = searchSchemaMetadata(pair.input)!.descriptor;
-    expect(runtime.fingerprint).toBe("3898f6fbe6565a5f0476b88eb32eb01f98359cf99d4d77500043ecdf30040918");
+    const repeated = createSearchValidators(legacy, defineRelations(legacy.tables)).articles.search({
+      scope: "public",
+      columns: ["title"],
+      filter: ["title"],
+      text: ["title"],
+      order: ["title"],
+    });
+    const restricted = createSearchValidators(legacy, defineRelations(legacy.tables)).articles.search({
+      scope: "public",
+      columns: ["title"],
+      filter: ["title"],
+      order: ["title"],
+    });
+    expect(runtime.fingerprint).toBe(searchSchemaMetadata(repeated.input)!.descriptor.fingerprint);
+    expect(runtime.fingerprint).not.toBe(searchSchemaMetadata(restricted.input)!.descriptor.fingerprint);
+    expect(runtime.budgets).not.toHaveProperty("loadedPages");
     expect(runtime.budgets).toEqual(defaultSearchBudgets);
     expect(runtime.node).not.toHaveProperty("fullText");
     expect(runtime.node.public).not.toHaveProperty("fullText");
@@ -128,7 +143,7 @@ describe("full-text policy and public contract", () => {
       .digest("hex");
     expect(original.fullText?.content?.semantics).toBe(semantics);
   });
-  test("preserves raw queries, validates finite/live roots, and rejects forged or nested controls", async () => {
+  test("preserves raw queries, validates finite roots, and rejects forged or nested controls", async () => {
     const raw = '  Café 😀 - quoted "words"  ';
     const pair = make();
     const input = {
@@ -138,10 +153,6 @@ describe("full-text policy and public contract", () => {
     };
     expect(await pair.input["~standard"].validate(input)).toEqual({ value: input });
     expect(validSearchSelection(node(), { fullText: { document: "content", query: "" } })).toBe(true);
-    const live = validators.articles.liveSearch(policy);
-    expect(
-      (await live.input["~standard"].validate({ fullText: input.fullText, loadedPages: 2 })).issues,
-    ).toBeUndefined();
     for (const invalid of [
       { ...input, orderBy: [{ field: "title", direction: "asc" }] },
       { fullText: { document: "missing", query: "x" } },

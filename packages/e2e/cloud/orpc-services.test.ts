@@ -19,7 +19,6 @@ import {
   readNeonFunctionReceipt,
 } from "kello/tooling";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
-import { verifyCloudSlowPeer } from "../fixtures/cloud-slow-peer";
 
 /** Assembled REST and invocation services on a real storage-enabled branch. */
 test.skipIf(process.env.LOOM_CLOUD_SERVICES !== "1")(
@@ -122,7 +121,6 @@ export default os.probe.router({
       address.username = runtimeRole;
       address.password = password;
       process.env.LOOM_DATABASE_URL = address.href;
-      process.env.LOOM_DIRECT_DATABASE_URL = address.href;
       process.env.LOOM_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
       const release = await deployProjectRelease(root, "kello.config.ts", provider, AbortSignal.timeout(240000));
       const functions = release.completed.find((entry) => entry.stage === "functions");
@@ -179,13 +177,6 @@ export default os.probe.router({
       const privateRoute = await request("files/created", intent);
       assert.equal(privateRoute.status, 404);
       await privateRoute.body?.cancel();
-      stage = "paused WebSocket capacity";
-      const slowPeer = await verifyCloudSlowPeer({
-        url: service,
-        version: generated.version,
-        token,
-        origin,
-      });
       if (process.env.LOOM_CLOUD_RECEIPT)
         await writeFile(
           process.env.LOOM_CLOUD_RECEIPT,
@@ -194,7 +185,6 @@ export default os.probe.router({
               projectId,
               branchId,
               version: generated.version,
-              slowPeer,
               region: process.env.LOOM_CLOUD_REGION,
               passed: true,
               checks: [

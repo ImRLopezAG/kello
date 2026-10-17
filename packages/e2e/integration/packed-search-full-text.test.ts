@@ -310,9 +310,13 @@ test("packed generated full-text search preserves native inference and public bo
           react: "19.3.0",
           "react-dom": "19.3.0",
           effect: "4.0.5",
-          esbuild: "0.28.2",
         },
-        devDependencies: { typescript: "7.0.2", "@types/node": "24.19.0", "@types/react": "19.3.0" },
+        devDependencies: {
+          "vite-plus": "1.0.0",
+          typescript: "7.0.2",
+          "@types/node": "24.19.0",
+          "@types/react": "19.3.0",
+        },
       }),
     );
     await succeed(["bun", "install", "--ignore-scripts", "--linker", "isolated"]);

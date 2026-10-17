@@ -46,16 +46,7 @@ test("HTTP adapter serves scoped component HTTP with the production access polic
       }),
     },
     router: {},
-    snapshots: {},
     version: "a".repeat(64),
-    tickets: {
-      issue: async () => {
-        throw new Error("Not used");
-      },
-      redeem: async () => {
-        throw new Error("Not used");
-      },
-    },
     stop: async () => {
       stopped++;
     },

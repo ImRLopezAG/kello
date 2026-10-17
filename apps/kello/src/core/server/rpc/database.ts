@@ -24,11 +24,7 @@ import type { SchemaDefinition } from "../../schema/define-schema";
 import { isNativeRelations, validateSchemaRelations } from "../database/relations";
 import { RpcSchedulerService, createProjectServices, Storage } from "../effect/services";
 import { invocationStorage } from "../storage/invocation";
-import { runSnapshotAttempt, acceptSnapshotAttempt, registerSnapshotSegment } from "./snapshot";
-import { carryLiveDependencies, getLiveDependencies } from "./live-dependencies";
-import type { DependencyRegistry } from "../realtime/dependencies";
 import { RateLimits, invocationRateLimits } from "../rate-limits/service";
-import type { RevisionReader } from "../realtime/revisions";
 
 import type { RpcScheduler } from "../jobs/rpc-scheduler";
 import { Diagnostics } from "../effect/runtime";
@@ -57,7 +53,6 @@ const [databasePolicy, readDatabasePolicy] = defineMeta(
   (incoming: DatabasePolicy | "automatic") => incoming,
 );
 const middlewarePolicies = new WeakMap<object, DatabasePolicy | "automatic">();
-const middlewareGraphs = new WeakMap<object, AnyRelations>();
 
 export function getDatabasePolicy(
   procedure: Parameters<typeof readDatabasePolicy>[0] & {
@@ -100,7 +95,6 @@ interface ActiveDatabase {
 }
 const currentDatabase = new AsyncLocalStorage<ActiveDatabase>();
 const currentScheduler = new AsyncLocalStorage<RpcScheduler>();
-const searchEvidence = new AsyncLocalStorage<(keys: readonly string[], complete: boolean) => void>();
 
 /** Independent admission cannot run within any database invocation, including reads. */
 export function assertOutsideRpcDatabase(): void {
@@ -110,11 +104,6 @@ export function assertOutsideRpcDatabase(): void {
   const failure = new ORPCError("FORBIDDEN", { message: "Attempt admission requires a non-database procedure" });
   if (active) active.failure ??= failure;
   throw failure;
-}
-
-/** A subscription evaluation owns a new invocation, never its factory's transaction. */
-export function outsideRpcDatabase<Result>(work: () => Result): Result {
-  return currentDatabase.exit(work);
 }
 
 /** Scheduling uses the same guarded transaction and cannot escape its lifetime.
@@ -212,7 +201,6 @@ export function createDatabaseMiddleware<
       });
     });
   middlewarePolicies.set(middleware, policy);
-  middlewareGraphs.set(middleware, relations);
   return middleware;
 }
 
@@ -220,14 +208,6 @@ export interface RpcDatabaseOptions<Relations extends AnyRelations> {
   readonly connection: DatabaseConnection<Relations>;
   readonly scope?: string;
   readonly replay: IdempotencyOptions;
-  readonly revisions?: RevisionReader;
-  readonly dependencies?:
-    | {
-        readonly registry: DependencyRegistry;
-        readonly authorization?: readonly string[] | undefined;
-        readonly selective?: boolean | undefined;
-      }
-    | undefined;
   readonly scheduler?: RpcScheduler;
   readonly maxResultBytes?: number;
   readonly search?:
@@ -261,35 +241,10 @@ export function bindRpcDatabaseProcedure<
 >(
   procedure: Procedure<Initial, Injected, Input, Output, Errors>,
   options: RpcDatabaseOptions<Relations>,
-  deferStreamValidation = false,
 ): Procedure<Initial, Injected, Input, Output, Errors> {
   const search = searchContractDescriptor(procedure);
-  const declaration = getLiveDependencies(procedure);
-  // Compare authored graph identity before resolving local names. Registry table
-  // validation alone cannot distinguish two graphs sharing native tables.
-  if (declaration) {
-    const graphs = procedure["~orpc"].orderedMiddlewares
-      .map(({ middleware }) => middlewareGraphs.get(middleware))
-      .filter((graph) => graph !== undefined);
-    if (search) graphs.push(search.graph);
-    if (graphs.some((graph) => graph !== declaration.graph))
-      throw new Error("Live dependency graph differs from invocation graph");
-  }
-  const dependencyRegistry = options.dependencies?.registry;
-  const scopeName = options.scope ?? "";
-  const declaredKeys =
-    declaration && dependencyRegistry
-      ? dependencyRegistry.resolve(scopeName, declaration.graph, declaration.tables)
-      : undefined;
-  const authorizationKeys =
-    options.dependencies?.authorization === undefined
-      ? undefined
-      : dependencyRegistry?.resolve(scopeName, undefined, options.dependencies.authorization);
-  if (search && dependencyRegistry) dependencyRegistry.resolve(scopeName, search.graph, []);
-  const segmentKeys = search && declaredKeys && authorizationKeys ? [...declaredKeys, ...authorizationKeys] : undefined;
   const binding = search || liveQueryRows(procedure) ? "read" : getDatabasePolicy(procedure);
   const streaming = isStreamingProcedure(procedure);
-  if (deferStreamValidation && !streaming) throw new Error("Only live snapshots may defer event validation");
   if (!binding) throw new Error("Database policy required");
   if (streaming && binding === "write") throw new Error("Streaming contracts require read-only database authority");
   validateIdempotencyOptions(options.replay);
@@ -341,18 +296,13 @@ export function bindRpcDatabaseProcedure<
               db: active.db,
               signal: opts.signal ? AbortSignal.any([opts.signal, opts.context.signal]) : opts.context.signal,
               assertCurrent: active.assertCurrent,
-              recordDependencies: (evidence) => {
-                if (!dependencyRegistry) return;
-                const keys = dependencyRegistry.resolve(scopeName, search.graph, evidence.dependencies);
-                searchEvidence.getStore()?.(keys, evidence.complete);
-              },
             },
             async () => validateSearchHandlerOutput(search, selection, await definition.handler(opts, input)),
           );
         }
       : definition.handler,
     disableInputValidation: true,
-    disableOutputValidation: deferStreamValidation,
+    disableOutputValidation: false,
     orderedMiddlewares: definition.orderedMiddlewares
       .filter((_entry, index) => index !== errorIndex)
       .map((entry) => ({ ...entry, inputSchemasLengthAtUse: inputCount })),
@@ -376,7 +326,6 @@ export function bindRpcDatabaseProcedure<
     const signal = callerSignal ? composeInvocationSignals([context.signal, callerSignal]) : context.signal;
     signal.throwIfAborted();
     const parent = currentDatabase.getStore();
-    let captureSearch = (_keys: readonly string[], _complete: boolean) => {};
     const run = async () => {
       signal.throwIfAborted();
       let result;
@@ -385,10 +334,8 @@ export function bindRpcDatabaseProcedure<
         // own validated value, including native Date/URL/Map/Set values.
         // SAFETY: this private procedure skips input schemas; it consumes their validated output.
         const fresh = deserializeRpcValue(structuredClone(capturedInput)) as InferSchemaInput<Input>;
-        result = await searchEvidence.run(captureSearch, () =>
-          currentScheduler.run(options.scheduler ?? unavailableScheduler, () =>
-            call(attempt, fresh, { context: { ...context, signal }, path, signal, lastEventId }),
-          ),
+        result = await currentScheduler.run(options.scheduler ?? unavailableScheduler, () =>
+          call(attempt, fresh, { context: { ...context, signal }, path, signal, lastEventId }),
         );
       } finally {
         const active = currentDatabase.getStore();
@@ -413,11 +360,6 @@ export function bindRpcDatabaseProcedure<
       if (parent.policy === "read" && policy === "write")
         throw new Error("Read-only invocation cannot acquire write authority");
       try {
-        captureSearch = registerSnapshotSegment({
-          registry: dependencyRegistry,
-          keys: segmentKeys,
-          reader: options.revisions,
-        });
         // SAFETY: the same connection owns the parent and relations are checked by the capability middleware.
         await options.authorize({
           ...context,
@@ -472,38 +414,30 @@ export function bindRpcDatabaseProcedure<
           pending: new Set(),
           scheduler: options.scheduler ?? unavailableScheduler,
         };
-        return runSnapshotAttempt(db, dependencyRegistry, options.dependencies?.selective ?? false, () =>
-          currentDatabase.run(active, async () => {
-            try {
-              captureSearch = registerSnapshotSegment({
-                registry: dependencyRegistry,
-                keys: segmentKeys,
-                reader: options.revisions,
-              });
-              // Reauthorization is inside each attempt and runs even when a receipt exists.
-              await options.authorize({
-                ...context,
-                signal,
-                db,
-                path,
-                input: deserializeRpcValue(structuredClone(capturedInput)),
-                databasePolicy: binding,
-              });
-              const result = replay ? await replay(db, async () => v.parse(rpcValue, await run())) : await run();
-              if (active.failure) throw active.failure;
-              return result;
-            } finally {
-              active.active = false;
-            }
-          }),
-        );
+        return currentDatabase.run(active, async () => {
+          try {
+            // Reauthorization is inside each attempt and runs even when a receipt exists.
+            await options.authorize({
+              ...context,
+              signal,
+              db,
+              path,
+              input: deserializeRpcValue(structuredClone(capturedInput)),
+              databasePolicy: binding,
+            });
+            const result = replay ? await replay(db, async () => v.parse(rpcValue, await run())) : await run();
+            if (active.failure) throw active.failure;
+            return result;
+          } finally {
+            active.active = false;
+          }
+        });
       },
       // Automatic handlers may perform external work. Never repeat that work
       // merely because PostgreSQL asks to retry a transaction.
       binding === "automatic" ? { signal, maxAttempts: 1 } : { signal },
     );
-    acceptSnapshotAttempt(output);
-    return { output: output.value, context: {} };
+    return { output, context: {} };
   };
   const errorBoundary: typeof boundary = (opts, input, done) => {
     // Nested database failures must reach the single outer retry owner before
@@ -519,6 +453,5 @@ export function bindRpcDatabaseProcedure<
     disableOutputValidation: true,
     orderedMiddlewares: middlewares,
   });
-  carryLiveDependencies(procedure, bound);
   return bound;
 }

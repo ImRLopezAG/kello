@@ -20,8 +20,8 @@ import { createServerClient, version } from "./app/kello/_generated/api";
 import { searchSchema, searchRelations } from "./app/kello/fixture";
 const { validators } = createProjectContext(searchSchema, searchRelations);
 const policy = { scope: "public", columns: ["title", "done", "at", "count", "amount"], through: { taskLabels: "public" }, relations: { labels: { scope: "public", columns: ["name"] } } };
-const finite = validators.tables.tasks.search(policy), live = validators.tables.tasks.liveSearch(policy);
-let liveCalls = 0, reads = 0;
+const finite = validators.tables.tasks.search(policy);
+let reads = 0;
 const router = { tasks: {
  list: os.input(finite.input).output(finite.output).handler(async ({ context, input }) => {
   reads++; await new Promise(resolve => setTimeout(resolve, context.identity.subject === "alice" ? 30 : 10));
@@ -30,7 +30,6 @@ const router = { tasks: {
   if (input.with?.labels) row.labels = [{ name: context.identity.subject }];
   return { rows: [row], nextCursor: null, previousCursor: null };
  }),
- watch: os.input(live.input).output(live.output).handler(async function* () { liveCalls++; throw new Error("SSR must never start a stream"); }),
 } };
 const app = createRpcHttpApp({ router, version, origins: [], verify: async token => ({ identity: { issuer: "test", subject: token }, expiresAt: Date.now() / 1000 + 3600 }) });
 const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: app.fetch });
@@ -38,19 +37,18 @@ const input = { columns: { title: true, at: true, count: true }, with: { labels:
 async function request(subject) {
  return withKelloServerSession(createServerClient, { url: server.url.origin, getToken: async () => subject }, async ({ connection, queryClient, dehydrate }) => {
   const page = await queryClient.query(connection.rpc.tasks.list.queryOptions({ input }));
-  function LivePanel() {
-   const result = useQuery(connection.rpc.tasks.watch.liveOptions({ input: { columns: { title: true }, loadedPages: 1 }, retry: false }));
-   return createElement("p", null, result.isPending ? "Live window loads in the browser" : "Live window");
+  function SearchPanel() {
+   const result = useQuery(connection.rpc.tasks.list.queryOptions({ input }));
+   return createElement("p", null, result.data?.rows[0]?.title ?? "Pending");
   }
-  const markup = renderToString(createElement(QueryClientProvider, { client: queryClient }, createElement(LivePanel)));
-  assert(markup.includes("Live window loads in the browser"));
-  assert.equal(liveCalls, 0);
+  const markup = renderToString(createElement(QueryClientProvider, { client: queryClient }, createElement(SearchPanel)));
+  assert(markup.includes(subject));
   return { page, hydration: dehydrate() };
  });
 }
 try {
  const [alice, bob] = await Promise.all([request("alice"), request("bob")]);
- assert(alice && bob); assert.equal(reads, 2); assert.equal(liveCalls, 0);
+ assert(alice && bob); assert.equal(reads, 2);
  assert.notEqual(alice.hydration.cachePrefix, bob.hydration.cachePrefix); assert.notEqual(alice.hydration.session.key, bob.hydration.session.key);
  for (const [subject, result] of [["alice", alice], ["bob", bob]]) {
   assert.deepEqual(result.page.rows, [{ title: subject, at: new Date("2026-01-01"), count: 9007199254740993n, labels: [{ name: subject }] }]);
@@ -62,7 +60,7 @@ try {
   browser.clear();
  }
  assert.equal(await request(null), null); assert.equal(reads, 2);
- console.info("Packed concurrent SSR search and native hydration passed; no streams opened");
+ console.info("Packed concurrent finite SSR search and native hydration passed");
 } finally { await server.stop(true); }
 `,
   );

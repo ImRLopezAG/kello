@@ -149,7 +149,6 @@ test.skipIf(!connectionString)(
         config: {
           auth: { origins: ["https://kello.test"] },
           jobs: { maxAttempts: 2, retryBaseMs: 7000, leaseMs: 5000 },
-          realtime: { maxResultBytes: 1024, maxSubscriptions: 1, heartbeatMs: 1000 },
         },
         version,
         procedures: [
@@ -241,7 +240,6 @@ test.skipIf(!connectionString)(
           jobResume.resolve();
         }
         expect(await work).toMatchObject({ claimed: 1, completed: 1 });
-        expect(runtime.realtime).toMatchObject({ heartbeatMs: 1000, maxSubscriptions: 1, maxBufferedBytes: 1024 });
         expect(await client.read()).toBe(4);
         expect(authorized).toEqual(["environment", "enqueue", "enqueue", "increment", "read"]);
         await assert.rejects(client.conflict(), { code: "CONFLICT", message: "Transaction conflict" });
@@ -291,13 +289,6 @@ test.skipIf(!connectionString)(
         expect(streamCleaned).toBe(true);
         await assert.rejects(client.read());
         await assert.rejects(runtime.worker.run(), /stopped/);
-        await assert.rejects(
-          runtime.tickets.issue(
-            { identity: { issuer: "test", subject: "alice" }, expiresAt: Date.now() / 1000 + 60 },
-            "https://kello.test",
-          ),
-          /stopped/,
-        );
         const service = await createNeonRpcService(runtimeOptions);
         try {
           app = service;

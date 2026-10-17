@@ -149,26 +149,21 @@ export function searchJsonSchemas(root: SearchPublicNode): SearchJsonSchemas {
           ["document", "query"],
         );
       controls.count = { type: "boolean" };
-      if (root.mode === "live") {
-        controls.anchor = { type: ["string", "null"], maxLength: 4096 };
-        controls.loadedPages = { type: "integer", minimum: 1, maximum: budgets.loadedPages };
-      } else {
-        controls.cursor = { type: ["string", "null"], maxLength: 4096 };
-        controls.direction = { enum: ["forward", "backward"] };
-      }
+      controls.cursor = { type: ["string", "null"], maxLength: 4096 };
+      controls.direction = { enum: ["forward", "backward"] };
     }
     const input: { -readonly [Key in keyof JsonSchema]: JsonSchema[Key] } = object(controls);
     if (!depth && node.fullText) input.not = { required: ["fullText", "orderBy"] };
     return { input, row: { ...object(rows), minProperties: 1 }, filter: filterRef };
   }
   const compiled = compile(root, 0);
-  const key = root.mode === "live" ? "pages" : "rows";
+  const key = "rows";
   const page: JsonSchema = { type: "array", items: compiled.row, maxItems: budgets.pageSize };
   return {
     input: { ...compiled.input, $defs: definitions },
     output: object(
       {
-        [key]: root.mode === "live" ? { type: "array", items: page, maxItems: budgets.loadedPages } : page,
+        [key]: page,
         nextCursor: { type: ["string", "null"] },
         previousCursor: { type: ["string", "null"] },
         count: { type: "string", pattern: "^\\d+$" },

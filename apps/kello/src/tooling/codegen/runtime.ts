@@ -6,7 +6,6 @@ export function runtimeArtifacts(project: LoadedProject) {
   const config = {
     auth: project.config.auth,
     jobs: project.config.jobs,
-    realtime: project.config.realtime,
     openapi: project.config.openapi,
   };
   const artifacts = new Map([
@@ -42,7 +41,7 @@ export function runtimeArtifacts(project: LoadedProject) {
         `import type { ${factory}${name === "worker" ? ", NeonTriggerBinding" : ""} } from "kello/neon";`,
         `import type { RpcRuntimeOptions } from "kello/server";`,
         'import type { AnyRelations } from "drizzle-orm";',
-        `type ConnectionOptions = Pick<RpcRuntimeOptions<AnyRelations>, "connectionString" | "deployment" | "assertActive" | "assertIngress" | "maxConnections" | "storageBackend" | "directConnectionString" | "environment" | "branchId">;`,
+        `type ConnectionOptions = Pick<RpcRuntimeOptions<AnyRelations>, "connectionString" | "deployment" | "assertActive" | "assertIngress" | "maxConnections" | "storageBackend" | "environment" | "branchId">;`,
         `export declare function ${exported}(options: ConnectionOptions${binding}): ReturnType<typeof ${factory}>;`,
         "",
       ].join("\n"),

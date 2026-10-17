@@ -7,8 +7,7 @@ import { join } from "node:path";
 import pg from "pg";
 import * as v from "valibot";
 import { createORPCClient, type Client } from "@orpc/client";
-import { RPCLink, type WebSocketLike } from "@orpc/client/websocket";
-import WebSocket from "ws";
+import { RPCLink } from "@orpc/client/fetch";
 import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello/tooling";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
 import { configureCloudComponents, prepareCloudComponents } from "../fixtures/cloud-components";
@@ -78,7 +77,6 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
     const oldEnvironment = {
       secret: process.env.SIGNING_SECRET,
       database: process.env.LOOM_DATABASE_URL,
-      direct: process.env.LOOM_DIRECT_DATABASE_URL,
       activation: process.env.LOOM_ACTIVATION_TOKEN,
     };
     const origin = `https://components-${crypto.randomUUID()}.test`;
@@ -86,7 +84,6 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
     const checks: string[] = [];
     const releases: { version: string; elapsedMs: number }[] = [];
     let stage = "prepare";
-    let socket: WebSocket | undefined;
     try {
       await prepareCloudComponents(root);
       const tooling: typeof import("kello/tooling") = await import(
@@ -133,7 +130,6 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
       address.username = runtimeRole;
       address.password = password;
       process.env.LOOM_DATABASE_URL = address.href;
-      process.env.LOOM_DIRECT_DATABASE_URL = address.href;
       async function deploy(file = "kello.config.ts") {
         const started = performance.now();
         const generated = await generateProject(root);
@@ -240,61 +236,31 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
         1,
       );
       checks.push("signed-webhook", "invalid-signature-body-no-writes");
-      stage = "native websocket live and private denial";
-      const ticketResponse = await request("", {}, token, "ticket");
-      assert.equal(ticketResponse.status, 200);
-      const { ticket } = v.parse(v.object({ ticket: v.string() }), await ticketResponse.json());
-      const socketUrl = new URL("/api/kello/socket", current.service);
-      socketUrl.protocol = "wss:";
-      socket = new WebSocket(
-        socketUrl,
-        ["kello.orpc.2", `kello.version.${current.version}`, `kello.ticket.${ticket}`],
-        {
-          // Bun's ws compatibility layer requires an explicit Origin header.
-          headers: { origin },
-          handshakeTimeout: 15000,
-        },
-      );
-      socket.binaryType = "arraybuffer";
-      await new Promise<void>((resolve, reject) => {
-        socket!.addEventListener("open", () => resolve(), { once: true });
-        socket!.addEventListener("error", () => reject(new Error("Component socket failed")), { once: true });
-      });
-      const connected = socket;
+      stage = "native HTTP streaming and private denial";
       const client = createORPCClient<ClientTree>(
         new RPCLink({
-          // SAFETY: ws implements the WHATWG operations consumed by oRPC.
-          connect: () => connected as WebSocketLike,
+          url: "/api/kello/rpc",
+          origin: new URL(current.service).origin,
+          headers: {
+            authorization: `Bearer ${token}`,
+            origin,
+            "x-loom-protocol": "loom-orpc-2",
+            "x-loom-version": current.version,
+          },
         }),
       );
       await assert.rejects(
         client.left.internal.entries.insert({ text: "forged" }, { signal: AbortSignal.timeout(10000) }),
       );
-      const abort = new AbortController();
-      const stream = await client.journal.watch({ target: "left" }, { signal: abort.signal });
+      const stream = await client.journal.watch({ target: "left" }, { signal: AbortSignal.timeout(15000) });
       const iterator = stream[Symbol.asyncIterator]();
-      async function next() {
-        let timeout: ReturnType<typeof setTimeout> | undefined;
-        try {
-          const result = await Promise.race([
-            iterator.next(),
-            new Promise<never>((_, reject) => {
-              timeout = setTimeout(() => reject(new Error("Live component update timed out")), 15000);
-            }),
-          ]);
-          assert(!result.done);
-          return v.parse(entries, result.value);
-        } finally {
-          clearTimeout(timeout);
-        }
-      }
-      assert((await next()).some((row) => row.text === "v1:one"));
-      await add("left", "live");
-      let observed = false;
-      for (let i = 0; i < 5 && !observed; i++) observed = (await next()).some((row) => row.text === "v1:live") ?? false;
-      assert(observed);
-      abort.abort();
-      checks.push("private-websocket-denied", "native-live-child-commit");
+      const initial = await iterator.next();
+      assert(!initial.done);
+      assert(v.parse(entries, initial.value).some((row) => row.text === "v1:one"));
+      assert((await iterator.next()).done, "Authored one-shot HTTP iterator must finalize");
+      await add("left", "http-refresh");
+      assert((await client.journal.list({ target: "left" })).some((row) => row.text === "v1:http-refresh"));
+      checks.push("private-native-http-denied", "ordinary-component-iterator-finalized", "explicit-read-child-commit");
       stage = "additive schema and service upgrade";
       const schemaPath = join(root, "kello/components/journal/schema.ts");
       const originalSchema = await readFile(schemaPath, "utf8");
@@ -325,8 +291,6 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
         [project.config.database.runtimeUrlEnv]: project.config.database.runtimeUrlEnv,
         ...project.config.deployment?.variables,
       };
-      if (project.config.realtime.mode === "notify")
-        variables[project.config.database.directRuntimeUrlEnv] ??= project.config.database.directRuntimeUrlEnv;
       const declaration = {
         format: 1,
         releaseKey: createHash("sha256").update(crypto.randomUUID()).digest("hex"),
@@ -471,11 +435,9 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
         );
       throw new Error(`Component cloud acceptance failed during ${stage}; disposable branch retained`);
     } finally {
-      socket?.close();
       for (const [key, value] of Object.entries({
         SIGNING_SECRET: oldEnvironment.secret,
         LOOM_DATABASE_URL: oldEnvironment.database,
-        LOOM_DIRECT_DATABASE_URL: oldEnvironment.direct,
         LOOM_ACTIVATION_TOKEN: oldEnvironment.activation,
       })) {
         if (value === undefined) delete process.env[key];

@@ -103,12 +103,6 @@ export async function withNeonReleasePreparation<T>(
     throw new Error("Release environment overrides a reserved variable");
   const connectionString = variables[project.config.database.runtimeUrlEnv];
   if (!connectionString) throw new Error("Missing release runtime connection");
-  const directConnectionString = variables[project.config.database.directRuntimeUrlEnv];
-  if (
-    project.config.realtime.mode === "notify" &&
-    (!directConnectionString || new URL(directConnectionString).hostname.includes("-pooler"))
-  )
-    throw new Error("Notify mode requires a direct runtime connection");
   const { schedules, buckets, storage } = releaseResources(project, slugs.worker);
   const api = provider ?? createKelloNeonApi();
   const selectedTarget = await inspectDeploymentTarget(project.config, databaseOptions.environment, api);
@@ -179,15 +173,6 @@ export async function withNeonReleasePreparation<T>(
         runtimeRole: databaseOptions.runtimeRole,
         signal,
       });
-      if (project.config.realtime.mode === "notify" && directConnectionString)
-        await inspectRuntimeDatabase({
-          connectionString: directConnectionString,
-          database: database.database,
-          namespace: database.namespace,
-          metadataNamespace: database.metadataNamespace,
-          runtimeRole: databaseOptions.runtimeRole,
-          signal,
-        });
       let receipt = journal.read();
       if (databaseOptions.retainedReleaseKey) {
         await activation.assertActive();

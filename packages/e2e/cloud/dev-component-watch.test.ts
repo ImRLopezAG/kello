@@ -183,7 +183,6 @@ if(!row) throw new Error("Insert failed"); return row;
       const env: NodeJS.ProcessEnv = {
         ...process.env,
         LOOM_DATABASE_URL: address.href,
-        LOOM_DIRECT_DATABASE_URL: address.href,
         LOOM_ACTIVATION_TOKEN: crypto.randomUUID().replaceAll("-", "").repeat(2),
       };
       await run([

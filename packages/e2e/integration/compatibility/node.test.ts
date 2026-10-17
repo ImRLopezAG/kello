@@ -39,8 +39,7 @@ test("Node 24 imports compiled exports and serves the HTTP protocol without Bun 
      const refused = await app.fetch(new Request("https://node.example.test/api/kello/call", {
        method: "POST", headers: {"content-type": "application/json"}, body: "{}"
      }));
-     assert.equal(refused.status, 409);
-     assert.equal((await refused.json()).error.code, "VERSION_MISMATCH");`,
+     assert.equal(refused.status, 404);`,
     ],
     { cwd: fileURLToPath(new URL("../../../../apps/kello/", import.meta.url)), stdout: "pipe", stderr: "pipe" },
   );
@@ -52,7 +51,8 @@ test("Node 24 imports compiled exports and serves the HTTP protocol without Bun 
   });
   expect(browser.success).toBe(true);
   const code = await browser.outputs[0]?.text();
-  expect(code).toContain("createRpcTransport");
+  expect(code).toContain("createRpcHttpTransport");
+  expect(code).not.toContain("createRpcTransport");
   expect(code).not.toContain("node:");
   expect(code).not.toContain("DATABASE_URL");
 });

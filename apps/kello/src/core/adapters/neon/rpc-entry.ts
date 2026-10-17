@@ -46,15 +46,8 @@ export function createNeonRpcService<Relations extends AnyRelations>(options: Rp
         : undefined,
       router: runtime.router,
       openapi: runtime.openapi,
-      openapiRouter: runtime.snapshots,
+      openapiRouter: runtime.router,
       version: options.version,
-      tickets: runtime.tickets,
-      realtime: {
-        tickets: runtime.tickets,
-        heartbeatMs: runtime.realtime.heartbeatMs,
-        maxBufferedBytes: runtime.realtime.maxBufferedBytes,
-        maxConnections: runtime.realtime.maxSubscriptions,
-      },
     });
     return rpc;
   });

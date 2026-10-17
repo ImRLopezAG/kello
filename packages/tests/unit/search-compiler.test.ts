@@ -8,7 +8,6 @@ import { searchSchema, searchRelations, nestedSelection } from "../fixtures/sear
 import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
 import { prepareSearchPage } from "../../../apps/kello/src/core/search/pagination";
 import { compileSearch } from "../../../apps/kello/src/core/search/compiler";
-import type { SearchScope } from "../../../apps/kello/src/core/search/types";
 
 const { validators } = createProjectContext(searchSchema, searchRelations);
 const search = validators.tables.tasks.search({
@@ -115,7 +114,6 @@ describe("authorized native search compilation", () => {
     expect(query.params.filter((value) => value === "allowed").length).toBeGreaterThanOrEqual(2);
     expect(query.sql).toContain('"task_labels"');
     expect(query.sql).not.toContain("distinct");
-    expect(compiled.dependencies).toEqual(new Set(["tasks", "labels", "taskLabels"]));
   });
   it("keeps nested filters out of root membership and applies the native junction scope", () => {
     const compiled = compileSearch(
@@ -157,149 +155,50 @@ describe("authorized native search compilation", () => {
     expect(query.params).toContain(9007199254740993n);
     expect(query.params).toContain("1.0000000001");
     expect(query.sql).not.toContain('"projectId" as');
-    expect(compiled.dependencies).toEqual(new Set(Object.keys(searchRelations)));
   });
   it("rejects invalid fields before invoking policies or constructing SQL", () => {
     expect(() => compileSearch(descriptor, { where: { hidden: { eq: "x" } } }, null)).toThrow(/selection/i);
   });
 });
 
-describe("policy dependency evidence", () => {
-  it("keeps root, selected, filtered and junction dependencies with all declarations empty", () => {
+describe("finite policy SQL after revision-engine removal", () => {
+  it("keeps side-read authorization in row and count SQL without dependency declarations", async () => {
     const pair = validators.tables.tasks.search({
       columns: ["title"],
-      scope: { name: "root", version: "1", dependencies: [], where: () => sql`true` },
-      through: {
-        taskLabels: { name: "junction", version: "1", dependencies: [], where: () => sql`true` },
+      scope: {
+        name: "membership",
+        version: "1",
+        where: () =>
+          sql`exists (select 1 from ${searchSchema.tables.members} where ${searchSchema.tables.members.name} = ${"allowed"})`,
       },
+      through: { taskLabels: { name: "junction", version: "1", where: () => sql`true` } },
       relations: {
         labels: {
           columns: ["name"],
-          scope: { name: "child", version: "1", dependencies: [], where: () => sql`true` },
+          scope: { name: "child", version: "1", where: ({ table }) => eq(table.name, "visible") },
         },
       },
     });
     const descriptor = searchContractDescriptor(oc.input(pair.input).output(pair.output));
     if (!descriptor) throw new Error("Missing search descriptor");
-    for (const input of [{}, { with: { labels: {} } }, { where: { relations: { labels: { some: {} } } } }]) {
-      const compiled = compileSearch(descriptor, input, null);
-      const expected = new Set(input.with || input.where ? ["tasks", "labels", "taskLabels"] : ["tasks"]);
-      expect(compiled.dependencies).toEqual(expected);
-      db.select({ count: sql`count(*)` })
-        .from(searchSchema.tables.tasks)
-        .where(compiled.where(searchSchema.tables.tasks))
-        .toSQL();
-      expect(compiled.dependencyEvidence.complete).toBe(true);
-      expect(compiled.dependencies).toEqual(expected);
-      db.query.tasks.findMany(compiled.config).toSQL();
-      expect(compiled.dependencyEvidence.complete).toBe(true);
-      expect(compiled.dependencies).toEqual(expected);
-    }
-  });
-  function descriptorFor(
-    rootDependencies?: readonly (keyof typeof searchRelations)[],
-    childDependencies?: readonly (keyof typeof searchRelations)[],
-  ) {
-    const rootScope: SearchScope<typeof searchRelations.tasks, typeof searchRelations> = {
-      name: "root",
-      version: "1",
-      where: () =>
-        sql`exists (select 1 from ${searchSchema.tables.members} where ${searchSchema.tables.members.name} = ${"allowed"})`,
-    };
-    const childScope: SearchScope<typeof searchRelations.labels, typeof searchRelations> = {
-      name: "child",
-      version: "1",
-      where: () => sql`true`,
-    };
-    const pair = validators.tables.tasks.search({
-      columns: ["title"],
-      scope: rootDependencies === undefined ? rootScope : { ...rootScope, dependencies: rootDependencies },
-      through: {
-        taskLabels: { name: "junction", version: "1", dependencies: ["organizations"], where: () => sql`true` },
-      },
-      relations: {
-        labels: {
-          columns: ["name"],
-          scope: childDependencies === undefined ? childScope : { ...childScope, dependencies: childDependencies },
-        },
-      },
-    });
-    const descriptor = searchContractDescriptor(oc.input(pair.input).output(pair.output));
-    if (!descriptor) throw new Error("Missing search descriptor");
-    return descriptor;
-  }
-  it("retains lazy declaration union through rows and count in the page plan", async () => {
-    const descriptor = descriptorFor(["members"], ["teams"]);
     const plan = await prepareSearchPage(
       descriptor,
       { with: { labels: {} }, count: true },
       { branchId: "test", namespace: "app", contract: "list", identity: null },
       "a".repeat(64),
     );
-    const evidence = plan.dependencyEvidence;
-    expect(evidence.dependencies).toBe(plan.dependencies);
-    expect(evidence.dependencies).toEqual(new Set(["tasks", "labels", "taskLabels"]));
-    const rowsQuery = db.query.tasks.findMany(plan.config).toSQL();
-    expect(rowsQuery.sql).toContain('"members"');
-    expect(rowsQuery.params).toContain("allowed");
-    expect(evidence.complete).toBe(true);
-    expect(evidence.dependencies).toEqual(
-      new Set(["tasks", "labels", "taskLabels", "members", "teams", "organizations"]),
-    );
-    db.select({ count: sql`count(*)` })
+    const rows = db.query.tasks.findMany(plan.config).toSQL();
+    const count = db
+      .select({ count: sql`count(*)` })
       .from(searchSchema.tables.tasks)
       .where(plan.where(searchSchema.tables.tasks))
       .toSQL();
-    expect(evidence.complete).toBe(true);
-    expect(evidence.dependencies).toEqual(
-      new Set(["tasks", "labels", "taskLabels", "members", "teams", "organizations"]),
-    );
-    const filtered = compileSearch(descriptor, { where: { relations: { labels: { some: {} } } } }, null);
-    db.query.tasks.findMany(filtered.config).toSQL();
-    expect(filtered.dependencyEvidence.complete).toBe(true);
-    expect(filtered.dependencies).toEqual(evidence.dependencies);
-  });
-  it("marks missing root declarations unknown when the lazy count policy runs", () => {
-    const compiled = compileSearch(descriptorFor(undefined, []), {}, null);
-    expect(compiled.dependencyEvidence.complete).toBe(true);
-    db.select({ count: sql`count(*)` })
-      .from(searchSchema.tables.tasks)
-      .where(compiled.where(searchSchema.tables.tasks))
-      .toSQL();
-    expect(compiled.dependencyEvidence.complete).toBe(false);
-    db.query.tasks.findMany(compiled.config).toSQL();
-    expect(compiled.dependencyEvidence.complete).toBe(false);
-  });
-  it("visits selected and filtered child policies and keeps unknown sticky", () => {
-    const descriptor = descriptorFor([]);
-    const root = compileSearch(descriptor, {}, null);
-    db.query.tasks.findMany(root.config).toSQL();
-    expect(root.dependencyEvidence.complete).toBe(true);
-    const selected = compileSearch(descriptor, { with: { labels: {} } }, null);
-    db.query.tasks.findMany(selected.config).toSQL();
-    expect(selected.dependencyEvidence.complete).toBe(false);
-    selected.where(searchSchema.tables.tasks);
-    expect(selected.dependencyEvidence.complete).toBe(false);
-    const filtered = compileSearch(descriptor, { where: { relations: { labels: { some: {} } } } }, null);
-    db.query.tasks.findMany(filtered.config).toSQL();
-    expect(filtered.dependencyEvidence.complete).toBe(false);
-  });
-  it("treats public policies as complete and missing junction declarations as unknown", () => {
-    const pair = validators.tables.tasks.search({
-      columns: ["title"],
-      scope: "public",
-      through: {
-        taskLabels: { name: "junction", version: "1", where: () => sql`true` },
-      },
-      relations: { labels: { columns: ["name"], scope: "public" } },
-    });
-    const descriptor = searchContractDescriptor(oc.input(pair.input).output(pair.output));
-    if (!descriptor) throw new Error("Missing search descriptor");
-    const root = compileSearch(descriptor, {}, null);
-    db.query.tasks.findMany(root.config).toSQL();
-    expect(root.dependencyEvidence.complete).toBe(true);
-    const joined = compileSearch(descriptor, { with: { labels: {} } }, null);
-    db.query.tasks.findMany(joined.config).toSQL();
-    expect(joined.dependencyEvidence.complete).toBe(false);
+    for (const query of [rows, count]) {
+      expect(query.sql).toContain('"members"');
+      expect(query.params).toContain("allowed");
+    }
+    expect(rows.params).toContain("visible");
+    expect(Object.hasOwn(plan, "dependencyEvidence")).toBe(false);
+    expect(Object.hasOwn(plan, "dependencies")).toBe(false);
   });
 });

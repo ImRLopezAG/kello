@@ -6,7 +6,6 @@ import { drizzle, NodePgTransaction } from "drizzle-orm/node-postgres";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { Pool } from "pg";
 import { createRpcHttpApp } from "../../../apps/kello/src/core/adapters/neon/rpc-http";
-import { createRpcSocketSession } from "../../../apps/kello/src/core/adapters/neon/rpc-session";
 import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
 import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
 import type { ProcedureContext } from "../../../apps/kello/src/core/server/rpc/procedure";
@@ -14,7 +13,6 @@ import { createDatabaseMiddleware } from "../../../apps/kello/src/core/server/rp
 import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
 import * as databaseConnection from "../../../apps/kello/src/core/server/database/connection";
 import { rememberDatabaseAdapter } from "../../../apps/kello/src/core/server/database/context";
-import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import {
   composeInvocationSignals,
@@ -157,103 +155,6 @@ for (const sessionMs of [10, 10_000]) {
   });
 }
 
-function socketFixture(expiresAt: number) {
-  const observed: AbortSignal[] = [];
-  const closed: [number, string][] = [];
-  let received = Promise.withResolvers<AbortSignal>();
-  const connection = createRpcSocketSession({
-    router: {
-      read: os.$context<ProcedureContext>().handler(({ context }) => {
-        observed.push(context.signal);
-        received.resolve(context.signal);
-        return null;
-      }),
-    },
-    session: { identity, expiresAt },
-    socket: {
-      readyState: 1,
-      bufferedAmount: 0,
-      send: () => {},
-      close: (code, reason) => closed.push([code, reason]),
-    },
-  });
-  return {
-    connection,
-    closed,
-    observed,
-    call: async (id: string) => {
-      received = Promise.withResolvers<AbortSignal>();
-      connection.message(
-        JSON.stringify({
-          kind: "request",
-          id,
-          json: { url: "/read", method: "POST", body: { json: null } },
-        }),
-      );
-      return received.promise;
-    },
-  };
-}
-
-test("WS backward wall time leaves native session live while original limiter bound expires", async () => {
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
-  const now = vi.spyOn(performance, "now").mockReturnValue(100);
-  const wall = vi.spyOn(Date, "now").mockReturnValue(100_000);
-  const fixture = socketFixture(110);
-  try {
-    const first = await fixture.call("first");
-    expect(invocationRemainingMs(first)).toBe(10_000);
-    wall.mockReturnValue(90_000);
-    now.mockReturnValue(10_101);
-    await vi.advanceTimersByTimeAsync(10_000);
-    const expired = await fixture.call("expired");
-    expect(fixture.closed).toEqual([]);
-    expect(expired.aborted).toBe(false);
-    expect(invocationRemainingMs(expired)).toBe(-1);
-    expect(invocationRemainingMs(first)).toBe(-1);
-  } finally {
-    await fixture.connection.dispose();
-  }
-});
-
-test("WS forward conversion tightens later dispatch without retroactively changing active snapshots", async () => {
-  const now = vi.spyOn(performance, "now").mockReturnValue(100);
-  const wall = vi.spyOn(Date, "now").mockReturnValue(100_000);
-  const fixture = socketFixture(110);
-  try {
-    const first = await fixture.call("first");
-    now.mockReturnValue(200);
-    wall.mockReturnValue(109_000);
-    expect(invocationRemainingMs(await fixture.call("forward"))).toBe(1000);
-    expect(invocationRemainingMs(first)).toBe(9900);
-    now.mockReturnValue(300);
-    wall.mockReturnValue(90_000);
-    expect(invocationRemainingMs(await fixture.call("backward"))).toBe(900);
-  } finally {
-    await fixture.connection.dispose();
-  }
-});
-
-test("WS calls beyond the handshake's 5000ms use session expiry without a per-call timer", async () => {
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
-  const now = vi.spyOn(performance, "now").mockReturnValue(100);
-  const wall = vi.spyOn(Date, "now").mockReturnValue(100_000);
-  const fixture = socketFixture(160);
-  try {
-    await fixture.call("first");
-    now.mockReturnValue(6100);
-    wall.mockReturnValue(106_000);
-    await vi.advanceTimersByTimeAsync(6000);
-    const later = await fixture.call("later");
-    expect(invocationRemainingMs(later)).toBe(54_000);
-    expect(later.aborted).toBe(false);
-    expect(fixture.closed).toEqual([]);
-    expect(vi.getTimerCount()).toBe(2); // Existing expiry and heartbeat only.
-  } finally {
-    await fixture.connection.dispose();
-  }
-});
-
 test("Effect shutdown composition preserves known bounds and still drains owned Promise work", async () => {
   vi.spyOn(performance, "now").mockReturnValue(100);
   const input = new AbortController().signal;
@@ -343,7 +244,6 @@ function middlewareFixture(kind: MiddlewareKind, observe: (value: MiddlewareObse
   const relations = defineRelations(schema.tables);
   const { procedure } = createProjectProcedures(schema, relations);
   const effects = createEffectRuntime(Layer.empty);
-  const coordinator = createRevisionCoordinator({ readRevisions: async () => ({}) });
   // Offline SQL/transaction boundary only. No native database lifetime proof.
   const db = drizzle.mock({ relations });
   const tx = new NodePgTransaction(new PgDialect(), db._.session, relations, undefined, false);
@@ -396,7 +296,6 @@ function middlewareFixture(kind: MiddlewareKind, observe: (value: MiddlewareObse
       authorize: async () => {},
     },
     effects,
-    coordinator,
     activate: async () => {},
     authorize: async () => {},
   });
@@ -409,7 +308,6 @@ function middlewareFixture(kind: MiddlewareKind, observe: (value: MiddlewareObse
     transaction,
     async dispose() {
       await graph.stop();
-      await coordinator.stop();
       await effects.stop();
     },
   };
@@ -458,49 +356,6 @@ for (const kind of middlewareKinds) {
       }
     });
   }
-
-  test(`WS rollback keeps native session live but expires limiter authority after ${kind} middleware`, async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
-    const now = vi.spyOn(performance, "now").mockReturnValue(100);
-    const wall = vi.spyOn(Date, "now").mockReturnValue(100_000);
-    const received = Promise.withResolvers<MiddlewareObservation>();
-    const fixture = middlewareFixture(kind, async (value) => {
-      received.resolve(value);
-    });
-    const closed: [number, string][] = [];
-    const connection = createRpcSocketSession({
-      router: fixture.graph.router,
-      session: { identity, expiresAt: 110 },
-      socket: {
-        readyState: 1,
-        bufferedAmount: 0,
-        send: () => {},
-        close: (code, reason) => closed.push([code, reason]),
-      },
-    });
-    try {
-      wall.mockReturnValue(90_000);
-      now.mockReturnValue(10_101);
-      await vi.advanceTimersByTimeAsync(10_000);
-      connection.message(
-        JSON.stringify({
-          kind: "request",
-          id: "expired",
-          json: { url: "/read", method: "POST", body: { json: null } },
-        }),
-      );
-      const observed = await received.promise;
-      expect(closed).toEqual([]);
-      expect(observed.signal.aborted).toBe(false);
-      expect(invocationRemainingMs(observed.signal)).toBe(-1);
-      expect(invocationRemainingMs(observed.effectSignal)).toBe(-1);
-      expect(observed.databaseBound).toBe(kind.startsWith("database-"));
-      expect(fixture.transaction).toHaveBeenCalledTimes(kind.startsWith("database-") ? 1 : 0);
-    } finally {
-      await connection.dispose();
-      await fixture.dispose();
-    }
-  });
 }
 
 for (const cancellation of ["caller", "generation"] as const) {

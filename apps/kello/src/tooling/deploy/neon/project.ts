@@ -48,8 +48,6 @@ export async function readProjectRelease(root: string, file: string, signal?: Ab
         [project.config.database.runtimeUrlEnv]: project.config.database.runtimeUrlEnv,
         ...settings.variables,
       };
-      if (project.config.realtime.mode === "notify")
-        variables[project.config.database.directRuntimeUrlEnv] ??= project.config.database.directRuntimeUrlEnv;
       return {
         ...settings,
         format: 1,
@@ -93,8 +91,6 @@ export async function readProjectRelease(root: string, file: string, signal?: Ab
     throw new Error("Reserved release environment destination");
   if (!Object.hasOwn(sources, project.config.database.runtimeUrlEnv))
     throw new Error("Missing release runtime variable declaration");
-  if (project.config.realtime.mode === "notify" && !Object.hasOwn(sources, project.config.database.directRuntimeUrlEnv))
-    throw new Error("Missing direct runtime variable declaration");
   signal?.throwIfAborted();
   return { project, declaration: release };
 }
@@ -135,13 +131,10 @@ export async function deployProjectRelease(
   const { format: _format, activationTokenEnv, variables: sources, ...options } = declaration;
   const environment = { ...process.env };
   const runtimeName = project.config.database.runtimeUrlEnv;
-  const directName = project.config.database.directRuntimeUrlEnv;
   const discoverRuntime =
     runtimeName === "LOOM_DATABASE_URL" && sources[runtimeName] === runtimeName && !environment[runtimeName];
-  const discoverDirect =
-    directName === "LOOM_DIRECT_DATABASE_URL" && sources[directName] === directName && !environment[directName];
   const discoverToken = activationTokenEnv === "LOOM_ACTIVATION_TOKEN" && !environment[activationTokenEnv];
-  if (file === "kello.config.ts" && (discoverRuntime || discoverDirect || discoverToken)) {
+  if (file === "kello.config.ts" && (discoverRuntime || discoverToken)) {
     const managed = await resolveManagedDeploymentCredentials(
       project.config,
       {
@@ -157,7 +150,6 @@ export async function deployProjectRelease(
       signal,
     );
     if (discoverRuntime) environment[runtimeName] = managed.runtimeUrl;
-    if (discoverDirect) environment[directName] = managed.runtimeUrl;
     if (discoverToken) environment[activationTokenEnv] = managed.activationToken;
   }
   function value(name: string): string {

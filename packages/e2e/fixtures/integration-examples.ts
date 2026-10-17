@@ -68,7 +68,7 @@ export async function startIntegrationBackend(
       ...projectRuntimeGraph(project),
       // Keep application authorization while this local fixture supplies its own JWT issuer.
       auth: defineRpcAuth({ authorize: project.auth.authorize, allowAnonymous: project.auth.allowAnonymous }),
-      config: { auth: { origins }, realtime: { pollIntervalMs: 100 } },
+      config: { auth: { origins } },
       assertActive: async (signal) => signal.throwIfAborted(),
     });
     backend = await startHttpHandlerServer({ ...runtime, auth: { ...runtime.auth, verify } });

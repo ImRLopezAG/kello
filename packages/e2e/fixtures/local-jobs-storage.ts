@@ -139,7 +139,7 @@ export async function startLocalUploads(options: { connectionString: string; por
       auth: defineRpcAuth({ authorize: project.auth.authorize, allowAnonymous: project.auth.allowAnonymous }),
       storage: project.storage,
       storageBackend: { ...objectStore.target, connect: () => objectStore },
-      config: { auth: { origins: [frontend.url.origin] }, realtime: { pollIntervalMs: 100 } },
+      config: { auth: { origins: [frontend.url.origin] } },
       assertActive: async (signal) => {
         signal.throwIfAborted();
         if (stopped) throw new Error("Local example stopped");

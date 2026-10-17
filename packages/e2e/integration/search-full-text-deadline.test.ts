@@ -3,11 +3,6 @@ import { defineRelations, sql } from "drizzle-orm";
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import { connectDatabase, captureInvocationGuard } from "../../../apps/kello/src/core/server/database/connection";
 import { runFunctionTransaction } from "../../../apps/kello/src/core/server/transactions";
-import {
-  evaluateLiveSnapshot,
-  withLiveInvocation,
-  liveSnapshot,
-} from "../../../apps/kello/src/core/server/rpc/live-context";
 import { withSearchDeadline } from "../../../apps/kello/src/core/search/deadline";
 
 test("full-text deadlines retain owned read snapshots and restore only on success", async () => {
@@ -102,26 +97,15 @@ test("full-text deadlines retain owned read snapshots and restore only on succes
       );
       expect(restored.rows[0]?.timeout).toBe("0");
     });
-    // Each actual live evaluation enters a fresh owned transaction and deadline.
-    const target = Symbol("full-text-deadline");
+    // Independent finite calls each enter a fresh owned transaction and deadline.
     for (let event = 0; event < 2; event++) {
-      await evaluateLiveSnapshot(target, () =>
-        runFunctionTransaction(connection, "query", async (tx) => {
-          const stream = await withLiveInvocation(
-            () => {
-              throw new Error("Unexpected subscription start");
-            },
-            () =>
-              liveSnapshot(() =>
-                withSearchDeadline(tx, relations, 150, signal, captureInvocationGuard(), async (statement) => {
-                  await statement(() => tx.execute(sql`select pg_sleep(0.08)`));
-                  return event;
-                }),
-              ),
-          );
-          expect(await stream.next()).toEqual({ done: false, value: event });
+      const result = await runFunctionTransaction(connection, "query", (tx) =>
+        withSearchDeadline(tx, relations, 150, signal, captureInvocationGuard(), async (statement) => {
+          await statement(() => tx.execute(sql`select pg_sleep(0.08)`));
+          return event;
         }),
       );
+      expect(result).toBe(event);
     }
     const expired = new Error("Identity expired");
     await expect(

@@ -113,7 +113,6 @@ export async function establishSchemaBaselines(
     const allowed = new Set([
       "framework_migrations",
       "migration_history",
-      "table_revisions",
       "component_namespaces",
       ...sorted.map(({ baseline }) => ormHistoryTable(baseline.scope.namespace)),
     ]);
@@ -178,14 +177,6 @@ export async function establishSchemaBaselines(
               migration.ordinal,
               migration.name,
             ]);
-          }
-          const latest = artifacts[baseline.migrations.length - 1];
-          for (const entity of latest?.plan.snapshot.ddl ?? []) {
-            if (entity.entityType !== "tables") continue;
-            await target.query(
-              `INSERT INTO ${metadata}.table_revisions(namespace,table_name,revision) VALUES($1,$2,1)`,
-              [namespace, entity.name],
-            );
           }
         }
       }

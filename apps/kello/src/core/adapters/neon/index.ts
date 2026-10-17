@@ -1,9 +1,5 @@
 export { createRpcHttpApp, createRpcOpenApiApp } from "./rpc-http";
 export type { RpcHttpOptions } from "./rpc-http";
-export { createRpcSocketSession } from "./rpc-session";
-export type { RpcSocketSessionOptions, RpcSocket } from "./rpc-session";
-export { createNeonRpcSocket } from "./rpc-websocket";
-export type { NeonRpcSocketOptions } from "./rpc-websocket";
 export { createNeonRpcApplication } from "./rpc-application";
 export type { NeonRpcApplicationOptions } from "./rpc-application";
 export { createNeonLoginResolver } from "./neon-login";

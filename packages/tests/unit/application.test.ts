@@ -53,7 +53,7 @@ test("application shutdown aborts and drains HTTP calls and refuses new work", a
   await app.stop();
 });
 
-test("application routes native socket refusals and stops idempotently", async () => {
+test("application refuses retired socket routes and stops idempotently", async () => {
   const app = await createNeonRpcApplication({
     version,
     origins: ["https://app.example.test"],
@@ -65,15 +65,8 @@ test("application routes native socket refusals and stops idempotently", async (
         throw new Error("Socket requests must not dispatch HTTP calls");
       }),
     },
-    realtime: {
-      tickets: {
-        redeem: async () => {
-          throw new Error("Not used");
-        },
-      },
-    },
   });
-  expect((await app.fetch(new Request("https://api.example.test/api/kello/socket"))).status).toBe(426);
+  expect((await app.fetch(new Request("https://api.example.test/api/kello/socket"))).status).toBe(404);
   await app.stop();
   expect(app.stop()).toBe(app.stop());
 });

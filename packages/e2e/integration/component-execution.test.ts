@@ -13,7 +13,6 @@ import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtim
 import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
 import { createDatabaseMiddleware } from "../../../apps/kello/src/core/server/rpc/database";
 import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
-import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
 import { connectDatabase } from "../../../apps/kello/src/core/server/database/connection";
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 
@@ -32,7 +31,6 @@ test.skipIf(!connectionString)(
     const childRelations = defineRelations(childSchema.tables);
     const connection = await connectDatabase({ schema, relations, connectionString });
     const effects = createEffectRuntime(Layer.empty);
-    const coordinator = createRevisionCoordinator({ readRevisions: async () => ({}) });
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace: namespace, runtimeRole: role });
       await admin.query(`CREATE TABLE "${namespace}".counter (value integer NOT NULL)`);
@@ -92,7 +90,6 @@ test.skipIf(!connectionString)(
           runComponent: (_scope, work) => work(),
         },
         effects,
-        coordinator,
         activate: async () => {},
         authorize: async () => {},
         database: {
@@ -135,7 +132,6 @@ test.skipIf(!connectionString)(
       }
     } finally {
       await effects.stop();
-      await coordinator.stop();
       await connection.close();
       await admin.query(`DROP SCHEMA IF EXISTS "${namespace}" CASCADE`);
       await admin.query(`DROP OWNED BY "${role}"`);

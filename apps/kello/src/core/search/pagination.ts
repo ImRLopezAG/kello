@@ -31,11 +31,11 @@ export async function prepareSearchPage(
       : [{ field: "_id", direction: "asc", nulls: "last" } as const];
   const codec = createSearchCursor(key, descriptor, input, context, undefined, fullText);
   const direction = input.direction ?? "forward";
-  const token = input.cursor ?? input.anchor;
+  const token = input.cursor;
   const hasToken = token !== undefined && token !== null;
   const boundary = hasToken ? await codec.read(token, direction) : undefined;
   const pageSize = compiled.config.limit;
-  const limit = pageSize * (descriptor.mode === "live" ? (input.loadedPages ?? 1) : 1);
+  const limit = pageSize;
   if (limit > descriptor.budgets.rows)
     throw new ORPCError("QUERY_BUDGET_EXCEEDED", { message: "Search window exceeds row budget" });
   const root = descriptor.graph[descriptor.entity];
@@ -73,8 +73,6 @@ export async function prepareSearchPage(
     pageSize,
     timestamps,
     fromCursor: hasToken,
-    dependencies: compiled.dependencies,
-    dependencyEvidence: compiled.dependencyEvidence,
     where: compiled.where,
     config: {
       ...compiled.config,
@@ -148,13 +146,7 @@ export async function finishSearchPage(plan: SearchPagePlan, rows: readonly Stor
   if (plan.rankAlias) hidden.add(plan.rankAlias);
   const selected = retained.map((row) => Object.fromEntries(Object.entries(row).filter(([name]) => !hidden.has(name))));
   const page = {
-    ...(plan.descriptor.mode === "live"
-      ? {
-          pages: Array.from({ length: Math.ceil(selected.length / plan.pageSize) }, (_, index) =>
-            selected.slice(index * plan.pageSize, (index + 1) * plan.pageSize),
-          ),
-        }
-      : { rows: selected }),
+    rows: selected,
     nextCursor,
     previousCursor,
   };

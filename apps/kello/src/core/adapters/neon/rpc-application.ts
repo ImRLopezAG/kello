@@ -5,8 +5,6 @@ import { createComponentHttpApp } from "./component-http";
 import type { ComponentHttpMount } from "../../server/components/http";
 import { createRpcHttpApp, createRpcOpenApiApp } from "./rpc-http";
 import type { RpcHttpOptions } from "./rpc-http";
-import { createNeonRpcSocket } from "./rpc-websocket";
-import type { NeonRpcSocketOptions } from "./rpc-websocket";
 
 export interface NeonRpcApplicationOptions extends RpcHttpOptions {
   readonly authHttp?: readonly AuthHttpMount[];
@@ -14,22 +12,13 @@ export interface NeonRpcApplicationOptions extends RpcHttpOptions {
   readonly storage?: { fetch(request: Request): Response | Promise<Response> } | undefined;
   readonly openapi?: boolean;
   readonly openapiRouter?: RpcHttpOptions["router"];
-  readonly realtime?: Omit<NeonRpcSocketOptions, "router" | "version" | "origins">;
 }
 
-/** One public graph, with separate upgrade ingress and an awaited shutdown boundary. */
+/** One public HTTP graph with an awaited shutdown boundary. */
 export async function createNeonRpcApplication(options: NeonRpcApplicationOptions) {
   const http = createRpcHttpApp(options);
   const openapi = options.openapi
     ? await createRpcOpenApiApp({ ...options, router: options.openapiRouter ?? options.router })
-    : undefined;
-  const realtime = options.realtime
-    ? createNeonRpcSocket({
-        ...options.realtime,
-        router: options.router,
-        version: options.version,
-        origins: options.origins,
-      })
     : undefined;
   const app = new Hono();
   const auth = createAuthHttpApp({ mounts: options.authHttp ?? [], origins: options.origins });
@@ -51,11 +40,8 @@ export async function createNeonRpcApplication(options: NeonRpcApplicationOption
   return {
     fetch(request: Request): Promise<Response> {
       if (shutdown.signal.aborted) return Promise.resolve(new Response("Application stopping", { status: 503 }));
-      const path = new URL(request.url).pathname;
       const work = Promise.resolve()
         .then(() => {
-          // The provider owns this request and its upgrade response; neither is cloned.
-          if (path === "/api/kello/socket" && realtime) return realtime.fetch(request);
           return app.fetch(new Request(request, { signal: AbortSignal.any([request.signal, shutdown.signal]) }));
         })
         .finally(() => pending.delete(work));
@@ -66,7 +52,6 @@ export async function createNeonRpcApplication(options: NeonRpcApplicationOption
       if (stopping) return stopping;
       shutdown.abort();
       stopping = Promise.resolve().then(async () => {
-        await realtime?.stop();
         while (pending.size) await Promise.allSettled(pending);
         await auth.drain();
       });

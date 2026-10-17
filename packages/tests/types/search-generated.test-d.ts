@@ -46,13 +46,11 @@ const policy = {
   },
 } as const;
 const search = validators.tables.tasks.search(policy);
-const liveSearch = validators.tables.tasks.liveSearch(policy);
 const contract = {
   list: oc
     .errors({ NOT_FOUND: { data: v.object({ entity: v.string() }) } })
     .input(search.input)
     .output(search.output),
-  watch: oc.input(liveSearch.input).output(liveSearch.output),
   ordinary: oc.output(v.string()),
 };
 type Native = RouterContractClient<typeof contract, RpcCallContext>;
@@ -86,11 +84,6 @@ export async function raw() {
     count: true,
   });
   const filteredTitle: string | undefined = filtered.rows[0]?.title;
-  const stream = await client.watch({ columns: { title: true }, loadedPages: 3 });
-  for await (const window of stream) {
-    const title: string | undefined = window.pages[0]?.[0]?.title;
-    void title;
-  }
   void filteredTitle;
   const ordinary: string = await client.ordinary();
   void [member, ordinary, id, at, count, amount];
@@ -109,7 +102,6 @@ export function useSelection() {
   });
   const infinite = useInfiniteQuery(infiniteOptions);
   const infiniteSuspense = useSuspenseInfiniteQuery(infiniteOptions);
-  const live = useQuery(rpc.watch.liveOptions({ input: titleSelection }));
   for (const page of [
     result.data,
     cached,
@@ -120,8 +112,6 @@ export function useSelection() {
     const title: string | undefined = page?.rows[0]?.title;
     void title;
   }
-  const liveRowTitle: string | undefined = live.data?.pages[0]?.[0]?.title;
-  void liveRowTitle;
   const selected = useQuery(
     rpc.list.queryOptions({ input: titleSelection, select: (page) => page.rows.map((row) => row.title) }),
   );
@@ -135,10 +125,7 @@ export function useSelection() {
   const defined: string | undefined = initial.data.rows[0]?.title;
   type InitialKeys = Assert<Equal<keyof (typeof initial.data.rows)[number], "title">>;
   const initialKeys: InitialKeys = true;
-  const liveSuspense = useSuspenseQuery(rpc.watch.liveOptions({ input: titleSelection }));
-  const liveTitle: string | undefined = liveSuspense.data.pages[0]?.[0]?.title;
   useQuery(rpc.list.queryOptions({ input: skipToken, enabled: false }));
-  useQuery(rpc.watch.liveOptions({ input: skipToken }));
   const custom = rpc.list.queryOptions({
     input: titleSelection,
     context: { idempotencyKey: "request" },
@@ -150,7 +137,7 @@ export function useSelection() {
     },
     placeholderData: () => ({ rows: [{ title: "placeholder" }], nextCursor: null, previousCursor: null }),
   });
-  void [data, defined, initialKeys, liveTitle, custom, errorType];
+  void [data, defined, initialKeys, custom, errorType];
 }
 
 export async function nonliteralSelections(flag: boolean) {

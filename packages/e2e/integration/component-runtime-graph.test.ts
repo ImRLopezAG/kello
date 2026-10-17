@@ -7,7 +7,7 @@ import * as v from "valibot";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
-import { createEffectRuntime, createRevisionCoordinator, Invocation } from "kello/server";
+import { createEffectRuntime, Invocation } from "kello/server";
 import type { ProcedureContext } from "kello/server";
 
 test("runtime dispatch gives each scope only its private and explicitly bound native callers", async () => {
@@ -29,7 +29,6 @@ test("runtime dispatch gives each scope only its private and explicitly bound na
     .output(v.string())
     .handler(({ input, context }) => context.components.child.rpc.get(input));
   const effects = createEffectRuntime(Layer.empty);
-  const coordinator = createRevisionCoordinator({ readRevisions: async () => ({}) });
   // These handlers have no database middleware: any connection attempt is a test failure.
   const pool = new pg.Pool({ connectionString: "postgresql://unused:unused@127.0.0.1:1/unused" });
   const db = drizzle({ client: pool });
@@ -46,7 +45,6 @@ test("runtime dispatch gives each scope only its private and explicitly bound na
     ],
     application: { run: (work) => work(), runComponent: (_scope, work) => work() },
     effects,
-    coordinator,
     activate: async () => {},
     authorize: async () => {},
     database: {
@@ -70,7 +68,6 @@ test("runtime dispatch gives each scope only its private and explicitly bound na
   } finally {
     await graph.stop();
     await effects.stop();
-    await coordinator.stop();
     await pool.end();
   }
 });

@@ -56,7 +56,6 @@ export {
 export { bootstrapDatabase } from "./migrations/bootstrap";
 export { registerRateLimitPolicies, cleanupRateLimits } from "./migrations/rate-limits";
 export type { CleanupRateLimitsOptions, RateLimitCleanupResult } from "./migrations/rate-limits";
-export { installRevisionTracking } from "./migrations/revisions";
 export type { BootstrapOptions } from "./migrations/bootstrap";
 export { applyMigrations, applyMigrationsOnConnection } from "./migrations/runner";
 export type { ApplyMigrationsOptions, ApplyMigrationsOnConnectionOptions, MigrationReceipt } from "./migrations/runner";

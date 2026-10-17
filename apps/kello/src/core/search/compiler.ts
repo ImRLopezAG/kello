@@ -34,12 +34,6 @@ export interface CompiledSearch {
   readonly config: SearchQueryConfig;
   /** The same authorized root predicate is used for rows and optional count. */
   readonly where: (table: TableRelationalConfig["table"]) => SQL;
-  readonly dependencies: ReadonlySet<string>;
-  /** Private live evidence: consume only after lazy row and count SQL has executed. */
-  readonly dependencyEvidence: {
-    readonly dependencies: ReadonlySet<string>;
-    readonly complete: boolean;
-  };
 }
 export interface SearchQueryConfig {
   readonly columns: Record<string, boolean>;
@@ -138,21 +132,6 @@ export function compileSearch(
   if (Boolean(input.fullText) !== Boolean(fullText)) throw new Error("Full-text search requires parser preflight");
   if (fullText && (input.fullText?.document !== fullText.name || input.fullText.query !== fullText.raw))
     throw new Error("Full-text preflight belongs to a different query");
-  const dependencies = new Set<string>([descriptor.entity]);
-  let complete = true;
-  const dependencyEvidence = {
-    dependencies,
-    get complete() {
-      return complete;
-    },
-  };
-  function policyScope(value: "public" | RuntimeSearchScope, source: TableRelationalConfig["table"]): SQL {
-    if (value !== "public") {
-      if (value.dependencies === undefined) complete = false;
-      else for (const name of value.dependencies) dependencies.add(name);
-    }
-    return scope(value, source, identity);
-  }
   const tableNames = new Map(Object.entries(descriptor.graph).map(([name, config]) => [config.table, name]));
   function configNode(node: SearchRuntimeNode) {
     const value = descriptor.graph[node.entity];
@@ -162,29 +141,9 @@ export function compileSearch(
   function junction(node: SearchRuntimeNode, relation: Relation) {
     const name = relation.throughTable && tableNames.get(relation.throughTable);
     if (!name || !Object.hasOwn(node.through, name)) throw new Error("Search junction scope is missing");
-    dependencies.add(name);
     const policy = node.through[name];
     if (!policy) throw new Error("Search junction scope is missing");
     return { table: table(descriptor.graph[name]!.table), policy };
-  }
-  function collect(node: SearchRuntimeNode, filter: SearchPublicFilter | undefined): void {
-    for (const [name, condition] of Object.entries(filter ?? {})) {
-      if (condition === undefined) continue;
-      if (name === "AND" || name === "OR") {
-        for (const child of v.parse(v.array(v.custom<SearchPublicFilter>(searchRecord)), condition))
-          collect(node, child);
-      } else if (name === "NOT") collect(node, record(condition));
-      else if (name === "relations") {
-        for (const [name, conditions] of Object.entries(record(condition))) {
-          const relation = configNode(node).relations[name];
-          const child = node.relations[name];
-          if (!relation || !child) throw new ORPCError("INVALID_SELECTION");
-          dependencies.add(child.entity);
-          if (relation.throughTable) junction(node, relation);
-          for (const filter of Object.values(record(conditions))) collect(child, record(filter));
-        }
-      }
-    }
   }
   function predicate(
     node: SearchRuntimeNode,
@@ -197,8 +156,7 @@ export function compileSearch(
       source: TableRelationalConfig["table"],
       filter: SearchPublicFilter | undefined,
     ): SQL {
-      dependencies.add(node.entity);
-      const predicates = [policyScope(node.scope, source)];
+      const predicates = [scope(node.scope, source, identity)];
       for (const [name, condition] of Object.entries(filter === undefined ? {} : record(filter))) {
         if (condition === undefined) continue;
         if (name === "AND" || name === "OR") {
@@ -226,7 +184,7 @@ export function compileSearch(
               const match = combine([
                 ...(joins.filter ? [joins.filter] : []),
                 visit(child, target, record(childFilter)),
-                ...(through && throughTable ? [policyScope(through.policy, throughTable)] : []),
+                ...(through && throughTable ? [scope(through.policy, throughTable, identity)] : []),
               ]);
               const join = throughTable
                 ? sql`inner join ${getTableAsAliasSQL(throughTable)} on ${joins.joinCondition}`
@@ -253,8 +211,6 @@ export function compileSearch(
     depth: number,
     incoming?: { node: SearchRuntimeNode; relation: Relation },
   ): SearchQueryConfig {
-    dependencies.add(node.entity);
-    collect(node, selection.where);
     const children: Record<string, SearchQueryConfig> = {};
     for (const [name, childSelection] of Object.entries(selection.with ?? {})) {
       const child = node.relations[name];
@@ -273,7 +229,7 @@ export function compileSearch(
           if (incoming?.relation.throughTable) {
             const through = junction(incoming.node, incoming.relation);
             // Pinned Drizzle RQB v2 uses tr{parentDepth} for its exact joined junction.
-            predicates.push(policyScope(through.policy, alias(through.table, `tr${depth - 1}`)));
+            predicates.push(scope(through.policy, alias(through.table, `tr${depth - 1}`), identity));
           }
           return combine(predicates);
         },
@@ -298,5 +254,5 @@ export function compileSearch(
       ? combine([predicate(descriptor.node, source, input.where), fullTextExpressions(source, fullText).match])
       : predicate(descriptor.node, source, input.where);
   const config = projection(descriptor.node, input, 0);
-  return { config, where, dependencies, dependencyEvidence };
+  return { config, where };
 }

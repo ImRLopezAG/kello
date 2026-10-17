@@ -3,14 +3,13 @@ import { test } from "bun:test";
 import { createORPCClient } from "@orpc/client";
 import type { RouterClient } from "@orpc/server";
 import { QueryClient, MutationObserver } from "@tanstack/react-query";
-import { createRpcTransport } from "kello/client";
+import { createRpcHttpTransport } from "kello/client";
 import { createProjectProcedures, defineSchema } from "kello/server";
-import { createRpcSocketSession } from "kello/neon";
+import { createRpcHttpApp } from "kello/neon";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import type { RpcCallContext } from "kello/client";
-import type { ServerWebSocket } from "bun";
 
-test("explicit native retries carry one intent through WebSocket headers after an uncertain write", async () => {
+test("explicit native retries carry one intent through HTTP headers after an uncertain write", async () => {
   const { procedure } = createProjectProcedures(defineSchema(() => ({})));
   const keys: string[] = [];
   const committed = new Map<string, number>();
@@ -26,52 +25,15 @@ test("explicit native retries carry one intent through WebSocket headers after a
       throw new Error("Response unavailable after commit");
     }),
   };
-  const sessions = new Map<ServerWebSocket<undefined>, ReturnType<typeof createRpcSocketSession>>();
-  const server = Bun.serve<undefined>({
-    hostname: "127.0.0.1",
-    port: 0,
-    fetch(request, server) {
-      if (new URL(request.url).pathname === "/api/kello/ticket") {
-        assert.equal(request.headers.get("authorization"), "Bearer fixture");
-        return Response.json({ ticket: "t".repeat(43), expiresAt: Date.now() / 1000 + 60 });
-      }
-      if (server.upgrade(request, { headers: { "sec-websocket-protocol": "kello.orpc.2" } })) return;
-      return new Response("Upgrade required", { status: 426 });
-    },
-    websocket: {
-      open(socket) {
-        sessions.set(
-          socket,
-          createRpcSocketSession({
-            router,
-            socket: {
-              get readyState() {
-                return socket.readyState;
-              },
-              get bufferedAmount() {
-                return socket.getBufferedAmount();
-              },
-              send: (data) => {
-                socket.send(data);
-              },
-              close: (code, reason) => socket.close(code, reason),
-            },
-            session: { identity: { issuer: "test", subject: "alice" }, expiresAt: Date.now() / 1000 + 60 },
-            onDispose: () => {
-              sessions.delete(socket);
-            },
-          }),
-        );
-      },
-      message(socket, data) {
-        sessions.get(socket)?.message(data);
-      },
-      close(socket) {
-        void sessions.get(socket)?.dispose();
-      },
-    },
+  const version = "a".repeat(64);
+  const app = createRpcHttpApp({
+    router,
+    version,
+    origins: [],
+    verify: async () => ({ identity: { issuer: "test", subject: "alice" }, expiresAt: Date.now() / 1000 + 60 }),
   });
-  const transport = createRpcTransport({
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: (request) => app.fetch(request) });
+  const transport = createRpcHttpTransport({
     url: server.url.href,
     version: "a".repeat(64),
     getToken: async () => "fixture",
@@ -96,7 +58,6 @@ test("explicit native retries carry one intent through WebSocket headers after a
   } finally {
     queryClient.clear();
     transport.dispose();
-    await Promise.all([...sessions.values()].map((value) => value.dispose()));
     await server.stop(true);
   }
 });

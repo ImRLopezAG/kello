@@ -18,7 +18,6 @@ import {
   Invocation,
 } from "../../../apps/kello/src/core/server/index";
 import type { ProcedureContext } from "../../../apps/kello/src/core/server/index";
-import { evaluateLiveSnapshot, withLiveInvocation } from "../../../apps/kello/src/core/server/rpc/live-context";
 import { fields } from "../../../apps/kello/src/core/schema/fields";
 import { createSearchValidators } from "../../../apps/kello/src/core/search/contract";
 import { searchErrors } from "../../../apps/kello/src/core/search/errors";
@@ -127,7 +126,6 @@ function endpoint(variant: Variant = {}) {
     fullText: ["content", "alternate"],
   } as const;
   const finite = validators.tables.articles.search(grants);
-  const live = validators.tables.articles.liveSearch(grants);
   const { procedure } = createProjectProcedures(currentSchema, graph);
   const builder = procedure.errors(searchErrors).use(createDatabaseMiddleware(graph, "read", currentSchema));
   const options = {
@@ -148,15 +146,6 @@ function endpoint(variant: Variant = {}) {
       .handler(({ context, input }) => context.search.articles.paginate(input)),
     options,
   );
-  // Use the runtime's existing snapshot ownership boundary, without replacing search execution.
-  const watch = bindRpcDatabaseProcedure(
-    builder
-      .input(live.input)
-      .output(live.output)
-      .handler(({ context, input }) => context.search.articles.watch(input)),
-    options,
-    true,
-  );
   const descriptor = searchSchemaMetadata(finite.input)?.descriptor;
   if (!descriptor) throw new Error("Missing native cursor descriptor");
   return {
@@ -165,17 +154,6 @@ function endpoint(variant: Variant = {}) {
       input: InferSchemaInput<typeof finite.input> = requestInput,
       current: ProcedureContext["identity"] = identity,
     ) => call(list, input, { context: contextFor(current) }),
-    live: (input: InferSchemaInput<typeof live.input>) => {
-      const target = Symbol("cursor-snapshot");
-      return evaluateLiveSnapshot(target, () =>
-        withLiveInvocation(
-          () => {
-            throw new Error("Fixture must evaluate a snapshot, not start a subscription");
-          },
-          () => call(watch, input, { context: contextFor() }),
-        ),
-      );
-    },
   };
 }
 
@@ -285,24 +263,6 @@ describe("actual ranked handler continuation binding", () => {
     const page = await endpoint().request({ ...requestInput, limit, cursor: await firstToken() });
     expect(page.rows).toEqual(Array.from({ length: Math.min(limit, 2) }, () => ({ title: "cats" })));
   });
-  test("rejects finite cursor on the live contract boundary", async () => {
-    await expect(
-      endpoint().live({ ...requestInput, anchor: await firstToken(), loadedPages: 1 }),
-    ).rejects.toMatchObject(restart);
-  });
-  test("rejects a real live cursor on the finite contract boundary", async () => {
-    const stream = await endpoint().live({ ...requestInput, loadedPages: 1 });
-    try {
-      const snapshot = await stream.next();
-      if (snapshot.done || !snapshot.value.nextCursor) throw new Error("Missing live fixture continuation");
-      expect(snapshot.value.pages).toEqual([[{ title: "cats" }]]);
-      await expect(endpoint().request({ ...requestInput, cursor: snapshot.value.nextCursor })).rejects.toMatchObject(
-        restart,
-      );
-    } finally {
-      await stream.return?.();
-    }
-  });
   test("rejects wrong direction and expiry through the handler", async () => {
     const token = await firstToken();
     await expect(endpoint().request({ ...requestInput, cursor: token, direction: "backward" })).rejects.toMatchObject(
@@ -323,9 +283,6 @@ describe("actual ranked handler continuation binding", () => {
   test("rejects an empty ciphertext rather than restarting silently", async () => {
     await expect(endpoint().request({ ...requestInput, cursor: "" })).rejects.toMatchObject(restart);
   });
-  test("rejects an empty live anchor rather than restarting silently", async () => {
-    await expect(endpoint().live({ ...requestInput, anchor: "", loadedPages: 1 })).rejects.toMatchObject(restart);
-  });
   test("characterizes the public cursor length limit before the codec boundary", async () => {
     await expect(endpoint().request({ ...requestInput, cursor: "a".repeat(4097) })).rejects.toMatchObject({
       code: "BAD_REQUEST",
@@ -337,7 +294,6 @@ describe("actual ranked handler continuation binding", () => {
   test("rejects empty legacy tokens while preserving omitted and null first pages", async () => {
     const input = { columns: { title: true }, limit: 1 } as const;
     await expect(endpoint().request({ ...input, cursor: "" })).rejects.toMatchObject(restart);
-    await expect(endpoint().live({ ...input, anchor: "", loadedPages: 1 })).rejects.toMatchObject(restart);
     for (const fullText of [undefined, requestInput.fullText]) {
       const selection = fullText ? { ...input, fullText } : input;
       expect((await endpoint().request(selection)).rows).toEqual([{ title: "cats" }]);

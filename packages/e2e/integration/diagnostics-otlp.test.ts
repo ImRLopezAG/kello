@@ -349,7 +349,6 @@ function expectedBaseline(): Omit<DecodedSeries, "start" | "timestamp">[] {
       } else duration("kello.rpc.procedure", { mode, status }, 2, 7);
     }
   for (const status of ["success", "error"]) {
-    duration("kello.revision.read", { status }, 3, 11);
     duration("kello.database.acquire", { status }, 3, 13);
   }
   for (const kind of ["query", "mutation"]) counter("kello.transaction.retry.count", { kind });
@@ -479,10 +478,10 @@ Buckets #12, Count: 0
     /Exactly one StartTimestamp/,
   );
   const expected = expectedBaseline();
-  assert.equal(expected.length, 68);
-  assert.equal(expected.filter((point) => point.type === "Sum").length, 54);
-  assert.equal(expected.filter((point) => point.type === "Histogram").length, 14);
-  assert.equal(new Set(expected.map((point) => point.key)).size, 68);
+  assert.equal(expected.length, 64);
+  assert.equal(expected.filter((point) => point.type === "Sum").length, 52);
+  assert.equal(expected.filter((point) => point.type === "Histogram").length, 12);
+  assert.equal(new Set(expected.map((point) => point.key)).size, 64);
 });
 
 // This acceptance owns a unique disposable collector; unavailable Docker is a failure, never a skip.
@@ -625,7 +624,6 @@ service:
       for (const status of ["success", "error"] as const)
         assert.equal(metrics.observe({ type: "rpc.procedure", mode, status, durationMs: 7 }), true);
     for (const status of ["success", "error"] as const) {
-      assert.equal(metrics.observe({ type: "revision.read", status, durationMs: 11, tableCount: 99 }), true);
       assert.equal(
         metrics.observe({ type: "database.acquire", status, durationMs: 13, total: 99, idle: 98, waiting: 97 }),
         true,
@@ -657,11 +655,11 @@ service:
     const full = metrics.snapshot().resourceMetrics[0]!.scopeMetrics[0]!.metrics;
     assert.equal(
       full.reduce((count, metric) => count + (metric.sum?.dataPoints.length ?? 0), 0),
-      54,
+      52,
     );
     assert.equal(
       full.reduce((count, metric) => count + (metric.histogram?.dataPoints.length ?? 0), 0),
-      14,
+      12,
     );
     const priorExports = collectorMessages(await docker(["logs", owner.id!])).filter((message) =>
       message.startsWith("ResourceMetrics #0\n"),
@@ -692,10 +690,10 @@ service:
       completed = latest;
       return true;
     });
-    assert.equal(completed.length, 68);
-    assert.equal(completed.filter((point) => point.type === "Sum").length, 54);
-    assert.equal(completed.filter((point) => point.type === "Histogram").length, 14);
-    assert.equal(new Set(completed.map((point) => point.key)).size, 68, "No duplicate tuples");
+    assert.equal(completed.length, 64);
+    assert.equal(completed.filter((point) => point.type === "Sum").length, 52);
+    assert.equal(completed.filter((point) => point.type === "Histogram").length, 12);
+    assert.equal(new Set(completed.map((point) => point.key)).size, 64, "No duplicate tuples");
     for (const point of completed) {
       assert.equal(point.start, previousStart, "Every tuple retains the earlier cumulative session start");
       assert.ok(Date.parse(point.start) > 0);

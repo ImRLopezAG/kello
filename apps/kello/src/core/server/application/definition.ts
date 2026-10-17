@@ -12,7 +12,6 @@ import { createDatabaseMiddleware } from "../rpc/database";
 import type { ApplicationEnvironment, ApplicationEnvironmentOutput } from "./environment";
 import { parseApplicationEnvironment, createEnvironmentReferences, environmentAccess } from "./environment";
 import type { EnvironmentReferences } from "./environment";
-import { createLiveContext } from "../rpc/live-context";
 import { createComponentHost, sealComponentGraph } from "../components/graph";
 import { deferEnvironmentAccess, prepareComponentEnvironments } from "../components/environment";
 import type { ComponentHost } from "../components/graph";
@@ -78,10 +77,6 @@ type ApplicationContext<
   DatabaseContext<Schema, Relations> & {
     readonly env: ApplicationEnvironmentOutput<Env>;
   };
-type LiveContext<Schema extends ProjectSchema, Relations extends AnyRelations, Env extends ApplicationEnvironment> = {
-  readonly live: ReturnType<typeof createLiveContext<ProcedureContext & ApplicationContext<Schema, Relations, Env>>>;
-};
-
 export function applicationBase<
   Contract extends RouterContract,
   Schema extends ProjectSchema,
@@ -96,24 +91,22 @@ export function applicationBase<
     .use(rpcErrorBoundary)
     .use(bindings.middleware)
     .use(createDatabaseMiddleware(relations, "automatic", schema))
-    .use(({ next }) => next({ context: { env: readEnv() } }))
-    .use(({ next, context }) => next({ context: { live: createLiveContext(context) } }));
+    .use(({ next }) => next({ context: { env: readEnv() } }));
   // SAFETY: native .use() widens a generic router's conditional type inside this
   // function. The original contract and the middleware-derived injected context
   // above are unchanged; preserve them at the project factory boundary.
   return builder as RouterImplementerWithMiddlewares<
     Contract,
     ProcedureContext,
-    ApplicationContext<Schema, Relations, Env> &
-      LiveContext<Schema, Relations, Env> & {
-        readonly components: Components;
-        readonly services: Services;
-        readonly internal: SearchRouterClient<
-          RouterContractClient<
-            Contract extends { internal: infer Internal extends RouterContract } ? Internal : Record<never, never>
-          >
-        >;
-      }
+    ApplicationContext<Schema, Relations, Env> & {
+      readonly components: Components;
+      readonly services: Services;
+      readonly internal: SearchRouterClient<
+        RouterContractClient<
+          Contract extends { internal: infer Internal extends RouterContract } ? Internal : Record<never, never>
+        >
+      >;
+    }
   >;
 }
 
@@ -229,8 +222,10 @@ export async function prepareApplicationEnvironment<Env extends ApplicationEnvir
   const components = await prepareComponentEnvironments(graph, env, source);
   // Without the deployment-managed secret, .live() issuance stays unconfigured and fails closed.
   const secret = source.LOOM_REALTIME_SECRET;
-  if (secret && app.liveQueries && !target) throw new Error("Live queries require the runtime database and deployment binding");
-  const liveQueries = secret && target ? app.liveQueries?.({ env, realtime: Object.freeze({ ...target, secret }) }) : undefined;
+  if (secret && app.liveQueries && !target)
+    throw new Error("Live queries require the runtime database and deployment binding");
+  const liveQueries =
+    secret && target ? app.liveQueries?.({ env, realtime: Object.freeze({ ...target, secret }) }) : undefined;
   const live: PreparedLiveQueries = {};
   if (liveQueries) live.liveQueries = Object.freeze({ ...liveQueries });
   return Object.freeze({

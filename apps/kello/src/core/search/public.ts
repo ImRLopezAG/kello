@@ -15,7 +15,7 @@ export interface SearchPublicNode {
   readonly order?: readonly string[] | undefined;
   readonly text?: readonly string[] | undefined;
   readonly fullText?: Readonly<Record<string, { readonly semantics: string }>> | undefined;
-  readonly mode?: "finite" | "live" | undefined;
+  readonly mode?: "finite" | undefined;
   readonly budgets?: SearchBudgets | undefined;
 }
 export interface SearchPublicFilter {
@@ -35,13 +35,10 @@ export interface SearchPublicSelection {
   readonly limit?: number;
   readonly cursor?: string | null;
   readonly direction?: "forward" | "backward";
-  readonly anchor?: string | null;
-  readonly loadedPages?: number;
   readonly count?: boolean;
 }
 export interface SearchCachedPage {
   readonly rows?: StorageRow[];
-  readonly pages?: StorageRow[][];
   readonly nextCursor: string | null;
   readonly previousCursor: string | null;
   readonly count?: string;
@@ -49,7 +46,6 @@ export interface SearchCachedPage {
 export const defaultSearchBudgets: SearchBudgets = Object.freeze({
   pageSize: 100,
   nestedSize: 100,
-  loadedPages: 10,
   predicates: 100,
   listSize: 100,
   textLength: 1024,
@@ -257,7 +253,7 @@ export function validSearchSelection(
       "orderBy",
       "limit",
       ...(depth || !node.fullText ? [] : ["fullText"]),
-      ...(depth ? [] : node.mode === "live" ? ["anchor", "loadedPages", "count"] : ["cursor", "direction", "count"]),
+      ...(depth ? [] : ["cursor", "direction", "count"]),
     ];
     if (Object.keys(value).some((key) => !controls.includes(key))) return false;
     if (value.fullText !== undefined) {
@@ -289,15 +285,10 @@ export function validSearchSelection(
       !v.is(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(size)), value.limit)
     )
       return false;
-    for (const key of ["cursor", "anchor"])
+    for (const key of ["cursor"])
       if (value[key] !== undefined && value[key] !== null && !v.is(v.pipe(v.string(), v.maxLength(4096)), value[key]))
         return false;
     if (value.direction !== undefined && value.direction !== "forward" && value.direction !== "backward") return false;
-    if (
-      value.loadedPages !== undefined &&
-      !v.is(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(budgets.loadedPages)), value.loadedPages)
-    )
-      return false;
     if (value.count !== undefined && !v.is(v.boolean(), value.count)) return false;
     if (value.columns !== undefined) {
       if (
@@ -371,13 +362,7 @@ export function acceptsSearchPage(
   if (
     strict &&
     (Object.keys(data).some(
-      (key) =>
-        ![
-          node.mode === "live" ? "pages" : "rows",
-          "nextCursor",
-          "previousCursor",
-          ...(input.count ? ["count"] : []),
-        ].includes(key),
+      (key) => !["rows", "nextCursor", "previousCursor", ...(input.count ? ["count"] : [])].includes(key),
     ) ||
       (input.count === true && data.count === undefined))
   )
@@ -408,18 +393,6 @@ export function acceptsSearchPage(
         return false;
     }
     return true;
-  }
-  if (node.mode === "live") {
-    return (
-      Array.isArray(data.pages) &&
-      data.pages.length <= (input.loadedPages ?? 1) &&
-      data.pages.every(
-        (page) =>
-          Array.isArray(page) &&
-          page.length <= (input.limit ?? Math.min(50, budgets.pageSize)) &&
-          page.every((row) => acceptsRow(node, input, row)),
-      )
-    );
   }
   return (
     Array.isArray(data.rows) &&
@@ -465,7 +438,7 @@ export function acceptsSearchOutput(
     }
     return scalars > 0;
   }
-  const key = node.mode === "live" ? "pages" : "rows";
+  const key = "rows";
   if (
     Object.keys(value).some((name) => ![key, "nextCursor", "previousCursor", "count"].includes(name)) ||
     !v.is(v.nullable(v.string()), value.nextCursor) ||
@@ -473,13 +446,10 @@ export function acceptsSearchOutput(
     (value.count !== undefined && !v.is(v.pipe(v.string(), v.regex(/^\d+$/)), value.count))
   )
     return false;
-  const pages = node.mode === "live" ? value.pages : [value.rows];
   if (
-    !Array.isArray(pages) ||
-    pages.length > budgets.loadedPages ||
-    !pages.every(
-      (page) => Array.isArray(page) && page.length <= budgets.pageSize && page.every((item) => row(node, item, 0)),
-    )
+    !Array.isArray(value.rows) ||
+    value.rows.length > budgets.pageSize ||
+    !value.rows.every((item) => row(node, item, 0))
   ) {
     if (overBudget) onBudgetExceeded?.();
     return false;

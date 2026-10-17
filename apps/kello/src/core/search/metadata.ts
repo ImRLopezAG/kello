@@ -36,7 +36,6 @@ export function searchInputIssueCode(issues: readonly StandardSchemaV1.Issue[]) 
 export interface RuntimeSearchScope {
   readonly name: string;
   readonly version: string;
-  readonly dependencies?: readonly string[];
   readonly where: (context: {
     readonly table: TableRelationalConfig["table"];
     readonly identity: InvocationIdentity | null;
@@ -60,7 +59,7 @@ export interface SearchRuntimeDescriptor {
   readonly fingerprint: string;
   readonly node: SearchRuntimeNode;
   readonly budgets: SearchBudgets;
-  readonly mode: "finite" | "live";
+  readonly mode: "finite";
 }
 interface SearchSchemaMetadata {
   readonly descriptor: SearchRuntimeDescriptor;
@@ -79,7 +78,7 @@ const metadataParser = v.custom<SearchSchemaMetadata>((value) =>
         fingerprint: v.string(),
         node: v.object({}),
         budgets: v.object({}),
-        mode: v.picklist(["finite", "live"]),
+        mode: v.literal("finite"),
       }),
     }),
     value,
@@ -119,7 +118,7 @@ export function searchContractDescriptor(
     input.role !== "input" ||
     output.metadata.role !== "output" ||
     input.descriptor !== output.metadata.descriptor ||
-    output.streaming !== (input.descriptor.mode === "live")
+    output.streaming
   )
     throw new Error("Search contract requires matching input/output descriptor identity and mode");
   return input.descriptor;

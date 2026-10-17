@@ -11,7 +11,7 @@ type LossReason = "invalid" | "ingress_queue" | "output_queue" | "output" | "exp
 // Records make union additions a compile-time mapping review, including attribute values.
 const modes = { finite: true, live: true, mutation: true } satisfies Record<EventOf<"rpc.procedure">["mode"], true>;
 const statuses = { success: true, error: true } satisfies Record<
-  EventOf<"rpc.procedure" | "revision.read" | "database.acquire">["status"],
+  EventOf<"rpc.procedure" | "database.acquire">["status"],
   true
 >;
 const retryKinds = { query: true, mutation: true } satisfies Record<EventOf<"transaction.retry">["kind"], true>;
@@ -81,7 +81,6 @@ export function createDiagnosticsMetrics() {
   for (const mode of Object.keys(modes))
     for (const status of Object.keys(statuses)) addDuration("kello.rpc.procedure", { mode, status });
   for (const status of Object.keys(statuses)) {
-    addDuration("kello.revision.read", { status });
     addDuration("kello.database.acquire", { status });
   }
   for (const kind of Object.keys(retryKinds)) addCounter("kello.transaction.retry.count", { kind });
@@ -138,8 +137,6 @@ export function createDiagnosticsMetrics() {
       switch (event.type) {
         case "rpc.procedure":
           return duration("kello.rpc.procedure", { mode: event.mode, status: event.status }, event.durationMs);
-        case "revision.read":
-          return duration("kello.revision.read", { status: event.status }, event.durationMs);
         case "database.acquire":
           return duration("kello.database.acquire", { status: event.status }, event.durationMs);
         case "transaction.retry":
@@ -161,9 +158,6 @@ export function createDiagnosticsMetrics() {
           return admit([
             update("kello.deployment.acknowledgement.count", { stage: event.stage, status: event.status }, 1),
           ]);
-        case "realtime.listener":
-        case "realtime.coordinator":
-          return true;
         default:
           event satisfies never;
           return false;

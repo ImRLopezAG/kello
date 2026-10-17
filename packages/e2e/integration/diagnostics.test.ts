@@ -50,12 +50,6 @@ function runtime(generation) {
     auth: { origins: [origin], allowAnonymous: true, verify: async () => { throw new Error("unused verifier"); } },
     version: String(generation + 1).repeat(64),
     router,
-    snapshots: router,
-    tickets: {
-      issue: async () => ({ ticket: "t".repeat(43), expiresAt: Math.floor(Date.now() / 1000) + 60 }),
-      redeem: async () => { throw new Error("unused ticket"); },
-    },
-    realtime: { heartbeatMs: 1000, maxBufferedBytes: 1024 },
     stop: async () => { stops.push(generation); },
   };
 }
