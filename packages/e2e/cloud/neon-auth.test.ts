@@ -13,6 +13,7 @@ import {
   applyMigrations,
   deployProjectRelease,
   enableRealtime,
+  NeonFunctionHealthError,
   inspectDeploymentTarget,
   defineConfig,
   generateProject,
@@ -237,6 +238,15 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
           ),
         );
     } catch (cause) {
+      if (cause instanceof NeonFunctionHealthError)
+        diagnostics.push(
+          JSON.stringify({
+            healthStage: cause.stage,
+            aborted: cause.aborted,
+            status: cause.status,
+            identityMismatch: cause.identityMismatch,
+          }),
+        );
       const frames =
         cause instanceof Error
           ? cause.stack
