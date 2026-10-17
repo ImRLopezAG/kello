@@ -75,3 +75,19 @@ Sequential main-thread correctness/security/testing review of the release workfl
 Actual focused RED: the new test failed because the guard was absent. GREEN: it executes the shipped shell block with a mock `gh` and checks success, refusal, absent result and CLI failure. This validates argument binding and shell behavior, not GitHub's own query evaluator. An initial TS7022 subprocess inference error was corrected with the public `Bun.Subprocess` type and explicit ignored stdin; final e2e and app typing passed. The two affected control-plane/storage unit files passed 12 tests. Final targeted lint/format passed. Temporary test resources are removed in finally after the direct child exit and both streams settle.
 
 The storage control plane has only a storage caller; deleting unused type alternatives changes no executable transport expression or ordinary user HTTP streaming. No new actionable finding remains in the inspected delta. Exact-revision Linux CI and protected provider-workflow execution remain outstanding; the repository lacks that protected environment configuration.
+
+## CI artifact publication follow-up
+
+### Actionable Findings
+
+No unresolved finding in the inspected workflow/test delta. CD previously rebuilt the package; it now consumes the package retained by successful main CI for the exact release commit.
+
+### Coverage
+
+Sequential main-thread correctness, security, testing and failure-path inspection; no independent reviewer is claimed. Read complete current CI/release workflows and the three release regression bodies. Main/push/commit filters bind the selected run; the downloaded artifact must match package identity, version and SHA-256 before npm publication with scripts disabled. Missing/failed CI, malformed run IDs, missing artifacts and changed bytes refuse publication. Existing exact-commit Neon acceptance and npm environment/OIDC gates remain. CI packs only after integration success; artifact expiry requires fresh CI, not a CD rebuild.
+
+Actual focused tests: 3 passed, 0 failed on Bun1.4.3; e2e typing, targeted lint and formatting passed. Local actual workflow pack/validator smoke passed with temporary cleanup. Mocked gh tests inspect selector arguments but do not independently execute GitHub jq or upload/download artifacts. No provider, database, npm publication or GitHub Actions pass is claimed.
+
+### Verdict
+
+Scoped source delta ready to commit. Full U6 remains open pending exact-revision Linux CI and protected Neon acceptance configuration/execution.
