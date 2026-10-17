@@ -66,6 +66,8 @@ jobs:
             suite: next
           - name: start
             suite: start
+          - name: components-browser
+            suite: components-browser
           - name: services
             suite: services
           - name: upgrade

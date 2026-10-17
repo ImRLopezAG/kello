@@ -11,7 +11,18 @@ import { defineConfig, inspectDeploymentTarget } from "kello/tooling";
 import { runHistoricalAcceptance } from "../historical/run";
 
 const suite = v.parse(
-  v.picklist(["tasks", "jobs-storage", "next", "start", "services", "upgrade", "components", "better-auth", "search"]),
+  v.picklist([
+    "tasks",
+    "jobs-storage",
+    "next",
+    "start",
+    "components-browser",
+    "services",
+    "upgrade",
+    "components",
+    "better-auth",
+    "search",
+  ]),
   process.env.LOOM_CLOUD_SUITE,
 );
 const projectId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.KELLO_CLOUD_PROJECT_ID);
@@ -81,7 +92,13 @@ for (const parameter of migrationAddress.searchParams.keys())
   assert(["sslmode", "channel_binding"].includes(parameter), "Unexpected database URL option");
 migrationAddress.searchParams.set("sslmode", "verify-full");
 env.LOOM_MIGRATION_DATABASE_URL = migrationAddress.href;
-if (suite === "tasks" || suite === "jobs-storage" || suite === "next" || suite === "start") {
+if (
+  suite === "tasks" ||
+  suite === "jobs-storage" ||
+  suite === "next" ||
+  suite === "start" ||
+  suite === "components-browser"
+) {
   if (env.LOOM_CLOUD_SETUP_AUTH === "1") {
     const admin = new pg.Client({ connectionString: env.LOOM_MIGRATION_DATABASE_URL });
     try {
@@ -120,7 +137,7 @@ if (suite === "tasks" || suite === "jobs-storage" || suite === "next" || suite =
   }
   assert(env.VITE_NEON_AUTH_URL, "Real Neon Auth acceptance requires its branch URL");
   env.LOOM_CLOUD_NEON_AUTH = "1";
-  env.LOOM_CLOUD_AUTH_EXAMPLE = suite;
+  env.LOOM_CLOUD_AUTH_EXAMPLE = suite === "components-browser" ? "components" : suite;
 }
 if (suite === "better-auth") {
   env.LOOM_CLOUD_HOSTED_AUTH = "1";
@@ -148,7 +165,11 @@ const file =
       ? "better-auth"
       : suite === "components"
         ? "components"
-        : suite === "tasks" || suite === "jobs-storage" || suite === "next" || suite === "start"
+        : suite === "tasks" ||
+            suite === "jobs-storage" ||
+            suite === "next" ||
+            suite === "start" ||
+            suite === "components-browser"
           ? "neon-auth"
           : `orpc-${suite}`;
 const receipt = join(directory, `${suite}.json`);

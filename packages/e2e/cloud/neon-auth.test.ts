@@ -19,6 +19,7 @@ import {
   generateProject,
   readNeonFunctionReceipt,
 } from "kello/tooling";
+import { verifyCloudComponentBrowser } from "../fixtures/cloud-component-browser";
 import { startCloudFramework, verifyCloudFramework } from "../fixtures/cloud-framework";
 import { startCloudFrontend } from "../fixtures/cloud-frontend";
 import { verifyCloudSchemaExpansion } from "../fixtures/cloud-schema-expansion";
@@ -27,7 +28,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
   "Neon Auth signs in the actual example against Neon Functions",
   async () => {
     const example = v.parse(
-      v.picklist(["tasks", "jobs-storage", "next", "start"]),
+      v.picklist(["tasks", "jobs-storage", "next", "start", "components"]),
       process.env.LOOM_CLOUD_AUTH_EXAMPLE ?? "tasks",
     );
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
@@ -153,6 +154,9 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
       if (example === "next" || example === "start") {
         stage = "direct Function auth, RPC and SDK browser delivery";
         await verifyCloudFramework(browser, frontendUrl, url, diagnostics);
+      } else if (example === "components") {
+        stage = "component SDK browser isolation, pause and validation";
+        await verifyCloudComponentBrowser(browser, frontendUrl, diagnostics);
       } else {
         const page = await browser.newPage();
         const errors: string[] = [];
