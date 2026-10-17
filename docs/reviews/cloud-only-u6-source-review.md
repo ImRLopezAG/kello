@@ -55,3 +55,15 @@ Actual run `aa6793e6-5253-4ccf-951f-4ba627164199` passed all16 checks on the adm
 ### Verdict
 
 The scoped test addition is ready to commit. U6 and release remain open pending exact-revision Linux CI and protected provider-workflow execution; the provider run above is actual local execution, not a GitHub Actions pass.
+
+## Preview and current CI fixture follow-up
+
+Sequential inline correctness/security/implementation review of the current U6 delta against `080e81fe`, under the user's main-thread Task mapping; no independent Astra review is claimed. Inspected all changed hunks, the complete RPC-call helper, packed-consumer call/cleanup boundaries, and the preview compatibility/last-good assertions. No production API or authorization changes occur.
+
+The native helper creates its own signing key and trusted fixture login, validates the issued version/database/deployment and decrypts only its own capability with fixed algorithms/audience. It admits only SELECT and the pinned adapter's context-inferred OID0 parameters, then executes the exact SQL through the existing restricted-role pool. It preserves ordinary HTTP calls/iterators and the original ownership/forgery assertions. This is issuance/SQL parity evidence, not provider delivery or general decoder support. The upload pool is closed independently of runtime.stop failure. No capability, credential or query is intentionally added to reports.
+
+Preview acceptance explicitly declares reviewed compatibility for a nullable column using the existing public API, proves that declaration applies no DDL, then verifies schema-save migration preserves rows. Invalid source must report failure while the last deployed version remains usable. No production compatibility guard is weakened. The manual workflow requires protected provider configuration and successful preview, database and realtime jobs; missing credentials cannot produce acceptance. The additional vite-plus dev dependency belongs only to the fresh test consumer.
+
+Stale schema migration and CLI-bin assertions follow current authoritative outputs without removing replay/history checks. The cursor hash was checked against the historical finite implementation with the same installed dependencies; actual cursor PG execution remains deferred to CI. The targeted CLI timeout covers two bundles plus real compiler work and preserves assertions; other timeouts are unchanged.
+
+Actual evidence: six PG18.6 native cases passed with exact owned-container removal; all 11 CLI/packed cases passed with Node24.16.0/Bun1.4.3; e2e typing and targeted lint/format passed. The initial OID-schema and ambient-Node26 failures remain recorded separately. Earlier actual packaged preview passed all ten checks and its owned branch was independently absent. No new unresolved source finding was established in this test/workflow delta. Exact-head Linux CI and protected provider-workflow execution remain open; this checkpoint does not close U6 or authorize publication.

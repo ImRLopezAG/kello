@@ -94,7 +94,16 @@ test.skipIf(!connectionString)(
             _kind: "query" | "mutation",
             args: JsonValue,
             identity: InvocationIdentity | null = alice,
-          ) => callExample(runtime, name.split(":"), args, identity);
+          ) =>
+            callExample(
+              runtime,
+              name.split(":"),
+              args,
+              identity,
+              name === "projects:list" || name === "tasks:list"
+                ? { database, query: (sql, values) => connection.pool.query(sql, values) }
+                : undefined,
+            );
           expect(await call("projects:list", "query", {}, null)).toMatchObject({
             ok: false,
             error: { code: "UNAUTHORIZED" },

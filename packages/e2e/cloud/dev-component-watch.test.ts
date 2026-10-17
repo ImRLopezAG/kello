@@ -311,8 +311,70 @@ const wrong:Promise<{title:number}>=api.client.notes.records.add({title:"typed"}
       checks.push("ts7-positive-and-negative-generated-client-types");
       stage = "schema edit synchronization";
       console.info("[dev-watch] schema edit synchronization");
+      // This fixture's old INSERT/RETURNING(title) supports a nullable description column.
+      // Declare that compatibility for the still-active source before saving the new schema;
+      // automatic DDL classification alone must not authorize an old runtime.
+      const componentMigrations = `kello/_generated/migrations/components/${componentNamespace}`;
+      const componentHistory = await tooling.readMigrations(root, componentMigrations);
+      const componentHead = componentHistory.at(-1);
+      assert(componentHead);
+      const { defineSchema }: typeof import("kello/server") = await import(
+        join(root, "node_modules/kello/dist/core/server/index.js")
+      );
+      const expansion = await tooling.planMigration(
+        componentHead.plan.snapshot,
+        defineSchema((s) => ({ records: { title: s.text().notNull(), description: s.text() } }), {
+          namespace: componentNamespace,
+        }),
+        [],
+        componentHead.plan.hash,
+      );
+      assert(expansion.safety.automatic && expansion.safety.transactional);
+      await tooling.writeMigration(root, componentMigrations, "note_description", expansion);
+      const rootHistory = await tooling.readMigrations(root, "kello/_generated/migrations");
+      const rootHead = rootHistory.at(-1);
+      assert(rootHead);
+      await write(
+        "compatibility.json",
+        JSON.stringify({
+          format: 1,
+          releaseKey: crypto.randomUUID().replaceAll("-", "").repeat(2),
+          deployment: "dev-watch",
+          version: mounted.version,
+          environment: "preview",
+          databaseName: decodeURIComponent(new URL(uri).pathname.slice(1)),
+          migrationRole: decodeURIComponent(new URL(uri).username),
+          runtimeRole,
+          quarantine: "preserve",
+          reviewedHashes: [],
+          migrationHashes: rootHistory.map((entry) => entry.plan.hash),
+          schema: { minimum: rootHead.plan.after, maximum: rootHead.plan.after, target: rootHead.plan.after },
+          componentScopes: [
+            {
+              mountPath: "notes",
+              namespace: componentNamespace,
+              migrations: componentMigrations,
+              migrationHashes: [...componentHistory.map((entry) => entry.plan.hash), expansion.hash],
+              schema: { minimum: componentHead.plan.after, maximum: expansion.after, target: expansion.after },
+            },
+          ],
+          slugs: { service: `s${mounted.version.slice(0, 19)}`, worker: `w${mounted.version.slice(0, 19)}` },
+          activationTokenEnv: "LOOM_ACTIVATION_TOKEN",
+          variables: { LOOM_DATABASE_URL: "LOOM_DATABASE_URL" },
+        }),
+      );
+      await tooling.declareProjectCompatibility(root, "compatibility.json");
+      assert.equal(
+        (
+          await admin.query(
+            "SELECT count(*)::int n FROM information_schema.columns WHERE table_schema=$1 AND table_name='records' AND column_name='description'",
+            [componentNamespace],
+          )
+        ).rows[0].n,
+        0,
+      );
+      checks.push("explicit-old-runtime-compatibility-does-not-apply-ddl");
       await write("kello/components/notes/schema.ts", schema(",description:s.text()"));
-      await tooling.generateRelease(root, "note_description");
       const expanded = await nextReady(mounted.version);
       assert.equal(
         (
@@ -325,6 +387,18 @@ const wrong:Promise<{title:number}>=api.client.notes.records.add({title:"typed"}
       );
       assert.equal((await admin.query(`SELECT count(*)::int n FROM "${componentNamespace}".records`)).rows[0].n, 1);
       checks.push("schema-save-adds-column-and-preserves-row");
+      stage = "invalid edit preserves deployed preview";
+      const failuresBefore = stderr.length;
+      await write("kello/components/notes/functions/records.ts", "export default ;");
+      const failureDeadline = Date.now() + 30000;
+      while (!stderr.slice(failuresBefore).includes("DEVELOPMENT_UPDATE_FAILED")) {
+        assert(running.exitCode === null, "kello dev exited after invalid source");
+        assert(Date.now() < failureDeadline, "Invalid source was not reported");
+        await setTimeout(100);
+      }
+      assert.equal(events().at(-1)?.version, expanded.version);
+      await invoke(expanded.url, "v1:accepted");
+      checks.push("invalid-save-reports-failure-and-last-deployed-preview-stays-usable");
       stage = "function edit synchronization";
       console.info("[dev-watch] function edit synchronization");
       await write("kello/components/notes/functions/records.ts", functions("v2:"));

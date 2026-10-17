@@ -208,7 +208,7 @@ void createWorker(connection);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 30000); // Two Vite+ bundles, native imports and a real TypeScript compiler invocation.
 
 test("generation captures explicit authorization and refuses invalid auth modules without activation", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-auth-import-"));

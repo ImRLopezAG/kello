@@ -29,6 +29,7 @@ export async function prepareCloudComponents(root: string) {
         effect: "4.0.0",
         "drizzle-orm": "1.0.0-rc.4",
       },
+      devDependencies: { "vite-plus": "1.0.0" },
     }),
   );
   const installed = Bun.spawnSync(["bun", "install", "--linker", "isolated", "--ignore-scripts"], {

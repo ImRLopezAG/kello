@@ -9,7 +9,7 @@ test("fresh workspace installation links the CLI before compiled output exists",
   const source = fileURLToPath(new URL("../../../apps/kello/", import.meta.url));
   const manifest = await Bun.file(join(source, "package.json")).json();
   const workspaceLock = await readFile(new URL("../../../bun.lock", import.meta.url), "utf8");
-  assert.match(workspaceLock, /"bin":\s*\{\s*"kello": "\.\/cli\.js"/);
+  assert.match(workspaceLock, /"bin":\s*\{\s*"kello": "cli\.js"/);
   const root = await mkdtemp(join(tmpdir(), "loom-workspace-bin-"));
   try {
     await mkdir(join(root, "apps/kello"), { recursive: true });

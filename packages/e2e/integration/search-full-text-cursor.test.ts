@@ -520,7 +520,8 @@ describe("real metadata and token semantic boundaries", () => {
       order: ["title"],
     });
     const descriptor = searchSchemaMetadata(pair.input)?.descriptor;
-    expect(descriptor?.fingerprint).toBe("3898f6fbe6565a5f0476b88eb32eb01f98359cf99d4d77500043ecdf30040918");
+    // The pre-removal finite descriptor produces this same value with the installed schema dependencies.
+    expect(descriptor?.fingerprint).toBe("ce40dbee4f42b112fcc337d21ace5a035964fcb2ba36c0cd14da254aa97643ec");
     expect(descriptor?.budgets).toEqual(defaultSearchBudgets);
     expect(descriptor?.node).not.toHaveProperty("fullText");
     expect(descriptor?.node.public).not.toHaveProperty("fullText");
