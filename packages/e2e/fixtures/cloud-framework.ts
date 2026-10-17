@@ -103,6 +103,8 @@ export async function verifyCloudFramework(browser: Browser, origin: URL, functi
     await first.getByText(note, { exact: true }).waitFor();
     await second.getByText(note, { exact: true }).waitFor();
     assert.equal(await other.getByText(note, { exact: true }).count(), 0);
+    assert.equal(await first.getByText(otherNote, { exact: true }).count(), 0);
+    assert.equal(await second.getByText(otherNote, { exact: true }).count(), 0);
     for (const route of ["/", "/client"]) {
       const response = await fetch(new URL(route, origin));
       assert.equal(response.status, 200);
@@ -117,8 +119,8 @@ export async function verifyCloudFramework(browser: Browser, origin: URL, functi
     assert(await first.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await first.getByRole("button", { name: "Sign out", exact: true }).click();
     await first.getByRole("button", { name: "Sign in", exact: true }).waitFor();
-    await second.reload();
     await second.getByRole("button", { name: "Sign in", exact: true }).waitFor();
+    assert.equal(await first.getByText(note, { exact: true }).count(), 0);
     assert.equal(await second.getByText(note, { exact: true }).count(), 0);
     await first.getByLabel("Email", { exact: true }).fill(email);
     await first.getByLabel("Password", { exact: true }).fill(password);
@@ -126,7 +128,6 @@ export async function verifyCloudFramework(browser: Browser, origin: URL, functi
     await first.getByText(note, { exact: true }).waitFor();
     await first.getByRole("button", { name: "Sign out", exact: true }).click();
     await first.getByRole("button", { name: "Sign in", exact: true }).waitFor();
-    await second.reload();
     await second.getByRole("button", { name: "Sign in", exact: true }).waitFor();
     await second.getByLabel("Email", { exact: true }).fill(otherEmail);
     await second.getByLabel("Password", { exact: true }).fill(password);
