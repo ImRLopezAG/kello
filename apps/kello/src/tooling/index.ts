@@ -26,6 +26,7 @@ export { createDevelopmentCoordinator } from "./dev/coordinator";
 export { watchDevelopment } from "./dev/watcher";
 export { startDevelopment } from "./dev/development";
 export { startProjectDevelopment } from "./dev/project";
+export { buildNeonFunctionBundle } from "./deploy/neon/bundle";
 export type { DevelopmentOptions, ActiveDevelopmentGeneration } from "./dev/development";
 export type { DevelopmentRevision, DevelopmentFailure, DevelopmentCoordinatorOptions } from "./dev/coordinator";
 export { generateProject, prepareProject, activateProject, assertGeneratedVersion } from "./codegen/generate";

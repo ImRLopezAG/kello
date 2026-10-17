@@ -1,4 +1,4 @@
-import { buildFunctionBundle } from "@neon/config-runtime/v1";
+import { buildNeonFunctionBundle } from "kello/tooling";
 import { bootstrapDatabase } from "kello/tooling";
 import pg from "pg";
 import { unzipSync } from "fflate";
@@ -191,14 +191,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
     await run(["bun", "verify.ts"]);
     assert.deepEqual(await snapshot(installedStateful), installedBefore);
     await write(join(root, "node-entry.ts"), await readFile(join(fixtures, "runtime.ts.fixture"), "utf8"));
-    const archive = await buildFunctionBundle({
-      slug: "packed-components",
-      name: "Packed components",
-      source: join(root, "node-entry.ts"),
-      env: {},
-      runtime: "nodejs24",
-      bundler: "esbuild",
-    });
+    const archive = await buildNeonFunctionBundle(join(root, "node-entry.ts"));
     const deployed = await mkdtemp(join(tmpdir(), "loom-component-deployed-"));
     try {
       for (const [name, bytes] of Object.entries(unzipSync(archive))) {

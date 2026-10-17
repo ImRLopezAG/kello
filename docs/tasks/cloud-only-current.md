@@ -6,7 +6,7 @@ Plan: [Neon cloud-only runtime and live queries](../plans/2026-10-16-1919-refact
 - [x] U2: generated HTTP client and Neon-native `.live()` functions; deployment readiness and protected signing-secret injection.
 - [x] U3: cloud preview development instead of local backend serving.
 - [x] U4: remove legacy live/WS engine and retire owned revision objects through forward migration.
-- [ ] U5: prune package, exports, dependencies, examples and docs.
+- [x] U5: prune package, exports, dependencies, examples and docs.
 - [ ] U6: current cloud/browser integration, package and release checks.
 
 U1 verification: four reproduced review regressions fixed; main rerun 24 tests/121 assertions green (Bun 1.4.3); app three-tsconfig and e2e typechecks green. Worker build/lint/format green. Astra-low affected code/implementation/security review approved the bounded phase with no findings. Status avoids loader-owned persistent writes; authored configuration remains executable code, not a sandbox.
@@ -39,7 +39,6 @@ Affected review R3 completed/noPending REVISE with one P2: URL protocol/hostname
 
 U2 phase SOURCE acceptance: R4 completed/noPending and APPROVED the final affected correction, zero P1/P2/P3. Main consumed the full report; all four closing pins match. Earlier broad R1 review plus corrected R2/R3 findings remain attributed. Latest 19 focused cases, app/test types, core rebuild and Next generation/types passed after the URL correction. U2 is ready for its scoped local commit; actual cloud/browser/auth/Realtime and release gates remain U6. U3 starts on this committed baseline.
 
-
 ## Current execution — 2026-10-17
 
 U1 is committed as `586e8779`; U2 is committed as `623a7648`. Earlier pending-review/commit notes above are historical. U2's final R4 affected review approved with zero findings; provider/browser and release acceptance remain U6.
@@ -53,7 +52,6 @@ Main independently reran the exact 11-file focused unit selection: 47 tests pass
 Main also reran the selected CLI, component HTTP and filesystem-watcher integration files: 13 passed, 0 failed, Bun 1.4.3, exit 0, 6.86s (`/tmp/kello-u3-main-e2e.log`), session 52986 terminal. This includes generated-consumer recovery after an invalid edit; it starts test-only loopback HTTP, not a supported local backend. No provider or database was used. Commit intake identified the pre-existing Vite+ bundle export and package changes as U5 work to keep separate from U3.
 
 U3 review R1 completed/result_available/noPending, REVISE: F1/P1 the release rereads target/config after the watch-session preflight and can mutate a different authority; F2/P2 owned `.env.local` publication events can cancel their own release and repeat deployment; F3/P2 stop/supersession suppresses distinct release-cleanup failures. Main consumed the whole receipt `docs/reviews/cloud-only-u3-review-r1.md`. Its 52 pins matched but peripheral/deleted-body reading was incomplete and is explicitly not full-source clearance. The focused greens above do not cover these three interleavings. Next bounded correction owns only dev/release target binding, publication event handling, cleanup propagation and their focused tests; no provider or migration/legacy-engine work.
-
 
 U3 correction R3 Opus LOW completed/result_available/noPending; full terminal and handoff `/tmp/kello-u3-correction-handoff.md` consumed. Explicit expected target/version now reaches credential and release connections before writes; root publication file events are ignored; non-cancellation drain failures propagate from stop. Author RED/GREEN evidence is attributed, including post-lock message-only control and overwritten intermediate F2 log limits. No actual cloud acceptance claimed.
 
@@ -71,7 +69,6 @@ Proof-first actual-apply/coordinator control: 3 failing cancellation cases, 1 pa
 
 R3 affected review REVISE: withProcedureUpgrade suppressed rollback failure after expected activation cancellation. Added six actual upgrade/activation/coordinator controls: rollback succeeds, throws an Error, or rejects with zero; each stopped directly and superseded by a successful revision. Corrected test scheduling after initial three harness timeouts; causal repeat RED four failures/five passes in `/tmp/kello-u3-outer-rollback-red-r2.log`. Owner receives caller signal from both standalone activation and release. Failed rollback replaces only exact caller cancellation with fixed safe error; genuine primary precedence unchanged. No database/provider execution. Final tests/types/lint recorded in `/tmp/kello-u3-outer-rollback-final.log` and `/tmp/kello-u3-r3-*-final.log`; independent affected review pending, U3 remains uncommitted.
 
-
 U3 final affected review R4 completed/result_available/noPending: APPROVE, zero findings. Full receipt `docs/reviews/cloud-only-u3-review-r4.md` consumed and all four reviewed pins matched. R3-F1 is resolved: outer transaction rollback failure remains a non-cancellation drain failure, including falsey rollback rejection. Main final focused cancellation units passed 31/31, actual apply fixtures 12/12 (28 assertions), app/tests typing and targeted lint passed. Earlier build/e2e typing and integration greens retain their scope. U3 source accepted for scoped commit; provider deployment acceptance remains U6. The U5 bundler hunks are excluded from this commit and preserved separately.
 
 ### U4 current work
@@ -83,7 +80,6 @@ Added migration 29 to retire only triggers named `loom_table_revision` bound to 
 Main offline verification: focused seven-file selection 37/37 passed, app's three-tsconfig typecheck passed; separate HTTP selection 2/2 passed including streaming cancellation/finalization and removed ticket/socket routes. Logs `/tmp/kello-u4-current-focused.log`, `/tmp/kello-u4-migration-types.log`, `/tmp/kello-u4-http-routes.log`. Retirement test first failed on missing migration 29 and passed after implementation; generated-search test failed on exposed liveSearch and passed after removal. The earlier wrong-cwd write attempts did not write and are not RED evidence.
 
 Tests-package typecheck remains RED on obsolete legacy test imports and old generated-live assertions, plus mixed invocation-deadline socket fixtures (`/tmp/kello-u4-tests-types.log`). Next: port mixed invariants and remove legacy-exclusive tests/callers, finish dead dependency/search type cleanup, run native retirement against an admitted cloud target, then affected review and the U4 commit. No U4 provider/database execution, review approval or commit is claimed. Preexisting U5 bundler/package/docs WIP remains separate and unstaged.
-
 
 U4 caller cleanup: removed legacy-exclusive coordinator/snapshot/subscription/socket tests and ported mixed HTTP, auth, configuration, capability, deadline and generated-search type proofs. Ordinary HTTP streaming, server authorization, logout cancellation and database drain assertions remain. Generated search client types no longer unwrap live async iterators or expose the retired generated live utility specialization; ordinary non-search procedures keep upstream types.
 
@@ -99,20 +95,17 @@ Latest main checks: six focused files 45/45 pass (`/tmp/kello-u4-search-current-
 
 U4 remains uncommitted: broader e2e callers still reference removed APIs, native migration retirement has not run, and affected review is pending. U3 R4 actual terminal was again read as completed/result_available/noPending, bounded source approval only. No database/provider/browser operations or new delegates occurred during this continuation; command sessions are terminal. U5 dirty work remains separate.
 
-
 U4 integration cleanup continuation: removed standalone tests/fixtures exclusively exercising the retired LISTEN/revision/snapshot/ticket/socket/search-watch engine. Mixed component execution/services/durable, HTTP JWT/replay, search transaction/cursor/rank/deadline and diagnostics callers retain their ordinary behavior checks. Search deadline tests now exercise independent finite transaction budgets. Historical cross-live cursor tests are retired with that contract, not claimed to pass against Neon.
 
 Current main checks: e2e package typing passed (`/tmp/kello-u4-e2e-types-r4.log`); selected HTTP/component integration 12/12 pass, 41 assertions (`/tmp/kello-u4-http-callers-green-r3.log`); retirement/ordinary HTTP units 9/9 pass, 29 assertions (`/tmp/kello-u4-retirement-http-green-r4.log`). Ported actual browser ordinary HTTP streaming test passed 1/1, 13 assertions (`/tmp/kello-u4-browser-http-r1.log`): shared stream, explicit refetch, logout and disposal. No provider or database execution. An initial wrong-cwd removal script stopped at its first assertion before any write; a prior mixed test run retained its obsolete historical error-code expectation failure before correction.
 
 Still uncompleted: generated inline packed/framework/cloud fixture source strings reference the old search-watch API despite package typing passing. These must be ported before phase acceptance. Bootstrap upgrade fixtures must account for migration29 removing ticket tables. Native migration29 acceptance, affected formal review and scoped U4 commit remain pending. U5 dirty work remains separate. U3 R4 terminal is completed/noPending with bounded SOURCE approval only; no new delegates are active.
 
-
 U4 packed consumer continuation: generated framework search now exposes finite pagination only; removed the unused old search-live panel. Packed SSR keeps concurrent session isolation, selected Date/bigint/nested hydration, rendered finite cache data and unauthenticated refusal. The generated negative consumer explicitly rejects the removed tasks.watch method. Full-text consumer retains finite query/infinite-query inference, nested/scalar projection, forbidden input/output/cache checks, descriptor/OpenAPI privacy and browser dependency exclusion; removed only legacy generated-live contracts/handlers/window proofs. This is test-fixture porting for the already removed APIs, not new production behavior or Neon provider evidence.
 
 Actual main verification: e2e typing exited 0 (`/tmp/kello-u4-e2e-types-r6.log`); isolated packed generated search passed 1/1 in 23.20s including SSR (`/tmp/kello-u4-packed-generated-r1.log`); isolated packed full-text passed 1/1 in 25.55s, two positive compiles, 18 negative cases in both exactOptionalPropertyTypes modes, runtime descriptor/OpenAPI and browser bundle, 44 owned commands settled (`/tmp/kello-u4-packed-full-text-r1.log`). Expected negative compiler exits are assertions, not suite failures. Both command sessions terminal; fixture cleanup completed. Focused formatter exited 0. Preexisting U5 Vite+ bundling changes in the full-text fixture were preserved, not newly attributed to U4.
 
 Same U3 R4 notification was read from its owning task: completed/result_available/noPending, APPROVE bounded SOURCE zero findings, already represented by commit7083f8c4; no duplicate review or commit. U4 remains uncommitted: hosted cloud-search embedded legacy source/metrics and bootstrap historical fixtures still need porting, native retirement proof remains unrun, affected review pending. No provider/database resources acquired in this continuation.
-
 
 U4 hosted/historical-fixture continuation: cloud search now keeps finite cursor, projection, budget, performance and two-replica authorization checks, with an explicit SQL-policy revocation case. Removed its old polling metrics/barrier/browser subscription machinery and the exclusive legacy cloud-live suite/fixtures. Removed direct-notification environment bindings from this search fixture. This is source porting, not hosted execution or Neon live acceptance.
 
@@ -122,7 +115,6 @@ Main verification: e2e typing exit0 (`/tmp/kello-u4-e2e-types-r8.log`); retireme
 
 Same U3 R4 owning notification consumed: completed/result_available/noPending, bounded SOURCE APPROVE/no findings, already committed7083f8c4. U4 still requires native retirement/upgrade execution, final residual caller checks and affected security/correctness review before its scoped commit. U5 work remains separate and unstaged.
 
-
 U4 current native milestone: exact admitted disposable Neon PG18 branch `br-dark-block-awbbt60w` / endpoint `ep-solitary-block-awijudvn` was revalidated nondefault/unprotected. Native revision retirement passed 1/1 with 10 assertions (`/private/tmp/kello-u4-neon-realtime-revision-retirement.log`): upgrade/repeat/fresh29, preserved history/application/jobs and unrelated same-name trigger. Bootstrap first hit its unchanged 180s timeout after 121 assertions; the fixture's historical seeding had hundreds of serial network round trips. Batched each immutable prefix's seeding without changing production code, assertions or timeout. Corrected native run passed 3/3, 121 assertions, 127.42s (`/private/tmp/kello-u4-neon-bootstrap-r2.log`). Both wrapper sessions terminal; the first post-timeout and corrected bootstrap read-only audits found no matching metadata/drift schemas or runtime roles. No shared local database, provider setting changes or foreign cleanup.
 
 Hosted component/services fixtures now use ordinary authenticated HTTP; component one-shot iteration yields a finite child read instead of pretending a Neon `.live()` issuance is an iterator. Kept the public component example's Neon declaration unchanged. Removed the custom slow-peer WS-only cloud fixture. These hosted edits are source/typechecked, not hosted runtime acceptance.
@@ -131,5 +123,6 @@ Removed orphan listener/coordinator/revision-read diagnostics contracts, project
 
 U4 still uncommitted pending affected code/security review and final scope separation from preexisting U5 work. Same U3 R4 terminal reacknowledged completed/noPending, SOURCE APPROVE0findings, already committed7083f8c4; no duplicate review. No live delegates remain. Plan/goal remains active; no whole cloud-only or release acceptance claimed.
 
-
 U4 commit boundary: final sequential main source/security review found no blocking defect in the inspected production delta (`docs/reviews/cloud-only-u4-source-review.md`); this is not independent multi-agent approval. Fresh focused checks passed 151 tests/16 files, followed by 9 tests/3 files after adding the actual removed socket route to the no-auth 404 regression. Native retirement and bootstrap, packed consumers, ordinary browser streaming, build and package typing results above remain phase evidence. Commit excludes U5 bundler/dependency/docs changes, including the U5 portions of the two mixed files. Docker collector, hosted fixture execution and final integrated checks remain U6 obligations.
+
+U5 complete: direct runtime dependencies 27→24; deployment bundles use optional author-side Vite+, local cron/job execution removed, docs/examples use the cloud-only contract. Main source/security review and package measurements: `docs/reviews/cloud-only-u5-source-review.md` (sequential, not independent). Actual CLI/archive 10 tests and packed consumer pass; build, app/tests/e2e/docs types, docs production build, lint and format pass. Candidate 4,005,142 compressed /19,169,905 unpacked bytes,115 files; official CLI retains transitive esbuild/NFT. Final cloud/browser/integrated CI/release checks remain U6.

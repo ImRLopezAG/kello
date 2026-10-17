@@ -23,12 +23,12 @@ Create the generated connection through a Kello provider. It supplies native `rp
 </Cards>
 
 ```tsx
-const { rpc } = useKello();
-const tasks = useQuery(rpc.tasks.list.liveOptions());
+const { rpc, api } = useKello();
+const tasks = api.tasks.list.useLiveQuery();
 const createTask = useMutation(rpc.tasks.create.mutationOptions());
 ```
 
-`tasks.list` must declare a streaming output contract. A finite contract uses `queryOptions`. Mutate from an event handler, not during render. Keep `input`, `enabled`, `select`, and callbacks inside native option arguments; no Kello wrapper is necessary.
+`tasks.list` must declare a `.live()` row-array contract. A finite contract uses `queryOptions`. Mutate from an event handler, not during render. Keep `input`, `enabled`, `select`, and callbacks inside native option arguments; no Kello wrapper is necessary.
 
 <Callout title="One subscription supplies the first and later snapshots">
   A browser-only view does not need an extra finite query before its live query. SSR can prefetch a finite contract when

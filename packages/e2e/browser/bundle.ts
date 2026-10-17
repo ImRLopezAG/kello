@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 /** Bundle the actual tarball exports, with only the browser dependencies available to the consumer. */
 export async function browserBundle(
-  fixture: "rpc-client.tsx" | "rpc-transport.tsx" | "search-client.tsx" | "search-finite.tsx" = "rpc-transport.tsx",
+  fixture: "rpc-client.tsx" | "rpc-transport.tsx" | "search-finite.tsx" = "rpc-transport.tsx",
 ): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "loom-react-consumer-"));
   try {

@@ -52,7 +52,7 @@ Render this component inside your existing TanStack Query provider, passing the 
 <Step>
 ### Run and observe the result
 
-Run `kello dev` from your application directory and keep it running. It generates the new contracts, publishes the handlers, and runs the local job worker against the selected development database. Start your frontend separately, sign in, and click the button once.
+Deploy the application to a disposable Neon preview branch with its cloud worker and scheduled wake trigger. Point your frontend at that deployment, sign in, and click the button once. `kello dev` watches and deploys to that preview branch; handlers, queued jobs and cron schedules execute in Neon.
 
 The button first displays a job ID. After at least ten seconds, the task appears in the authenticated `tasks.list` live query from the [procedures guide](/authoring/functions). A finite list query needs a refetch to show the new row. Closing the page does not cancel queued work; stopping the worker delays execution until a worker resumes.
 

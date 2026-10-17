@@ -46,13 +46,12 @@ import { defineConfig } from "kello/tooling";
 
 export default defineConfig({
   database: { namespace: "app", metadataNamespace: "loom_meta" },
-  realtime: { mode: "notify" },
 });
 ```
 
 The linked project supplies provider selection and discovered database settings. Add a config only for changes you actually need: namespaces, explicit deployment targets, runtime limits, OpenAPI, or connection environment names. Keep the schema namespace aligned with the operational namespace. Configuration contains names of secret variables, not passwords.
 
-Default migration history is `<backend>/_generated/migrations`; default backend directory is `kello`. Runtime and migration connection variables must be distinct. Notification mode needs a direct connection because a pooled connection cannot own a persistent PostgreSQL listener.
+Default migration history is `<backend>/_generated/migrations`; default backend directory is `kello`. Runtime and migration connection variables must be distinct. Declared live functions require branch-scoped Neon Realtime; use `kello realtime status` and explicitly enable it with `kello realtime enable --origin <frontend-origin>`. No Kello polling or notification mode remains.
 
 ## Three kinds of environment values
 

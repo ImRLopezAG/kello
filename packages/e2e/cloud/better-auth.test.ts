@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
 import pg from "pg";
 import { createLocalJWKSet, jwtVerify } from "jose";
-import { buildFunctionBundle } from "@neon/config-runtime/v1";
+import { buildNeonFunctionBundle } from "kello/tooling";
 import { createAuthClient } from "better-auth/client";
 import { jwtClient, organizationClient } from "better-auth/client/plugins";
 import { resolveBetterAuthSchema } from "kello/better-auth";
@@ -54,14 +54,7 @@ test.skipIf(process.env.LOOM_CLOUD_HOSTED_AUTH !== "1")(
     try {
       await symlink(fileURLToPath(new URL("../node_modules/", import.meta.url)), join(root, "node_modules"));
       async function deploy(environment: Record<string, string>) {
-        const bundle = await buildFunctionBundle({
-          slug,
-          name: "Kello native auth acceptance",
-          source,
-          env: environment,
-          runtime: "nodejs24",
-          bundler: "esbuild",
-        });
+        const bundle = await buildNeonFunctionBundle(source);
         const deployment = await api.deployBranchFunction(projectId!, branchId!, slug, {
           bundle,
           runtime: "nodejs24",

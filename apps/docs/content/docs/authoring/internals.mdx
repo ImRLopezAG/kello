@@ -11,7 +11,7 @@ import handlerSource from "../../../examples/kello/internal/counts.ts?raw";
 
 Put private contracts in `kello/contracts/internal/` and their routers in `kello/internal/`. Use the same contract rules as public procedures: output schemas are required, input schemas are needed when accepting arguments, and expected public errors are declared on the contract. Generated builders preserve these types.
 
-A handler calls `context.internal.<file>.<procedure>(input)`. A component gets its own `context.internal`, not the parent's private registry. Internal contracts do not appear in browser clients, OpenAPI, or public HTTP/WebSocket dispatch.
+A handler calls `context.internal.<file>.<procedure>(input)`. A component gets its own `context.internal`, not the parent's private registry. Internal contracts do not appear in browser clients, OpenAPI, or public HTTP dispatch.
 
 ## Call across components intentionally
 

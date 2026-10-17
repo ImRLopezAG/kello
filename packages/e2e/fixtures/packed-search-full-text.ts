@@ -395,12 +395,13 @@ console.info(JSON.stringify({ proof: "packed-full-text-descriptor-openapi", desc
 `;
 
 export const packedFullTextBrowser = `import assert from "node:assert/strict";
-import { build, stop } from "esbuild";
+import { build } from "vite-plus/pack";
+const result = await build({ config: false, entry: ["./app/kello/_generated/api.js"], deps: { alwaysBundle: [/.*/] }, platform: "browser", format: "esm", dts: false, write: false, report: false });
 try {
-const result = await build({ entryPoints: ["./app/kello/_generated/api.js"], bundle: true, platform: "browser", format: "esm", write: false, metafile: true });
-assert.ok(result.outputFiles.length > 0);
-const output = result.outputFiles.map(file => file.text).join("\\n");
-const inputs = Object.keys(result.metafile.inputs);
+const chunks = result.bundles.flatMap(bundle => bundle.chunks).filter(chunk => chunk.type === "chunk");
+assert.ok(chunks.length > 0);
+const output = chunks.map(chunk => chunk.code).join("\\n");
+const inputs = [...new Set(chunks.flatMap(chunk => Object.keys(chunk.modules)))];
 assert.ok(inputs.some(input => input.includes("node_modules/kello/")), "bundle must traverse the installed public package");
 for (const input of inputs) {
   const parts = input.split("/");
@@ -418,6 +419,6 @@ assert.match(output, /loom-search-projections/);
 assert.match(output, /fullText/);
 assert.match(output, /content/);
 assert.doesNotMatch(output, /fts_packed_private_marker|packed-content-v1|packed-hidden-v1|taskLabels|projectId|organizationId|secret|pg_catalog|ts_rank|to_tsvector|plainto_tsquery|DATABASE_URL|node:fs|node:crypto|pg-protocol|drizzle-orm|libpg-query|kello.search.descriptor/);
-console.info(JSON.stringify({ proof: "packed-full-text-public-browser", outputs: result.outputFiles.length, inputs, bytes: Buffer.byteLength(output) }));
-} finally { stop(); }
+console.info(JSON.stringify({ proof: "packed-full-text-public-browser", outputs: chunks.length, inputs, bytes: Buffer.byteLength(output) }));
+} finally { for (const bundle of result.bundles) await bundle[Symbol.asyncDispose](); }
 `;

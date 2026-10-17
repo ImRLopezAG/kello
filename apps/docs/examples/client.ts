@@ -8,7 +8,6 @@ export function connect(url: string, getToken: () => Promise<string | null>) {
   return {
     connection,
     greeting: rpc.tasks.greeting.queryOptions({ input: { name: "Ada" } }),
-    tasks: rpc.tasks.list.liveOptions(),
     createTask: rpc.tasks.create.mutationOptions(),
   };
 }

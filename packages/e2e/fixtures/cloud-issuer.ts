@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
-import { buildFunctionBundle } from "@neon/config-runtime/v1";
+import { buildNeonFunctionBundle } from "kello/tooling";
 import { createKelloNeonApi } from "kello/tooling";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
@@ -20,14 +20,7 @@ export async function createCloudIssuer(root: string, projectId: string, branchI
     source,
     `export default { fetch(request) { return new URL(request.url).pathname === "/jwks" ? Response.json(${JSON.stringify(jwks)}) : new Response("Not found", { status: 404 }); } };`,
   );
-  const bundle = await buildFunctionBundle({
-    slug,
-    name: "Acceptance public keys",
-    source,
-    env: {},
-    runtime: "nodejs24",
-    bundler: "esbuild",
-  });
+  const bundle = await buildNeonFunctionBundle(source);
   const deployment = await api.deployBranchFunction(projectId, branchId, slug, {
     bundle,
     runtime: "nodejs24",

@@ -1,140 +1,40 @@
 ---
 title: React and subscriptions
-description: Use the generated native oRPC client with TanStack query, mutation and live options.
+description: Use HTTP for ordinary calls and Neon Realtime for declared live SQL.
 ---
 
-## Connect through a provider
+## Connect once per login
 
-For normal React applications, follow [React clients](/clients/react). The Kello provider manages token changes, connection disposal, and identity-scoped cache namespaces. [Suspense](/clients/suspense) and [SSR](/clients/ssr) are separate choices.
+Follow [React clients](/clients/react) and import the generated React entry to receive both native `rpc` options and the typed live `api`. The provider verifies credentials, replaces connections when the login changes, and disposes private state on logout. Manually managed connections need the same ownership: clear their QueryClient and dispose the connection before switching identities. Never put tokens in query keys.
 
-## Advanced: manage a connection yourself
+## Declare live SQL explicitly
 
-Kello generates the authenticated oRPC client factory. TanStack owns the cache and React hooks. Keep these objects stable for one signed-in identity.
+Declare a row-array output with `.live()` in `kello/contracts/`, then implement it with a synchronous `.live(({ context, input }) => selectBuilder)` in `kello/functions/`. See the complete [live SQL example](/authoring/functions#live-sql-procedures).
 
-```tsx
-import { createTanstackQueryUtils } from "@orpc/tanstack-query";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createClient } from "../kello/_generated/api";
-
-const connection = createClient({ url, getToken });
-const rpc = createTanstackQueryUtils(connection.client);
-const queryClient = new QueryClient();
-
-<QueryClientProvider client={queryClient}>
-  <App />
-</QueryClientProvider>;
-```
-
-`getToken` must return credentials only for this connection's identity. When switching users or tenants, unmount the old subtree, clear its QueryClient and dispose its connection. Create fresh instances for the new identity. Do not share a QueryClient across identities or server-rendered requests. Tokens never belong in query keys.
-
-```ts
-queryClient.clear();
-connection.dispose();
-```
-
-## Use native options
-
-The following examples assume your application declares `users.user` and `users.update` contracts. See [procedures](/authoring/functions) for contract and handler definitions.
+The handler returns a typed Drizzle SELECT without executing it. Use explicit aliases and supported flat scalar projections. Include tenant, issuer, subject and current membership predicates in SQL. Middleware runs when issuing or renewing; it is not executed by the Neon proxy for every changed row. A trusted server login resolver supplies the actual session generation and expiry.
 
 ```tsx
-import { useQuery, useMutation } from "@tanstack/react-query";
-
-const user = useQuery(
-  rpc.users.user.queryOptions({
-    input: { id },
-    enabled: !!id,
-    select: (user) => user.name,
-  }),
-);
-
-const update = useMutation(rpc.users.update.mutationOptions({ onSuccess: (user) => console.log(user) }));
-update.mutate({ id, name: "Ada" });
+const { api, rpc } = useKello();
+const tasks = api.tasks.list.useLiveQuery({ projectId });
+const update = useMutation(rpc.tasks.setDone.mutationOptions());
 ```
 
-These are oRPC's own utilities. Inputs, outputs, selectors and callbacks retain their native types. Caller options override native defaults, including custom keys and functions where upstream allows them. Kello uses native options and the TanStack cache. Its provider assigns an identity-scoped cache namespace. If you manage connections manually, you must also manage their cache lifetime; application-specific invalidation remains your responsibility.
+This assumes the task contracts from `packages/examples/tasks`. Use `tasks.isPending` for initial loading, `tasks.failed` for issuance failures, and `tasks.status` for connecting/live/stale/closed/error. `tasks.refetch()` replaces the subscription. The official Neon SDK owns delivery and renewal; Kello does not fall back to polling.
 
-## Declare subscriptions explicitly
-
-A streaming contract uses `eventIterator`. Zod and Valibot both work through Standard Schema; this declaration uses Valibot.
-
-```ts
-// kello/contracts/tasks.ts
-import { defineContract, oc, eventIterator } from "kello/contract";
-import * as v from "valibot";
-
-export default defineContract({
-  titles: oc.output(eventIterator(v.array(v.string()))),
-});
-```
-
-```ts
-// kello/functions/tasks.ts
-import { os } from "../_generated/rpc";
-
-export default os.tasks.router({
-  titles: os.tasks.titles.handler(({ context }) =>
-    context.live(async ({ db, identity }) => {
-      if (!identity) throw new Error("Authentication required");
-      const rows = await db.query.tasks.findMany({
-        columns: { title: true },
-        where: { ownerId: identity.subject, ownerIssuer: identity.issuer },
-        orderBy: { _createdAt: "asc", _id: "asc" },
-        limit: 100,
-      });
-      return rows.map((row) => row.title);
-    }),
-  ),
-});
-```
-
-Apply the application's ownership filters to its reads. `context.live` reruns the handler and middleware for each authorized snapshot, then runs the callback with fresh database context. Streaming handlers and middleware must be safe to reevaluate. A read-only SQL transaction does not make emails or other external effects repeatable.
-
-```tsx
-const titles = useQuery(rpc.tasks.titles.liveOptions({ enabled: true }));
-```
-
-Kello does not synthesize a `.live` route or convert finite outputs into streams. Native contracts validate every event. Matching observers share a cached stream; removing the last observer cancels it. Use `isPending` for initial loading. A live query can remain fetching while receiving updates, so `isFetching` is not a connection-health indicator.
-
-## Server rendering
-
-See [SSR and hydration](/clients/ssr) for request-scoped prefetch and matching live-cache hydration. A browser-only page needs neither a snapshot request nor a server auth helper.
+Changing input or login creates a different subscription. Keep live rows out of ordinary TanStack Query hydration and do not use a cached finite response as evidence of installed transaction progress. SSR can prefetch a separate finite contract.
 
 ## Optimistic updates and retries
 
-The cache-edit example uses the contracts in `packages/examples/tasks`: `list` accepts `projectId`, and `setDone` accepts `id` and `done`.
+Render pending mutation variables over the last installed rows, or use TanStack cache edits for ordinary finite queries. Kello does not prove arbitrary Query-cache provenance or reconcile overlapping application intents automatically.
 
-Use TanStack's native mutation callbacks or render pending mutation variables over the latest server data. For a cache edit, cancel the affected query before changing it, retain rollback data, and invalidate after settlement. Overlapping writes require application-specific reconciliation; a whole-cache rollback can overwrite another write.
+For a write explicitly returning a scoped `runNeonMutation` receipt, `await tasks.confirm(receipt, timeoutMs)` reports `confirmed` only after that subscription has installed the transaction's progress. Confirmation does not mean the changed row matches the query or that its value remains unchanged. Timeout, disconnection, disposal and scope mismatch mean `unknown`, not rollback. An ordinary mutation result has no such receipt by default.
 
-```ts
-const live = rpc.tasks.list.liveOptions({ input: { projectId } });
-const options = rpc.tasks.setDone.mutationOptions({
-  onMutate: async (input) => {
-    await queryClient.cancelQueries({ queryKey: live.queryKey });
-    const previous = queryClient.getQueryData(live.queryKey);
-    queryClient.setQueryData(live.queryKey, (rows) =>
-      rows?.map((row) => (row._id === input.id ? { ...row, done: input.done } : row)),
-    );
-    return { previous };
-  },
-  onError: (_error, _input, rollback) => {
-    if (rollback) queryClient.setQueryData(live.queryKey, rollback.previous);
-  },
-  onSettled: () => {
-    // A live query stays active until cancellation; do not await its completion.
-    void queryClient.invalidateQueries({ queryKey: live.queryKey });
-  },
-});
-```
+Mutations do not retry automatically. Reuse one idempotency key only when retrying the same logical write; a new write needs a new key. External effects need their own idempotency policy. Guard callbacks against login changes.
 
-Mutations do not retry by default. Connection recovery does not replay an uncertain write. If you explicitly retry a logical write, reuse a UUID in `context.idempotencyKey` for those attempts only; generate a new UUID for the next logical write. Native mutation options do not create a durable intent identifier for you. External providers need their own idempotency guarantees. Cache callbacks remain application code: guard them against identity changes and distinguish callback failures from failed server writes.
+## Ordinary streaming is separate
 
-## Change detection
+User-authored `eventIterator` procedures stream through HTTP with cancellation and iterator finalization. They run for that invocation; they are not automatically reevaluated and do not acquire Neon confirmation semantics. There is no Kello ticket or application WebSocket transport.
 
-Committed database revisions wake a restricted PostgreSQL listener in notification mode. Revisions remain durable truth; reconnect reconciliation covers missed notifications. The coordinator bounds reevaluation concurrency and keeps one unread snapshot per subscription. Polling mode uses the configured interval.
+## Alpha migration
 
-Notifications do not contain user data or replace authorization. Every reevaluation reruns authorization in a fresh read-only transaction. See [operating limits](/operations/limits) for acceptance evidence and resource bounds.
-
-## References and next steps
-
-- [Native query and live options](https://orpc.dev/docs/integrations/tanstack-query)
-- [TanStack optimistic updates](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates)
+Remove `context.live`, generated search `watch`/`liveSearch`, polling/notify configuration and custom socket clients. Use `.live()` for a supported SELECT or keep a finite procedure and refetch explicitly. The normal metadata migration removes framework revision objects while preserving application data and applied migration hashes. No legacy backend compatibility mode is retained.

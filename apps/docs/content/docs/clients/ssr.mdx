@@ -30,7 +30,7 @@ Pass the resulting `hydration` only to the matching browser provider. It contain
 
 ## Finite and live data
 
-Do not await an endless live stream in a server loader. Prefetch a finite endpoint when you need server HTML. On the client, subscribe once to the streaming endpoint. Finite and live endpoints have separate native cache keys unless you deliberately seed a compatible key.
+Do not issue a Neon subscription in a server loader. Prefetch a finite endpoint when you need server HTML. On the client, subscribe once to the declared live query. Live capabilities and rows stay outside ordinary Query hydration; a finite SSR result does not certify live transaction progress.
 
 The examples render finite SSR notes as fallback content and start one live subscription in the browser. They do not run an additional finite notes hook there. The root routes demonstrate this optional path; `/client` disables the private UI's SSR entirely.
 

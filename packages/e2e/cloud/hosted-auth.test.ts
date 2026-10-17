@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
 import pg from "pg";
 import { get } from "node:https";
-import { buildFunctionBundle } from "@neon/config-runtime/v1";
+import { buildNeonFunctionBundle } from "kello/tooling";
 import { createKelloNeonApi, bootstrapDatabase, inspectDeploymentTarget, defineConfig } from "kello/tooling";
 import { createRpcHttpTransport } from "kello/client";
 
@@ -76,14 +76,7 @@ export default {...service, async fetch(request) {
         LOOM_DATABASE_URL: address.href,
         NEON_AUTH_COOKIE_SECRET: crypto.randomUUID() + crypto.randomUUID(),
       };
-      const bundle = await buildFunctionBundle({
-        slug,
-        name: "Kello hosted auth acceptance",
-        source,
-        env: environment,
-        runtime: "nodejs24",
-        bundler: "esbuild",
-      });
+      const bundle = await buildNeonFunctionBundle(source);
       const deployment = await api.deployBranchFunction(projectId, branchId, slug, {
         bundle,
         runtime: "nodejs24",
