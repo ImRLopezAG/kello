@@ -19,6 +19,14 @@ export default auth.examples.router({
         .limit(50),
     );
   }),
+  watch: auth.examples.watch.live(({ context: { db, tables, user } }) =>
+    db
+      .select({ _id: tables.notes._id, text: tables.notes.text })
+      .from(tables.notes)
+      .where(and(eq(tables.notes.owner, user.subject), eq(tables.notes.issuer, user.issuer)))
+      .orderBy(desc(tables.notes._createdAt), desc(tables.notes._id))
+      .limit(50),
+  ),
   add: auth.examples.add.handler(async ({ input, context, errors }) => {
     const [note] = await context.db
       .insert(context.tables.notes)
@@ -27,15 +35,4 @@ export default auth.examples.router({
     if (!note) throw errors.REJECTED();
     return note;
   }),
-  watch: auth.examples.watch.handler(({ context }) =>
-    context.live(({ db, tables, identity }) => {
-      if (!identity) throw new Error("Authentication required");
-      return db
-        .select({ _id: tables.notes._id, text: tables.notes.text })
-        .from(tables.notes)
-        .where(and(eq(tables.notes.owner, identity.subject), eq(tables.notes.issuer, identity.issuer)))
-        .orderBy(desc(tables.notes._createdAt), desc(tables.notes._id))
-        .limit(50);
-    }),
-  ),
 });

@@ -1,4 +1,4 @@
-import { defineContract, oc, eventIterator } from "kello/contract";
+import { defineContract, oc } from "kello/contract";
 import { Schema } from "effect";
 import * as v from "valibot";
 import { z } from "zod";
@@ -13,5 +13,5 @@ export default defineContract({
   effectSchema: base.input(Schema.toStandardSchemaV1(Schema.Struct({ name: Schema.String }))).output(greeting),
   notes: base.output(z.array(note)),
   add: base.input(z.object({ text: z.string().trim().min(1).max(200) })).output(note),
-  watch: base.output(eventIterator(z.array(note))),
+  watch: base.output(v.array(v.object({ _id: v.pipe(v.string(), v.uuid()), text: v.string() }))).live(),
 });

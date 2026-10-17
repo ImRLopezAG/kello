@@ -150,3 +150,22 @@ test("persisted paused mutations cannot enter a new provider through hydration",
   expect(() => decodeHydration(encodeHydration(state), prefix)).toThrow();
   client.clear();
 });
+
+test("SSR provider cookies reach only the request-scoped connection and never hydration", async () => {
+  const cookie = "__Secure-neon-auth.session_token=opaque-provider-cookie";
+  const hydration = await withKelloServerSession(
+    (options) => {
+      expect(options.sessionCookie).toBe(cookie);
+      return {
+        dispose() {},
+        async verifySession() {
+          return { key: "verified-login", expiresAt: Date.now() / 1000 + 60 };
+        },
+      };
+    },
+    { url: "https://service.test", sessionCookie: cookie, getToken: async () => "access-token" },
+    async ({ dehydrate }) => dehydrate(),
+  );
+  expect(JSON.stringify(hydration)).not.toContain(cookie);
+  expect(JSON.stringify(hydration)).not.toContain("access-token");
+});

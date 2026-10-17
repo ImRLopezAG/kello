@@ -41,15 +41,14 @@ export default auth.examples.router({
     if (!note) throw errors.REJECTED();
     return note;
   }),
-  watch: auth.examples.watch.handler(({ context }) =>
-    context.live(({ db, tables, identity }) => {
-      if (!identity) throw new Error("Authentication required");
-      return db
-        .select({ _id: tables.notes._id, text: tables.notes.text })
-        .from(tables.notes)
-        .where(and(eq(tables.notes.owner, identity.subject), eq(tables.notes.issuer, identity.issuer)))
-        .orderBy(desc(tables.notes._createdAt), desc(tables.notes._id))
-        .limit(50);
-    }),
+  watch: auth.examples.watch.live(({ context }) =>
+    context.db
+      .select({ _id: context.tables.notes._id, text: context.tables.notes.text })
+      .from(context.tables.notes)
+      .where(
+        and(eq(context.tables.notes.owner, context.user.subject), eq(context.tables.notes.issuer, context.user.issuer)),
+      )
+      .orderBy(desc(context.tables.notes._createdAt), desc(context.tables.notes._id))
+      .limit(50),
   ),
 });

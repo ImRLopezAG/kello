@@ -1,28 +1,63 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as v from "valibot";
 import { createRoot } from "react-dom/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createKelloNeonReact } from "kello/react/neon";
-import { createClient, configuration } from "../kello/_generated/api";
+import { configuration } from "../kello/_generated/api";
+import { createClient } from "../kello/_generated/react";
 import { SignIn } from "./sign-in";
 import "./style.css";
 
-const authUrl = import.meta.env.VITE_NEON_AUTH_URL ?? configuration.authUrl;
 const serviceUrl = import.meta.env.VITE_LOOM_URL ?? configuration.serviceUrl;
-const kello = authUrl ? createKelloNeonReact(createClient, { authUrl }) : undefined;
+const kello = serviceUrl ? createKelloNeonReact(createClient, { serviceUrl }) : undefined;
+
+type Connection = ReturnType<NonNullable<typeof kello>["useKello"]>;
+type Entries = readonly { readonly _id: string; readonly text: string }[];
+
+function EntryList({ entries, status }: { entries: Entries | undefined; status: string }) {
+  return (
+    <>
+      <p role="status">{status}</p>
+      {!entries && <p>Loading entries…</p>}
+      {entries?.length === 0 && <p>No entries yet. Save your first thought above.</p>}
+      <ul>
+        {entries?.map((entry) => (
+          <li key={entry._id}>{entry.text}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** Mounted only while live; unmounting disposes the Neon subscription. */
+function LiveEntries({ api, onRows }: { api: Connection["api"]; onRows: (rows: Entries) => void }) {
+  const live = api.journal.watch.useLiveQuery();
+  useEffect(() => {
+    if (live.data) onRows(live.data);
+  }, [live.data, onRows]);
+  return (
+    <EntryList
+      entries={live.data}
+      status={
+        live.status === "error" || live.status === "closed"
+          ? "Live updates unavailable."
+          : live.isPending
+            ? "Connecting live updates…"
+            : "Live updates active."
+      }
+    />
+  );
+}
 
 function Journal({ bindings }: { bindings: NonNullable<typeof kello> }) {
-  const { rpc } = bindings.useKello();
+  const { rpc, api } = bindings.useKello();
   const cache = useQueryClient();
   const [paused, setPaused] = useState(false);
   const [message, setMessage] = useState("");
   const snapshotOptions = rpc.journal.list.queryOptions();
-  const liveOptions = rpc.journal.watch.liveOptions({ enabled: !paused });
-  const snapshot = useQuery(snapshotOptions);
-  const live = useQuery(liveOptions);
+  const snapshot = useQuery({ ...snapshotOptions, enabled: paused });
   const add = useMutation(rpc.journal.add.mutationOptions());
-  const entries = paused ? snapshot.data : (live.data ?? snapshot.data);
-  const error = paused ? snapshot.error : (live.error ?? snapshot.error);
+  const latest = useRef<Entries | undefined>(undefined);
   return (
     <main>
       <header>
@@ -66,37 +101,25 @@ function Journal({ bindings }: { bindings: NonNullable<typeof kello> }) {
       {message && <p role="alert">{message}</p>}
       <section aria-label="Recent entries">
         <h2>Recent entries</h2>
-        <p role="status">
-          {paused
-            ? "Live updates paused."
-            : live.isError
-              ? "Live updates unavailable."
-              : live.isPending
-                ? "Connecting live updates…"
-                : "Live updates active."}
-        </p>
+        {paused ? (
+          <EntryList entries={snapshot.data} status="Live updates paused." />
+        ) : (
+          <LiveEntries
+            api={api}
+            onRows={(rows) => {
+              latest.current = rows;
+            }}
+          />
+        )}
         <button
-          onClick={async () => {
-            if (paused) {
-              await cache.invalidateQueries({ queryKey: liveOptions.queryKey });
-              setPaused(false);
-              return;
-            }
-            if (live.data) cache.setQueryData(snapshotOptions.queryKey, live.data);
-            setPaused(true);
-            await cache.cancelQueries({ queryKey: liveOptions.queryKey });
+          onClick={() => {
+            if (!paused && latest.current) cache.setQueryData(snapshotOptions.queryKey, [...latest.current]);
+            setPaused(!paused);
           }}
         >
           {paused ? "Resume live updates" : "Pause live updates"}
         </button>
-        {error && <p role="alert">{error.message}</p>}
-        {!entries && !error && <p>Loading entries…</p>}
-        {entries?.length === 0 && <p>No entries yet. Save your first thought above.</p>}
-        <ul>
-          {entries?.map((entry) => (
-            <li key={entry._id}>{entry.text}</li>
-          ))}
-        </ul>
+        {snapshot.error && <p role="alert">{snapshot.error.message}</p>}
         <small>Showing up to 50 recent entries.</small>
       </section>
     </main>
@@ -108,7 +131,7 @@ function App() {
     return (
       <main>
         <h1>Connect your journal</h1>
-        <p>Run kello link and deploy, then set VITE_LOOM_URL and VITE_NEON_AUTH_URL.</p>
+        <p>Run kello link and deploy, then set VITE_LOOM_URL.</p>
       </main>
     );
   return (

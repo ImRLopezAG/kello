@@ -15,7 +15,6 @@ export const query = rpc.examples.greeting.queryOptions({
   enabled: false,
   select: (data) => data.message,
 });
-export const live = rpc.examples.watch.liveOptions();
 export const mutation = rpc.examples.add.mutationOptions();
 // @ts-expect-error The local contract requires a string.
 rpc.examples.greeting.queryOptions({ input: { name: 1 } });
@@ -23,3 +22,11 @@ rpc.examples.greeting.queryOptions({ input: { name: 1 } });
 rpc.examples.notes.queryOptions({ select: (notes) => notes[0]?.text.toFixed() });
 // @ts-expect-error Server mutation input is also inferred.
 void server.client.examples.add({ text: 42 });
+
+export function useTypedLive() {
+  const { api } = useKello();
+  const rows: readonly { _id: string; text: string }[] | undefined = api.examples.watch.useLiveQuery().data;
+  // @ts-expect-error A live capability must not enter the ordinary query cache.
+  rpc.examples.watch.queryOptions();
+  return rows;
+}

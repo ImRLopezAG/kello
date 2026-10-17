@@ -1,11 +1,11 @@
 "use client";
 import { Suspense, useState } from "react";
-import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { KelloProvider, useKello, auth, serviceUrl } from "../lib/kello";
 import type { KelloHydration } from "kello/client";
 import type { Notes } from "../lib/kello";
 import * as v from "valibot";
-export function NoteList({ notes }: { notes: Notes }) {
+export function NoteList({ notes }: { notes: Readonly<Notes> }) {
   return (
     <ul aria-label="Latest 50 notes">
       {notes.map((note) => (
@@ -30,16 +30,22 @@ export function NotesPanel({ initialNotes = [], hydration }: { initialNotes?: No
   );
 }
 function ConnectedNotes() {
-  const { rpc } = useKello();
+  const { rpc, api } = useKello();
   const [signOutFailed, setSignOutFailed] = useState(false);
   const greeting = useQuery(rpc.examples.greeting.queryOptions({ input: { name: "TanStack Start" } }));
-  const live = useSuspenseQuery(rpc.examples.watch.liveOptions());
+  const live = api.examples.watch.useLiveQuery();
   const save = useMutation(rpc.examples.add.mutationOptions());
   return (
     <section>
       {greeting.data && <p>Signed in as {greeting.data.owner}</p>}
-      <p role="status">{live.isError ? "Live connection unavailable" : "Live updates connected"}</p>
-      <NoteList notes={live.data} />
+      <p role="status">
+        {live.status === "error" || live.status === "closed"
+          ? "Live connection unavailable"
+          : live.isPending
+            ? "Connecting live updates…"
+            : "Live updates connected"}
+      </p>
+      <NoteList notes={live.data ?? []} />
       <form
         onSubmit={(event) => {
           event.preventDefault();

@@ -88,7 +88,10 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
     ? { branchId: options.branchId!, key: (options.environment ?? process.env).LOOM_SEARCH_CURSOR_KEY! }
     : undefined;
   let application = options.application
-    ? await prepareApplicationEnvironment(options.application, options.environment ?? process.env)
+    ? await prepareApplicationEnvironment(options.application, options.environment ?? process.env, {
+        database: decodeURIComponent(new URL(options.connectionString).pathname.slice(1)),
+        deployment: options.deployment,
+      })
     : undefined;
   const config = v.parse(runtimeConfigValidator, options.config ?? {});
   const auth = createRpcAuthentication(config.auth, options.auth);

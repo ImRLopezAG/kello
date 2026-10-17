@@ -1,8 +1,10 @@
+import { createNeonLoginResolver } from "kello/neon";
 import { defineApplication } from "kello/server";
 import { Context } from "effect";
 import { z } from "zod";
 import { Greeting } from "./services";
 export default defineApplication({
+  liveQueries: ({ realtime }) => ({ ...realtime, resolveLogin: createNeonLoginResolver() }),
   env: { APP_ORIGINS: z.string().default("http://localhost:3000"), GREETING_PREFIX: z.string().default("Hello") },
   rpc: ({ os }) => ({
     os,

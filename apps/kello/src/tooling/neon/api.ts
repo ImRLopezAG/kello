@@ -134,6 +134,8 @@ export interface RealtimeProvider {
   hasCompute(projectId: string, branchId: string): Promise<boolean>;
   /** Resolves when ready or when the bounded wait expires; callers re-read state before reporting. */
   enable(input: RealtimeEnableInput): Promise<void>;
+  /** Server-only signing secret. Never persist, log, or place in public configuration. */
+  secret(projectId: string, branchId: string): Promise<string>;
 }
 interface Branch {
   projectId: string;
@@ -151,6 +153,7 @@ interface RealtimeClient {
       params: Branch & { allowed_origins?: string[] },
       options: { waitForReadiness: boolean; wait: { timeoutMs: number } },
     ): Promise<void>;
+    secret(params: Branch): Promise<{ secret: string; pending: boolean }>;
   };
   postgres: { endpoints: { listByBranch(params: Branch): Promise<readonly unknown[]> } };
 }
@@ -210,6 +213,17 @@ export function createRealtimeProvider(client: RealtimeClient = createKelloNeonC
           return;
         throw realtimeFailure(cause);
       }
+    },
+    secret: async (projectId, branchId) => {
+      let state;
+      try {
+        state = await client.realtime.secret({ projectId, branchId });
+      } catch (cause) {
+        throw realtimeFailure(cause);
+      }
+      // A pending rotation has not yet published the replacement secret.
+      if (state.pending) throw new RealtimeError("REALTIME_PROVIDER_FAILED", "Neon Realtime secret is still rotating.");
+      return state.secret;
     },
   };
 }

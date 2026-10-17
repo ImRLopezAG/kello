@@ -174,6 +174,7 @@ function createHttpIngress(
       if (origin) {
         headers.set("access-control-allow-origin", origin);
         headers.set("access-control-expose-headers", "Retry-After");
+        if (options.resolveLogin) headers.set("access-control-allow-credentials", "true");
       }
       if (request.method === "OPTIONS") {
         const requested = (request.headers.get("access-control-request-headers") ?? "")
@@ -221,7 +222,10 @@ function createHttpIngress(
           constrainInvocationDeadline(sessionSignal, monotonic + remaining);
           signal = composeInvocationSignals([signal, sessionSignal]);
           try {
-            login = await abortable(resolveTrustedLogin(options.resolveLogin, token, session, signal), signal);
+            login = await abortable(
+              resolveTrustedLogin(options.resolveLogin, token, session, signal, request.headers),
+              signal,
+            );
           } catch {
             signal.throwIfAborted();
             return fail("UNAUTHORIZED", 401);
@@ -236,7 +240,7 @@ function createHttpIngress(
         } else if (!options.allowAnonymous || ticket || sessionRequest) return fail("UNAUTHORIZED", 401);
         signal.throwIfAborted();
         if (sessionRequest) {
-          if (!session) return fail("UNAUTHORIZED", 401);
+          if (!session || (options.liveQueries && !login)) return fail("UNAUTHORIZED", 401);
           const key = createHash("sha256")
             .update(
               JSON.stringify([

@@ -11,6 +11,7 @@ export interface SessionConnection {
 }
 /** Options supplied by a provider or SSR scope to the generated client factory. cachePrefix isolates native query keys for that identity epoch. */
 export interface SessionClientOptions {
+  readonly sessionCookie?: string | undefined;
   readonly url: string;
   readonly cachePrefix: string;
   readonly getToken: () => Promise<string | null>;

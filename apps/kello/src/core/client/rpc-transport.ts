@@ -18,6 +18,10 @@ export interface RpcCallContext extends OperationContext {
 export interface RpcTransportOptions {
   readonly url: string;
   readonly version: string;
+  /** Generated live clients send the provider session cookie alongside the verified bearer token. */
+  readonly credentials?: RequestInit["credentials"];
+  /** Server-only provider cookie forwarding for request-scoped SSR. Never dehydrate. */
+  readonly sessionCookie?: string | undefined;
   /** Native oRPC cache namespace, assigned by the Kello provider for each identity epoch. */
   readonly cachePrefix?: string;
   /** Return credentials only for this session's identity; return null after an identity change. */

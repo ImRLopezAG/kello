@@ -115,14 +115,14 @@ export function applicationClientArtifacts(
   });
   const live = project.procedures.flatMap((entry) => {
     const rows = entry.visibility === "public" ? liveQueryRows(entry.definition) : undefined;
-    return rows ? [{ path: entry.path, rows: liveRowsSource(rows) }] : [];
+    return rows ? [{ path: entry.path, vendor: rows["~standard"].vendor, rows: liveRowsSource(rows) }] : [];
   });
   const livePaths = JSON.stringify(live.map(({ path }) => path));
   const plugin = search.length
     ? `, plugins: [createSearchQueryPlugin(${JSON.stringify(search)}.map(({ path, node }) => createSearchDataGuard(path, node)))]`
     : "";
   const files: ClientArtifactFiles = {
-    "api.js": `import { createORPCClient, createRpcTransport, createRpcHttpTransport } from "kello/client";
+    "api.js": `import { createORPCClient, createRpcHttpTransport } from "kello/client";
 import { createTanstackQueryUtils } from "kello/client";
 ${live.length ? 'import { createNeonLiveClient } from "kello/client";' : ""}
 ${search.length ? 'import { createSearchQueryPlugin, createSearchDataGuard } from "kello/client";' : ""}
@@ -145,24 +145,23 @@ function queryUtils(link, options) {
 export function createServerClient(options) {
   const url = options.url ?? configuration.serviceUrl;
   if (!url) throw new Error("Kello service URL is missing. Deploy or pass url explicitly.");
-  const transport = createRpcHttpTransport({ ...options, url, version });
+  const transport = createRpcHttpTransport({ ${live.length ? 'credentials: "include", ' : ""}...options, url, version });
   const client = createORPCClient(transport.link);
   return Object.freeze({ ...transport, client, rpc: ${live.length ? "queryUtils(transport.link, options)" : `createTanstackQueryUtils(client, { prefix: options.cachePrefix${plugin} })`} });
 }
 export function createClient(options) {
   const url = options.url ?? configuration.serviceUrl;
   if (!url) throw new Error("Kello service URL is missing. Deploy or pass url explicitly.");
-  ${live.length ? `if (!options.realtimeUrl) throw new Error("Neon Realtime URL is missing");` : ""}
-  const transport = createRpcTransport({ ...options, url, version });
   ${
     live.length
-      ? `
-  const http = createRpcHttpTransport({ ...options, url, version });
-  const live = createNeonLiveClient({ url: options.realtimeUrl });
-  const link = { async call(path, input, callOptions) { return (isLive(path) ? http.link : transport.link).call(path, input, callOptions); } };
-  const client = createORPCClient(link);
-  return Object.freeze({ ...http, client, live, rpc: queryUtils(link, options), dispose() { live.dispose(); http.dispose(); transport.dispose(); } });`
-      : `const client = createORPCClient(transport.link);
+      ? `const realtimeUrl = options.realtimeUrl ?? configuration.realtimeUrl;
+  if (!realtimeUrl) throw new Error("Neon Realtime URL is missing. Deploy with Realtime enabled or pass realtimeUrl explicitly.");
+  const transport = createRpcHttpTransport({ credentials: "include", ...options, url, version });
+  const live = createNeonLiveClient({ url: realtimeUrl });
+  const client = createORPCClient(transport.link);
+  return Object.freeze({ ...transport, client, live, rpc: queryUtils(transport.link, options), dispose() { live.dispose(); transport.dispose(); } });`
+      : `const transport = createRpcHttpTransport({ ...options, url, version });
+  const client = createORPCClient(transport.link);
   return Object.freeze({ ...transport, client, rpc: createTanstackQueryUtils(client, { prefix: options.cachePrefix${plugin} }) });`
   }
 }
@@ -171,22 +170,23 @@ export function createClient(options) {
 import type { PublicComponents } from ${JSON.stringify(relative(directory, `${project.backend}/_generated/components`).replaceAll("\\", "/"))};
 import type { SearchRouterClient, SearchRouterUtils } from "kello/client";
 import type { RouterContractClient } from "kello/contract";
-import type { RpcCallContext, RpcTransportOptions, createRpcTransport } from "kello/client";
+import type { RpcCallContext, RpcTransportOptions, createRpcHttpTransport } from "kello/client";
 ${live.length ? 'import type { OrdinaryLiveRouter, createNeonLiveClient } from "kello/client";' : ""}
 export type PublicContract = Omit<typeof contract, "internal"> & PublicComponents;
 type NativeClient = RouterContractClient<PublicContract, RpcCallContext>;
 export type Client = SearchRouterClient<NativeClient>;
 export declare const configuration: Readonly<{ serviceUrl?: string; authUrl?: string; dataApiUrl?: string; realtimeUrl?: string }>;
 export declare const version: ${JSON.stringify(project.version)};
-export declare function createServerClient(options: Omit<RpcTransportOptions, "version" | "url"> & { readonly url?: string }): ReturnType<typeof createRpcTransport> & { readonly client: Client; readonly rpc: SearchRouterUtils<${live.length ? "OrdinaryLiveRouter<NativeClient>" : "NativeClient"}> };
-export declare function createClient(options: Omit<RpcTransportOptions, "version" | "url"> & { readonly url?: string${live.length ? "; readonly realtimeUrl: string" : ""} }): ReturnType<typeof createRpcTransport> & { readonly client: Client; readonly rpc: SearchRouterUtils<${live.length ? "OrdinaryLiveRouter<NativeClient>" : "NativeClient"}>${live.length ? "; readonly live: ReturnType<typeof createNeonLiveClient>" : ""} };
+export declare function createServerClient(options: Omit<RpcTransportOptions, "version" | "url"> & { readonly url?: string }): ReturnType<typeof createRpcHttpTransport> & { readonly client: Client; readonly rpc: SearchRouterUtils<${live.length ? "OrdinaryLiveRouter<NativeClient>" : "NativeClient"}> };
+export declare function createClient(options: Omit<RpcTransportOptions, "version" | "url"> & { readonly url?: string${live.length ? "; readonly realtimeUrl?: string" : ""} }): ReturnType<typeof createRpcHttpTransport> & { readonly client: Client; readonly rpc: SearchRouterUtils<${live.length ? "OrdinaryLiveRouter<NativeClient>" : "NativeClient"}>${live.length ? "; readonly live: ReturnType<typeof createNeonLiveClient>" : ""} };
 `,
   };
   if (live.length) {
     files["react.js"] = `"use client";
 import { createClient as createBaseClient } from "./api.js";
 import { createLiveQueryHooks } from "kello/react";
-import * as v from "valibot";
+${live.some(({ vendor }) => vendor === "valibot") ? 'import * as v from "valibot";' : ""}
+${live.some(({ vendor }) => vendor === "zod") ? 'import { z } from "zod";' : ""}
 const declarations = [${live.map(({ path, rows }) => `{ path: ${JSON.stringify(path)}, rows: ${rows} }`).join(",")}];
 export function createClient(options) {
   const connection = createBaseClient(options);

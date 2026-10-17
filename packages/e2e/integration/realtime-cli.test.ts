@@ -16,6 +16,7 @@ import {
 } from "kello/tooling";
 
 import { realtimeStatusCommand } from "../../../apps/kello/src/commands/realtime";
+import { resolveRealtimeEnvironment } from "../../../apps/kello/src/tooling/deploy/neon/environment";
 
 const canary = "nrt_live_1_secret-canary";
 const origins = ["https://app.example.test"];
@@ -49,6 +50,7 @@ function realtime(states: { enabled: boolean; pending: boolean }[], compute = tr
     enable: async (input) => {
       calls.enable.push(input);
     },
+    secret: async () => canary,
   };
   return { provider, calls };
 }
@@ -189,13 +191,14 @@ test("provider failures become fixed errors without provider text", async () => 
     throw Object.assign(new Error(`provider said ${canary}`), { kind, status: kind === "auth" ? 403 : 500 });
   };
   const client = {
-    realtime: { get: fail("auth"), enable: fail("api") },
+    realtime: { get: fail("auth"), enable: fail("api"), secret: fail("auth") },
     postgres: { endpoints: { listByBranch: fail("auth") } },
   };
   const provider = createRealtimeProvider(client);
   for (const [run, code] of [
     [() => provider.get("project-test", "br-test"), "REALTIME_DENIED"],
     [() => provider.hasCompute("project-test", "br-test"), "REALTIME_DENIED"],
+    [() => provider.secret("project-test", "br-test"), "REALTIME_DENIED"],
     [
       () => provider.enable({ projectId: "project-test", branchId: "br-test", allowedOrigins: origins, timeoutMs: 1 }),
       "REALTIME_PROVIDER_FAILED",
@@ -463,6 +466,7 @@ test("SDK wait timeout resolves for reread while request timeout remains a fixed
     const provider = createRealtimeProvider({
       realtime: {
         get: async () => ({ enabled: false, pending: false }),
+        secret: async () => ({ secret: canary, pending: false }),
         enable: async (_params, options) => {
           expect(options).toEqual({ waitForReadiness: true, wait: { timeoutMs: 123 } });
           throw cause;
@@ -483,4 +487,39 @@ test("SDK wait timeout resolves for reread while request timeout remains a fixed
         message: "Neon Realtime request failed. Check `kello realtime status` before retrying.",
       });
   }
+});
+
+test("live deployments fresh-check Realtime and route the SDK secret only through managed variables", async () => {
+  const target = { projectId: "project-test", branchId: "br-test" };
+  expect(
+    await resolveRealtimeEnvironment(false, target, realtime([{ enabled: false, pending: false }]).provider),
+  ).toEqual({});
+  for (const state of [
+    { enabled: false, pending: false },
+    { enabled: true, pending: true },
+  ])
+    await assert.rejects(
+      resolveRealtimeEnvironment(true, target, realtime([state]).provider),
+      /Realtime is not ready on the selected branch/,
+    );
+  const ready = realtime([{ enabled: true, pending: false }]);
+  expect(await resolveRealtimeEnvironment(true, target, ready.provider)).toEqual({ LOOM_REALTIME_SECRET: canary });
+  await assert.rejects(
+    resolveRealtimeEnvironment(true, target, { ...ready.provider, secret: async () => "" }),
+    /Neon Realtime secret is unavailable/,
+  );
+  const reads: unknown[] = [];
+  const provider = createRealtimeProvider({
+    realtime: {
+      get: async () => ({ enabled: true, pending: false, invocation_url: "https://realtime.example.test" }),
+      enable: async () => {},
+      secret: async (params) => {
+        reads.push(params);
+        return { secret: canary, pending: false };
+      },
+    },
+    postgres: { endpoints: { listByBranch: async () => [] } },
+  });
+  expect(await provider.secret("project-test", "br-test")).toBe(canary);
+  expect(reads).toEqual([{ projectId: "project-test", branchId: "br-test" }]);
 });

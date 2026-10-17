@@ -1,5 +1,11 @@
+import { forwardNeonRpcRequest } from "../server/auth/neon-rpc";
 import { getRequest, setCookie, setResponseHeader } from "@tanstack/react-start/server";
-import { createAuthServer, handleAuthProxyRequest, resolveNeonAuthLogging } from "@neondatabase/auth/server";
+import {
+  createAuthServer,
+  handleAuthProxyRequest,
+  resolveNeonAuthLogging,
+  extractNeonAuthCookies,
+} from "@neondatabase/auth/server";
 import type { NeonAuthConfig } from "@neondatabase/auth/server";
 import { withKelloServerSession } from "../client/server-session";
 import type { SessionClientOptions, SessionConnection } from "../client/auth-lifecycle";
@@ -13,6 +19,9 @@ export function createKelloNeonStart<T extends SessionConnection>(
 ) {
   const configuration = () => options.auth?.() ?? neonServerEnvironment().auth;
   return {
+    rpc(this: void, request: Request) {
+      return forwardNeonRpcRequest(request, options.url?.() ?? neonServerEnvironment().url);
+    },
     async handler(this: void, request: Request) {
       const path = new URL(request.url).pathname;
       if (!path.startsWith("/api/auth/")) return new Response(null, { status: 404 });
@@ -46,6 +55,7 @@ export function createKelloNeonStart<T extends SessionConnection>(
           url: options.url?.() ?? neonServerEnvironment().url,
           signal: request.signal,
           getToken: () => neonServerToken(auth),
+          sessionCookie: extractNeonAuthCookies(request.headers),
         },
         run,
       );

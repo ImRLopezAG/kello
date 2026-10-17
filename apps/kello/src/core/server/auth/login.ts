@@ -17,6 +17,8 @@ export type TrustedLoginResolver = (input: {
   /** Server-only input for the configured store. Never retain or return it. */
   readonly credential: string;
   readonly signal: AbortSignal;
+  /** Original HTTP headers for provider-owned session cookies, never RPC input. */
+  readonly headers?: Headers | undefined;
 }) => Promise<TrustedLogin | undefined>;
 
 const identifier = v.pipe(v.string(), v.minLength(1), v.maxLength(1024));
@@ -51,11 +53,17 @@ export async function resolveTrustedLogin(
   credential: string,
   verified: VerifiedSession,
   signal: AbortSignal,
+  headers?: Headers,
 ): Promise<TrustedLogin | undefined> {
   signal.throwIfAborted();
   if (!resolver) return undefined;
   const captured = Object.freeze({ identity: Object.freeze({ ...verified.identity }), expiresAt: verified.expiresAt });
-  const login = await resolver({ verified: captured, credential, signal });
+  const login = await resolver({
+    verified: captured,
+    credential,
+    signal,
+    headers: headers ? new Headers(headers) : undefined,
+  });
   signal.throwIfAborted();
   return login === undefined ? undefined : captureTrustedLogin(captured, login, signal);
 }

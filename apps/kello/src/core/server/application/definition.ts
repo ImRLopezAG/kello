@@ -19,8 +19,12 @@ import type { ComponentHost } from "../components/graph";
 import type { LiveQueryTarget } from "../realtime/procedure";
 import type { TrustedLoginResolver } from "../auth/login";
 
+/** The Realtime signing secret is fetched by deployment from the selected branch
+ * and injected through a managed variable; applications never declare or copy it. */
+type ApplicationRealtime = LiveQueryTarget;
 type ApplicationLiveQueries<Env extends ApplicationEnvironment> = (context: {
   readonly env: ApplicationEnvironmentOutput<Env>;
+  readonly realtime: ApplicationRealtime;
 }) => LiveQueryTarget & { readonly resolveLogin: TrustedLoginResolver };
 
 interface LiveQueryDeclaration<Env extends ApplicationEnvironment> {
@@ -188,7 +192,10 @@ export interface ApplicationEnvironmentDefinition<
   Env extends ApplicationEnvironment = ApplicationEnvironment,
 > extends ComponentHost {
   readonly environmentSchema: Env;
-  liveQueries?(context: { readonly env: ApplicationEnvironmentOutput<Env> }): LiveQueryTarget & {
+  liveQueries?(context: {
+    readonly env: ApplicationEnvironmentOutput<Env>;
+    readonly realtime: ApplicationRealtime;
+  }): LiveQueryTarget & {
     readonly resolveLogin: TrustedLoginResolver;
   };
   readonly env: EnvironmentReferences<Env>;
@@ -214,12 +221,16 @@ export function createApplicationEnvironmentAccess<Env extends ApplicationEnviro
 export async function prepareApplicationEnvironment<Env extends ApplicationEnvironment>(
   app: ApplicationEnvironmentDefinition<Env>,
   source: Readonly<Record<string, string | undefined>>,
+  target?: Pick<LiveQueryTarget, "database" | "deployment">,
 ) {
   if (!applications.has(app)) throw new Error("Expected defineApplication's result");
   const graph = sealComponentGraph(app);
   const env = await parseApplicationEnvironment(app.environmentSchema, source);
   const components = await prepareComponentEnvironments(graph, env, source);
-  const liveQueries = app.liveQueries?.({ env });
+  // Without the deployment-managed secret, .live() issuance stays unconfigured and fails closed.
+  const secret = source.LOOM_REALTIME_SECRET;
+  if (secret && app.liveQueries && !target) throw new Error("Live queries require the runtime database and deployment binding");
+  const liveQueries = secret && target ? app.liveQueries?.({ env, realtime: Object.freeze({ ...target, secret }) }) : undefined;
   const live: PreparedLiveQueries = {};
   if (liveQueries) live.liveQueries = Object.freeze({ ...liveQueries });
   return Object.freeze({
