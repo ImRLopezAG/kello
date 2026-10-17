@@ -45,6 +45,16 @@ jobs:
             echo '::error::Publishing requires successful main push CI for this exact commit.'
             exit 1
           fi
+      - name: Require Neon acceptance for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_commit="$(git rev-parse HEAD)"
+          passed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cloud-acceptance.yml --commit "$release_commit" --event workflow_dispatch --limit 1 --json status,conclusion --jq '.[0] | .status == "completed" and .conclusion == "success"')"
+          if [ "$passed" != true ]; then
+            echo '::error::Publishing requires successful Neon backend acceptance for this exact commit.'
+            exit 1
+          fi
       - name: Require a reviewed alpha version and package identity
         run: |
           node --input-type=module <<'JS'
