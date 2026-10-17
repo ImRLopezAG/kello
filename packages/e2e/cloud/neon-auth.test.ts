@@ -19,13 +19,17 @@ import {
   generateProject,
   readNeonFunctionReceipt,
 } from "kello/tooling";
+import { startCloudFramework, verifyCloudFramework } from "../fixtures/cloud-framework";
 import { startCloudFrontend } from "../fixtures/cloud-frontend";
 import { verifyCloudSchemaExpansion } from "../fixtures/cloud-schema-expansion";
 
 test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
   "Neon Auth signs in the actual example against Neon Functions",
   async () => {
-    const example = v.parse(v.picklist(["tasks", "jobs-storage"]), process.env.LOOM_CLOUD_AUTH_EXAMPLE ?? "tasks");
+    const example = v.parse(
+      v.picklist(["tasks", "jobs-storage", "next", "start"]),
+      process.env.LOOM_CLOUD_AUTH_EXAMPLE ?? "tasks",
+    );
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
     const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
     const authUrl = process.env.VITE_NEON_AUTH_URL;
@@ -48,6 +52,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
     frontendUrl.hostname = "localhost";
     const previousOrigins = process.env.APP_ORIGINS;
     process.env.APP_ORIGINS = frontendUrl.origin;
+    let framework: Awaited<ReturnType<typeof startCloudFramework>> | undefined;
     let stage = "copy";
     let passed = false;
     const diagnostics: string[] = [];
@@ -55,7 +60,8 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
       const source = fileURLToPath(new URL(`../../examples/${example}/`, import.meta.url));
       await cp(source, root, {
         recursive: true,
-        filter: (path) => !["node_modules", "dist", "_generated", ".loom", ".turbo"].includes(basename(path)),
+        filter: (path) =>
+          !["node_modules", "dist", "_generated", ".loom", ".turbo", ".next", ".output"].includes(basename(path)),
       });
       await cp(join(source, "kello/migrations"), join(root, "kello/migrations"), {
         recursive: true,
@@ -127,6 +133,8 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
             VITE_LOOM_ACCEPTANCE: "0",
             VITE_NEON_AUTH_URL: authUrl,
             VITE_LOOM_URL: invocationUrl,
+            NEXT_PUBLIC_KELLO_SERVICE_URL: invocationUrl,
+            VITE_KELLO_SERVICE_URL: invocationUrl,
           },
           stdout: "ignore",
           stderr: "pipe",
@@ -135,83 +143,92 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
         assert.equal(await build.exited, 0);
       }
       await buildFrontend(url);
+      if (example === "next" || example === "start") {
+        await frontend.stop();
+        framework = await startCloudFramework(root, example, frontendUrl);
+      }
 
       stage = "browser signup";
-      const page = await browser.newPage();
-      const errors: string[] = [];
-      page.on("pageerror", (error) => errors.push(error.name));
-      page.on("response", (response) => {
-        if (response.status() >= 400) diagnostics.push(`${new URL(response.url()).pathname}: ${response.status()}`);
-      });
-      page.on("requestfailed", (request) => diagnostics.push(`${new URL(request.url()).pathname}: network failure`));
-      await page.goto(frontendUrl.href);
-      await page.getByRole("button", { name: "Create an account", exact: true }).click();
-      const email = `loom-${crypto.randomUUID()}@example.test`;
-      const userPassword = crypto.randomUUID();
-      async function signIn() {
-        {
-          const ready = page.getByLabel(example === "tasks" ? "Project name" : "Choose a file", { exact: true });
-          await page.getByLabel("Email", { exact: true }).or(ready).first().waitFor();
-          if (await ready.isVisible()) return;
+      let schemaExpansion: Awaited<ReturnType<typeof verifyCloudSchemaExpansion>>["evidence"] | undefined;
+      if (example === "next" || example === "start") {
+        stage = "direct Function auth, RPC and SDK browser delivery";
+        await verifyCloudFramework(browser, frontendUrl, url, diagnostics);
+      } else {
+        const page = await browser.newPage();
+        const errors: string[] = [];
+        page.on("pageerror", (error) => errors.push(error.name));
+        page.on("response", (response) => {
+          if (response.status() >= 400) diagnostics.push(`${new URL(response.url()).pathname}: ${response.status()}`);
+        });
+        page.on("requestfailed", (request) => diagnostics.push(`${new URL(request.url()).pathname}: network failure`));
+        await page.goto(frontendUrl.href);
+        await page.getByRole("button", { name: "Create an account", exact: true }).click();
+        const email = `loom-${crypto.randomUUID()}@example.test`;
+        const userPassword = crypto.randomUUID();
+        async function signIn() {
+          {
+            const ready = page.getByLabel(example === "tasks" ? "Project name" : "Choose a file", { exact: true });
+            await page.getByLabel("Email", { exact: true }).or(ready).first().waitFor();
+            if (await ready.isVisible()) return;
+          }
+          await page.getByLabel("Email", { exact: true }).fill(email);
+          await page.getByLabel("Password", { exact: true }).fill(userPassword);
+          await page.getByRole("button", { name: "Sign in", exact: true }).click();
         }
+        await page.getByLabel("Name", { exact: true }).fill("Neon acceptance");
         await page.getByLabel("Email", { exact: true }).fill(email);
         await page.getByLabel("Password", { exact: true }).fill(userPassword);
-        await page.getByRole("button", { name: "Sign in", exact: true }).click();
-      }
-      await page.getByLabel("Name", { exact: true }).fill("Neon acceptance");
-      await page.getByLabel("Email", { exact: true }).fill(email);
-      await page.getByLabel("Password", { exact: true }).fill(userPassword);
-      await page.getByRole("button", { name: "Create account", exact: true }).click();
-      await page
-        .getByLabel(example === "tasks" ? "Project name" : "Choose a file")
-        .waitFor()
-        .catch(async () => {
-          const alerts = await page.getByRole("alert").allTextContents();
-          diagnostics.push(
-            ...alerts.map((alert) => alert.replaceAll(email, "[email]").replaceAll(userPassword, "[password]")),
-          );
-          throw new Error("Signup did not establish a session");
-        });
-      if (example === "tasks") {
-        stage = "authenticated mutation and live query";
-        await page.getByLabel("Project name").fill("Neon Auth workspace");
-        await page.getByRole("button", { name: "Create project", exact: true }).click();
-        await page.getByLabel("Task title").fill("Real authenticated task");
-        await page.getByRole("button", { name: "Add task", exact: true }).click();
-        await page.getByRole("checkbox", { name: "Real authenticated task" }).waitFor();
-      } else {
-        stage = "provider uploads, events and durable processing";
-        await verifyCloudUploadWorkflow(page);
-      }
-      let schemaExpansion: Awaited<ReturnType<typeof verifyCloudSchemaExpansion>>["evidence"] | undefined;
-      if (example === "tasks") {
-        stage = "safe schema expansion and compatible deployment";
-        await page.goto("about:blank");
-        const expanded = await verifyCloudSchemaExpansion(root, admin, provider, async () => {
+        await page.getByRole("button", { name: "Create account", exact: true }).click();
+        await page
+          .getByLabel(example === "tasks" ? "Project name" : "Choose a file")
+          .waitFor()
+          .catch(async () => {
+            const alerts = await page.getByRole("alert").allTextContents();
+            diagnostics.push(
+              ...alerts.map((alert) => alert.replaceAll(email, "[email]").replaceAll(userPassword, "[password]")),
+            );
+            throw new Error("Signup did not establish a session");
+          });
+        if (example === "tasks") {
+          stage = "authenticated mutation and live query";
+          await page.getByLabel("Project name").fill("Neon Auth workspace");
+          await page.getByRole("button", { name: "Create project", exact: true }).click();
+          await page.getByLabel("Task title").fill("Real authenticated task");
+          await page.getByRole("button", { name: "Add task", exact: true }).click();
+          await page.getByRole("checkbox", { name: "Real authenticated task" }).waitFor();
+        } else {
+          stage = "provider uploads, events and durable processing";
+          await verifyCloudUploadWorkflow(page);
+        }
+        if (example === "tasks") {
+          stage = "safe schema expansion and compatible deployment";
+          await page.goto("about:blank");
+          const expanded = await verifyCloudSchemaExpansion(root, admin, provider, async () => {
+            await page.goto(frontendUrl.href);
+            await signIn();
+            await page.getByRole("checkbox", { name: "Real authenticated task" }).waitFor();
+            await page.goto("about:blank");
+          });
+          generated = expanded.generated;
+          deployed = expanded.deployed;
+          schemaExpansion = expanded.evidence;
+          url = deployed.functions[0].invocationUrl;
+          assert(url);
+          await buildFrontend(url);
           await page.goto(frontendUrl.href);
           await signIn();
           await page.getByRole("checkbox", { name: "Real authenticated task" }).waitFor();
-          await page.goto("about:blank");
-        });
-        generated = expanded.generated;
-        deployed = expanded.deployed;
-        schemaExpansion = expanded.evidence;
-        url = deployed.functions[0].invocationUrl;
-        assert(url);
-        await buildFrontend(url);
-        await page.goto(frontendUrl.href);
+          await page.getByLabel("Task title").fill("Task after schema expansion");
+          await page.getByRole("button", { name: "Add task", exact: true }).click();
+          await page.getByRole("checkbox", { name: "Task after schema expansion" }).waitFor();
+        }
+        stage = "sign out and sign back in";
+        await page.getByRole("button", { name: "Sign out", exact: true }).click();
         await signIn();
-        await page.getByRole("checkbox", { name: "Real authenticated task" }).waitFor();
-        await page.getByLabel("Task title").fill("Task after schema expansion");
-        await page.getByRole("button", { name: "Add task", exact: true }).click();
-        await page.getByRole("checkbox", { name: "Task after schema expansion" }).waitFor();
+        if (example === "tasks") await page.getByRole("checkbox", { name: "Real authenticated task" }).waitFor();
+        else await page.getByRole("article", { name: "uploads", exact: true }).waitFor();
+        assert.deepEqual(errors, []);
       }
-      stage = "sign out and sign back in";
-      await page.getByRole("button", { name: "Sign out", exact: true }).click();
-      await signIn();
-      if (example === "tasks") await page.getByRole("checkbox", { name: "Real authenticated task" }).waitFor();
-      else await page.getByRole("article", { name: "uploads", exact: true }).waitFor();
-      assert.deepEqual(errors, []);
       passed = true;
       if (process.env.LOOM_CLOUD_RECEIPT)
         await writeFile(
@@ -262,9 +279,19 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
     } finally {
       if (previousOrigins === undefined) delete process.env.APP_ORIGINS;
       else process.env.APP_ORIGINS = previousOrigins;
-      await browser.close();
-      await frontend.stop();
-      await admin.end();
+      try {
+        await browser.close();
+      } finally {
+        try {
+          await framework?.stop();
+        } finally {
+          try {
+            await frontend.stop();
+          } finally {
+            await admin.end();
+          }
+        }
+      }
       if (passed) await rm(root, { recursive: true, force: true });
     }
   },

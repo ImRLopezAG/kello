@@ -62,6 +62,10 @@ jobs:
             suite: tasks
           - name: jobs-storage
             suite: jobs-storage
+          - name: next
+            suite: next
+          - name: start
+            suite: start
           - name: services
             suite: services
           - name: upgrade
