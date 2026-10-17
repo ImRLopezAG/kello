@@ -132,7 +132,7 @@ export async function onboardingCommand(
   if (options.dryRun || (command === "integrate" && !options.apply))
     return runOnboardingCommand(command, root, options);
   await mkdir(root, { recursive: true });
-  const directory = await resolveProjectPath(root, ".loom");
+  const directory = await resolveProjectPath(root, ".kello");
   await mkdir(directory, { recursive: true });
   const lock = join(directory, "onboarding.lock");
   try {
@@ -140,7 +140,7 @@ export async function onboardingCommand(
   } catch {
     throw new OnboardingError(
       "ONBOARDING_CONFLICT",
-      "Another onboarding command holds .loom/onboarding.lock. If interrupted, inspect its receipt and stop the previous process before removing the lock.",
+      "Another onboarding command holds .kello/onboarding.lock. If interrupted, inspect its receipt and stop the previous process before removing the lock.",
     );
   }
   try {

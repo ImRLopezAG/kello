@@ -413,7 +413,7 @@ for (const output of browser.outputs) {
     await cp(fileURLToPath(new URL("../../examples/integrations/", import.meta.url)), variants, {
       recursive: true,
       filter: (path) =>
-        !["node_modules", "_generated", ".loom", ".turbo", "dist", "package.json", "tsconfig.json"].includes(
+        !["node_modules", "_generated", ".kello", ".turbo", "dist", "package.json", "tsconfig.json"].includes(
           path.split("/").at(-1) ?? "",
         ),
     });

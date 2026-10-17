@@ -69,7 +69,7 @@ test("release receipt persists ordered acknowledgements and rejects changed inpu
       await expect(receipt.complete({ stage: "migrations", head: "0".repeat(64) })).rejects.toThrow("schema");
       await receipt.complete({ stage: "migrations", head: identity.schema.target });
     });
-    const path = join(root, ".loom/releases", key, "release.json");
+    const path = join(root, ".kello/releases", key, "release.json");
     expect((await stat(path)).mode & 0o777).toBe(0o600);
     expect(JSON.parse(await readFile(path, "utf8")).completed).toHaveLength(3);
     expect(events).toHaveLength(4);
@@ -154,7 +154,7 @@ test("release receipts bind final functions and enabled triggers to prepared res
 
 test("failed receipt writes require reopening and release the local lock", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-release-write-"));
-  const directory = join(root, ".loom/releases", key);
+  const directory = join(root, ".kello/releases", key);
   const path = join(directory, "release.json");
   const saved = join(directory, "saved.json");
   const metrics = channel("kello.deployment.metric");

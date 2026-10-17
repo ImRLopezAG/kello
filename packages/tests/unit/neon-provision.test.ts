@@ -87,7 +87,7 @@ test("branch provisioning plans explicit PG18 parents and resumes acknowledged c
     expect(f.creates()).toBe(0);
     await expect(provisionNeonBranch(root, input, f.api)).rejects.toThrow("endpoint");
     expect(f.creates()).toBe(1);
-    const path = join(root, ".loom/provision", input.key, "branch.json");
+    const path = join(root, ".kello/provision", input.key, "branch.json");
     expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({ state: "created", branchId: "br-created" });
     f.addEndpoint();
     const receipt = await provisionNeonBranch(root, input, f.api);
@@ -144,7 +144,7 @@ test("lost branch create responses remain uncertain and cannot adopt matching na
     await expect(provisionNeonBranch(root, input, f.api)).rejects.toThrow("uncertain");
     await expect(provisionNeonBranch(root, input, f.api)).rejects.toThrow("uncertain");
     expect(f.creates()).toBe(1);
-    const contents = await readFile(join(root, ".loom/provision", input.key, "branch.json"), "utf8");
+    const contents = await readFile(join(root, ".kello/provision", input.key, "branch.json"), "utf8");
     expect(JSON.parse(contents).state).toBe("submitting");
     expect(contents).not.toContain("secret-provider-response");
   } finally {
@@ -164,7 +164,7 @@ test("provisioning awaits in-flight creation on cancellation and rejects concurr
     await expect(provisionNeonBranch(root, { ...input, signal: controller.signal }, f.api)).rejects.toThrow(
       "Cancelled",
     );
-    expect(JSON.parse(await readFile(join(root, ".loom/provision", input.key, "branch.json"), "utf8")).state).toBe(
+    expect(JSON.parse(await readFile(join(root, ".kello/provision", input.key, "branch.json"), "utf8")).state).toBe(
       "created",
     );
     f.addEndpoint();
@@ -180,7 +180,7 @@ test("provisioning refuses escaped or corrupt receipts without provider mutation
   const outside = await mkdtemp(join(tmpdir(), "loom-provision-outside-"));
   const f = fixture();
   try {
-    const directory = join(root, ".loom/provision", input.key);
+    const directory = join(root, ".kello/provision", input.key);
     await mkdir(directory, { recursive: true });
     const path = join(directory, "branch.json");
     const target = join(outside, "receipt.json");
@@ -305,7 +305,7 @@ test("a definite branch precondition rejection permits a checked explicit retry"
   };
   try {
     await expect(provisionNeonBranch(root, input, api)).rejects.toThrow("HTTP 412");
-    const receipt = await readFile(join(root, ".loom/provision", input.key, "branch.json"), "utf8");
+    const receipt = await readFile(join(root, ".kello/provision", input.key, "branch.json"), "utf8");
     expect(JSON.parse(receipt)).toMatchObject({ state: "rejected", status: 412 });
     expect(receipt).not.toContain("private provider response");
     f.addEndpoint();

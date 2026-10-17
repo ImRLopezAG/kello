@@ -128,7 +128,7 @@ globalThis.fetch = (input, init) => {
     assert.equal((await planProjectBranchProvision(root, "branch.json", api)).parentBranchId, parent.id);
     await runCli(true, 0);
     assert.equal(creates, 0);
-    await assert.rejects(access(join(root, ".loom")));
+    await assert.rejects(access(join(root, ".kello")));
     await runCli(false, 5);
     assert.equal(creates, 1);
     endpointAvailable = true;
@@ -141,7 +141,7 @@ globalThis.fetch = (input, init) => {
     branch.protected = true;
     await assert.rejects(provisionProjectBranch(root, "branch.json", api), /identity changed/);
     assert.equal(creates, 1);
-    const saved = await readFile(join(root, ".loom/provision", input.key, "branch.json"), "utf8");
+    const saved = await readFile(join(root, ".kello/provision", input.key, "branch.json"), "utf8");
     assert.ok(!saved.includes("fixture-api-key"));
   } finally {
     await server.stop(true);

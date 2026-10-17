@@ -37,7 +37,7 @@ export function ProjectFiles() {
           </Folder>
         </Folder>
       </Folder>
-      <Folder name=".loom">
+      <Folder name=".kello">
         <File name="local links, runtime artifacts, release receipts" />
       </Folder>
     </Files>

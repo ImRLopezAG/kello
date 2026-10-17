@@ -36,6 +36,9 @@ test("native generation bootstraps, isolates internal routes, and atomically rep
     expect(initialized.protocol).toBe("loom-orpc-2");
     expect(initialized.procedures).toEqual([{ path: ["tasks", "list"], visibility: "public" }]);
     const initialLink = await readlink(join(root, "kello/_generated/current"));
+    expect(initialLink).toBe("../../.kello/generations/" + initialized.version);
+    expect(await readFile(join(root, "kello/_generated/.kello-generated"), "utf8")).toBe("kello-generated-v1\n");
+    expect(await readdir(root)).not.toContain(".loom");
     const generatedClientImport = join(root, "kello/functions/recursive.ts");
     await writeFile(generatedClientImport, 'export { createClient } from "../_generated/api";');
     await assert.rejects(generateProject(root), /[Bb]undl(?:e|ing) failed/);
@@ -187,7 +190,7 @@ rpc.tasks.renamed.liveOptions({ onSuccess: () => {} });
     await assert.rejects(readFile(join(generated, "contracts/tasks.ts")), { code: "ENOENT" });
     expect(await readFile(join(generated, "contracts/user-note.txt"), "utf8")).toBe("user-owned");
     expect(await readFile(join(generated, "current/api.d.ts"), "utf8")).not.toContain('"tasks"');
-    expect((await readdir(join(root, ".loom/generations"))).length).toBe(2);
+    expect((await readdir(join(root, ".kello/generations"))).length).toBe(2);
     expect((await readdir(generated)).filter((name) => /^[a-f0-9]{64}$/.test(name))).toEqual([]);
     expect((await loadProject(root)).procedures.length).toBe(1);
     await rm(join(root, "kello/upgrade.ts"));
@@ -268,7 +271,7 @@ export default defineProcedureStorage({ buckets: { uploads: { onObjectCreated: p
     if (project.protocol !== "loom-orpc-2") throw new Error("Expected native project");
     expect(project.auth.allowAnonymous).toBe(true);
     expect(project.crons.minute?.call.path).toEqual(["jobs", "tick"]);
-    const runtime = await import(pathToFileURL(join(root, ".loom/generations", generated.version, "runtime.js")).href);
+    const runtime = await import(pathToFileURL(join(root, ".kello/generations", generated.version, "runtime.js")).href);
     const options = runtime.runtimeOptions();
     expect(options.crons.minute.procedure).toBe(
       options.procedures.find((entry: { path: string[] }) => entry.path.join(".") === "jobs.tick").procedure,

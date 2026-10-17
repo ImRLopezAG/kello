@@ -43,7 +43,7 @@ test.each(cases)("deployment CLI rejects %j with %i/%s and redacts release conte
     await writeFile(join(root, "release.json"), '{"activationToken":"sensitive-fixture-value"}');
     await run(args, code, error);
     assert.deepEqual(
-      (await readdir(root)).filter((name) => name !== ".loom"),
+      (await readdir(root)).filter((name) => name !== ".kello"),
       ["release.json"],
     );
   } finally {

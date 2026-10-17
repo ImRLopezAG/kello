@@ -340,7 +340,7 @@ await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: 
     const generated = join(root, "app/kello/_generated");
     const current = join(generated, "current");
     assert.equal((await lstat(current)).isSymbolicLink(), true, "public generation must activate its current symlink");
-    const generations = await realpath(join(root, "app/.loom/generations"));
+    const generations = await realpath(join(root, "app/.kello/generations"));
     const currentTarget = await realpath(current);
     assert.ok(generations.startsWith(root + sep), "generation storage must stay in the isolated consumer");
     assert.ok(currentTarget.startsWith(root + sep), "current must resolve inside the isolated consumer");

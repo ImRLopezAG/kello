@@ -149,7 +149,7 @@ export async function withNeonReleaseReceipt<T>(
   const parsedIdentity = v.safeParse(identityValidator, structuredClone(input));
   if (!parsedIdentity.success) throw new Error("Invalid release identity");
   const identity = parsedIdentity.output;
-  const directory = await resolveProjectPath(root, `.loom/releases/${releaseKey}`);
+  const directory = await resolveProjectPath(root, `.kello/releases/${releaseKey}`);
   await mkdir(directory, { recursive: true });
   const lock = join(directory, "release.lock");
   try {
@@ -224,7 +224,7 @@ export async function withNeonReleaseReceipt<T>(
 /** Observes saved acknowledgements without creating a receipt or taking its write lock. */
 export async function readNeonReleaseReceipt(root: string, releaseKey: string): Promise<NeonReleaseReceipt | null> {
   if (!v.is(hash, releaseKey)) throw new Error("Invalid release key");
-  const path = await resolveProjectPath(root, `.loom/releases/${releaseKey}/release.json`);
+  const path = await resolveProjectPath(root, `.kello/releases/${releaseKey}/release.json`);
   const receipt = await readReceiptFile(path);
   if (receipt) validateReceipt(receipt);
   return receipt;

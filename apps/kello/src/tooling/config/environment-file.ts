@@ -27,7 +27,7 @@ const publicEnvironment = v.strictObject({
 export type ManagedPublicEnvironment = v.InferInput<typeof publicEnvironment>;
 
 export async function withProjectConfigurationLock<T>(root: string, operation: () => Promise<T>): Promise<T> {
-  const directory = await resolveProjectPath(root, ".loom");
+  const directory = await resolveProjectPath(root, ".kello");
   await mkdir(directory, { recursive: true });
   const lock = join(directory, "configuration.lock");
   try {

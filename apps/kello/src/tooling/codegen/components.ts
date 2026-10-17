@@ -25,8 +25,8 @@ export async function writeComponentBindings(project: Awaited<ReturnType<typeof 
     if (
       existingDirectory &&
       (!existingDirectory.isDirectory() ||
-        (await readFile(join(directory, ".loom-generated"), "utf8").catch(() => "")) !==
-          "loom-component-generated-v1\n")
+        (await readFile(join(directory, ".kello-generated"), "utf8").catch(() => "")) !==
+          "kello-component-generated-v1\n")
     ) {
       throw new Error("Refusing to replace a user-owned component _generated directory");
     }
@@ -130,7 +130,7 @@ ${scope.builders.map((key, index) => `const builder${index}: ReturnType<NonNulla
     await mkdir(staging);
     let moved = false;
     try {
-      await writeFile(join(staging, ".loom-generated"), "loom-component-generated-v1\n");
+      await writeFile(join(staging, ".kello-generated"), "kello-component-generated-v1\n");
       for (const [name, content] of files) {
         const path = join(staging, name);
         await mkdir(dirname(path), { recursive: true });

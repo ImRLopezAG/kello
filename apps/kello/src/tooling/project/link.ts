@@ -18,7 +18,7 @@ export async function writeNeonLink(root: string, project: ResolvedNeonProject):
       throw cause;
     });
     if (state && !state.isFile()) throw new Error("Refusing to replace a non-file Neon context");
-    const temporary = await resolveProjectPath(root, `.loom/link-${crypto.randomUUID()}.json`);
+    const temporary = await resolveProjectPath(root, `.kello/link-${crypto.randomUUID()}.json`);
     try {
       if (state) await copyFile(target, temporary);
       const child = Bun.spawn(

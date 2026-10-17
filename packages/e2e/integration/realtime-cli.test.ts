@@ -75,7 +75,7 @@ test("status is read-only and reports the bound target without secrets", async (
       allowedOrigins: [],
     });
     expect(calls.enable).toEqual([]);
-    await assert.rejects(readFile(join(root, ".loom/project.json")));
+    await assert.rejects(readFile(join(root, ".kello/project.json")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -96,7 +96,7 @@ test("enable waits for readiness, persists the public URL, and is idempotent", a
     ]);
     expect((await enableRealtime(root, defineConfig({}), options, discovery(), provider)).state).toBe("ready");
     expect(calls.enable).toHaveLength(1);
-    const saved = await readFile(join(root, ".loom/project.json"), "utf8");
+    const saved = await readFile(join(root, ".kello/project.json"), "utf8");
     expect(saved).not.toContain(canary);
     expect((await loadProjectConfig(root)).publicConfiguration).toEqual({
       realtimeUrl: "https://realtime.example.test/br-test",
@@ -144,7 +144,7 @@ test("a fresh acceptance branch must enable Realtime before a live deployment", 
     );
     expect(status.state).toBe("ready");
     expect(await resolveRealtimeEnvironment(true, target, provider)).toEqual({ LOOM_REALTIME_SECRET: canary });
-    expect(await readFile(join(root, ".loom/project.json"), "utf8")).not.toContain(canary);
+    expect(await readFile(join(root, ".kello/project.json"), "utf8")).not.toContain(canary);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -166,7 +166,7 @@ test("an expired wait reports pending and persists nothing", async () => {
     );
     expect(result.state).toBe("pending");
     expect(result).not.toHaveProperty("realtimeUrl");
-    await assert.rejects(readFile(join(root, ".loom/project.json")));
+    await assert.rejects(readFile(join(root, ".kello/project.json")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -372,7 +372,7 @@ test("ready with different observed origins refuses success and persistence", as
       { code: "REALTIME_ORIGINS_CONFLICT" },
     );
     expect(calls.enable).toHaveLength(1);
-    await assert.rejects(readFile(join(root, ".loom/project.json")));
+    await assert.rejects(readFile(join(root, ".kello/project.json")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -429,7 +429,7 @@ test("saved branch and database bindings cannot be silently replaced", async () 
       discovery(),
       initial.provider,
     );
-    const saved = await readFile(join(root, ".loom/project.json"), "utf8");
+    const saved = await readFile(join(root, ".kello/project.json"), "utf8");
     const target = discovery();
     target.listBranches = async () => [
       { id: "br-test", name: "dev", protected: false, isDefault: false },
@@ -448,7 +448,7 @@ test("saved branch and database bindings cannot be silently replaced", async () 
       );
       expect(calls.get).toBe(0);
       expect(calls.enable).toEqual([]);
-      expect(await readFile(join(root, ".loom/project.json"), "utf8")).toBe(saved);
+      expect(await readFile(join(root, ".kello/project.json"), "utf8")).toBe(saved);
     }
   } finally {
     await rm(root, { recursive: true, force: true });

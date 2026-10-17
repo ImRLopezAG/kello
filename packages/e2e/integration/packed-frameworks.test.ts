@@ -65,7 +65,7 @@ test("Frontend examples build as independent consumers of one packed Kello artif
             ".tanstack",
             ".nitro",
             "_generated",
-            ".loom",
+            ".kello",
             ".turbo",
           ].includes(basename(path)) && !basename(path).startsWith("_generated.staging-"),
       });

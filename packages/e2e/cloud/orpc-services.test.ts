@@ -51,7 +51,7 @@ test.skipIf(process.env.LOOM_CLOUD_SERVICES !== "1")(
       const source = fileURLToPath(new URL("../../examples/jobs-storage/", import.meta.url));
       await cp(source, root, {
         recursive: true,
-        filter: (path) => !["node_modules", "dist", "_generated", ".loom", ".turbo"].includes(basename(path)),
+        filter: (path) => !["node_modules", "dist", "_generated", ".kello", ".turbo"].includes(basename(path)),
       });
       await cp(join(source, "kello/migrations"), join(root, "kello/migrations"), {
         recursive: true,

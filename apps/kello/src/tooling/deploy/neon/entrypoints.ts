@@ -40,12 +40,12 @@ export async function prepareNeonEntrypoints(
     .update("kello-neon-entry-9\0")
     .update(JSON.stringify({ binding, bindings, runtimeUrlEnv, storage }))
     .digest("hex");
-  const directory = await resolveProjectPath(project.root, `.loom/deploy/${hash}`);
+  const directory = await resolveProjectPath(project.root, `.kello/deploy/${hash}`);
   await mkdir(directory, { recursive: true });
   // Release artifacts must survive pruning the disposable development generations.
   const runtimeDirectory = join(directory, "runtime");
   await mkdir(runtimeDirectory, { recursive: true });
-  const generationDirectory = join(project.root, ".loom/generations", generation.version);
+  const generationDirectory = join(project.root, ".kello/generations", generation.version);
   for (const entry of await readdir(generationDirectory)) {
     const content = await readFile(join(generationDirectory, entry));
     const destination = join(runtimeDirectory, entry);

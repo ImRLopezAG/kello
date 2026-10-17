@@ -458,7 +458,7 @@ test("packed public full-text consumer executes under independently pinned Node 
     );
     const current = join(root, "app/kello/_generated/current");
     assert.equal((await lstat(current)).isSymbolicLink(), true);
-    const generations = await realpath(join(root, "app/.loom/generations"));
+    const generations = await realpath(join(root, "app/.kello/generations"));
     const currentGeneration = await realpath(current);
     assert.ok(contained(root, generations));
     assert.ok(contained(root, currentGeneration));

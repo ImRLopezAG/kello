@@ -67,7 +67,7 @@ test("generated service and worker entries capture runtime configuration and exp
       );
     }
     const generation = await generateProject(root);
-    const directory = join(root, ".loom/generations", generation.version);
+    const directory = join(root, ".kello/generations", generation.version);
     const deployed = await prepareNeonEntrypoints(
       root,
       {
@@ -246,7 +246,9 @@ export default defineRpcAuth({ allowAnonymous: true, authorize: ({ path }) => {
     expect(candidate.version).not.toBe(first.version);
     const loaded = await loadProject(root);
     expect(loaded.auth.allowAnonymous).toBe(true);
-    const generated = await import(pathToFileURL(join(root, ".loom/generations", candidate.version, "router.js")).href);
+    const generated = await import(
+      pathToFileURL(join(root, ".kello/generations", candidate.version, "router.js")).href
+    );
     const auth = generated.auth;
     expect(auth.allowAnonymous).toBe(true);
     await auth.authorize(context);
@@ -254,7 +256,7 @@ export default defineRpcAuth({ allowAnonymous: true, authorize: ({ path }) => {
     for (const source of ["export default null;", "export default { authorize: () => {}, allowAnonymous: true };"]) {
       await writeFile(filename, source);
       await assert.rejects(generateProject(root), /defineRpcAuth/);
-      expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.loom/generations/" + first.version);
+      expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.kello/generations/" + first.version);
     }
     await auth.authorize(context);
     const runtime = Bun.spawn(
@@ -264,7 +266,7 @@ export default defineRpcAuth({ allowAnonymous: true, authorize: ({ path }) => {
         "-e",
         `
       import assert from "node:assert/strict";
-      import { auth } from ${JSON.stringify(pathToFileURL(join(root, ".loom/generations", candidate.version, "router.js")).href)};
+      import { auth } from ${JSON.stringify(pathToFileURL(join(root, ".kello/generations", candidate.version, "router.js")).href)};
       assert.equal(auth.allowAnonymous, true);
       await auth.authorize(${JSON.stringify(context)});
       await assert.rejects(auth.authorize({ ...${JSON.stringify(context)}, path: ["tasks", "other"] }), /Forbidden/);
@@ -292,7 +294,7 @@ test("generation loads native relations against its own immutable schema", async
       );
     }
     const first = await generateProject(root);
-    const initial = await import(pathToFileURL(join(root, ".loom/generations", first.version, "router.js")).href);
+    const initial = await import(pathToFileURL(join(root, ".kello/generations", first.version, "router.js")).href);
     expect(initial.relations.tasks.table).toBe(initial.schema.tables.tasks);
     expect(initial.relations.tasks.relations).toEqual({});
     const filename = join(root, "kello/relations.ts");
@@ -307,10 +309,12 @@ export default defineRelations(schema.tables, (r) => ({
     const candidate = await prepareProject(root);
     const project = await loadProject(root);
     expect(project.relations.tasks?.table).toBe(project.schema.tables.tasks);
-    const generated = await import(pathToFileURL(join(root, ".loom/generations", candidate.version, "router.js")).href);
+    const generated = await import(
+      pathToFileURL(join(root, ".kello/generations", candidate.version, "router.js")).href
+    );
     expect(generated.relations.tasks.table).toBe(generated.schema.tables.tasks);
     expect(generated.relations.tasks.relations.sameTask.targetTable).toBe(generated.schema.tables.tasks);
-    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.loom/generations/" + first.version);
+    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.kello/generations/" + first.version);
     await writeFile(filename, "export default null;");
     await assert.rejects(generateProject(root), /native Drizzle relations/);
     await writeFile(
@@ -322,7 +326,7 @@ const schema = defineSchema((s) => ({ tasks: { title: s.text() } }), { namespace
       ),
     );
     await assert.rejects(generateProject(root), /compiled table/);
-    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.loom/generations/" + first.version);
+    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.kello/generations/" + first.version);
     expect(initial.relations.tasks.relations).toEqual({});
     expect(generated.relations.tasks.relations.sameTask.targetTable).toBe(generated.schema.tables.tasks);
     const runtime = Bun.spawn(
@@ -332,7 +336,7 @@ const schema = defineSchema((s) => ({ tasks: { title: s.text() } }), { namespace
         "-e",
         `
       import assert from "node:assert/strict";
-      import { schema, relations } from ${JSON.stringify(pathToFileURL(join(root, ".loom/generations", candidate.version, "router.js")).href)};
+      import { schema, relations } from ${JSON.stringify(pathToFileURL(join(root, ".kello/generations", candidate.version, "router.js")).href)};
       assert.equal(relations.tasks.table, schema.tables.tasks);
       assert.equal(relations.tasks.relations.sameTask.targetTable, schema.tables.tasks);
     `,
@@ -391,7 +395,7 @@ test("extensionless internal imports capture native cron targets and keep candid
       [first.version, "first"],
       [candidate.version, "second"],
     ] as const) {
-      const routerUrl = pathToFileURL(join(root, ".loom/generations", version, "router.js")).href;
+      const routerUrl = pathToFileURL(join(root, ".kello/generations", version, "router.js")).href;
       const node = Bun.spawn(
         [
           "node",
@@ -422,7 +426,9 @@ test("extensionless internal imports capture native cron targets and keep candid
     await writeFile(configFile, "export default { jobs: { maxAttempts: 1 } };");
     await writeFile(cronsFile, cronSource.replace("target, undefined)", "target, undefined, { maxAttempts: 2 })"));
     await assert.rejects(generateProject(root), /configured attempts/);
-    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.loom/generations/" + candidate.version);
+    expect(await readlink(join(root, "kello/_generated/current"))).toBe(
+      "../../.kello/generations/" + candidate.version,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -480,7 +486,7 @@ test("offline generation is deterministic, detects stale contracts and keeps int
     expect((await generateProject(root)).version).toBe(first.version);
     const api = await readFile(join(root, "kello/_generated/current/api.js"), "utf8");
     expect(api).not.toContain('"secret"');
-    const imported = await import(pathToFileURL(join(root, ".loom/generations", first.version, "api.js")).href);
+    const imported = await import(pathToFileURL(join(root, ".kello/generations", first.version, "api.js")).href);
     const session = imported.createClient({ url: "https://example.test", getToken: async () => null });
     expect(session.client.tasks.list).toBeInstanceOf(Function);
     session.dispose();
@@ -518,7 +524,7 @@ client.tasks.secret();
       'import tasks from "../tasks"; export default { child: tasks.list };',
     );
     await assert.rejects(generateProject(root), /Procedure conflicts with router/);
-    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.loom/generations/" + first.version);
+    expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.kello/generations/" + first.version);
     await rm(join(root, "kello/functions/tasks"), { recursive: true });
     expect((await generateProject(root)).version).toBe(first.version);
 
@@ -567,11 +573,11 @@ client.tasks.secret();
     expect(await readlink(active)).toBe(beforeFailure);
     const latest = await prepareProject(root);
     await activateProject(root, latest.version);
-    expect(await readlink(active)).toBe("../../.loom/generations/" + latest.version);
+    expect(await readlink(active)).toBe("../../.kello/generations/" + latest.version);
     const publicFiles = await readdir(join(root, "kello/_generated"));
     expect(publicFiles.sort()).toEqual(
       [
-        ".loom-generated",
+        ".kello-generated",
         "api.d.ts",
         "api.js",
         "components.ts",
@@ -593,7 +599,7 @@ client.tasks.secret();
         "worker.js",
       ].sort(),
     );
-    expect(await readdir(join(root, ".loom/generations"))).toHaveLength(2);
+    expect(await readdir(join(root, ".kello/generations"))).toHaveLength(2);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -711,12 +717,12 @@ authorize: ({ identity }) => { if (identity.subject !== "alice") throw new Error
     expect(project.storage.buckets.uploads?.onObjectCreated?.procedure).toBe(
       project.procedures.find((entry) => entry.path.join(".") === "files.created")?.definition,
     );
-    const registryUrl = pathToFileURL(join(root, ".loom/generations", candidate.version, "router.js")).href;
+    const registryUrl = pathToFileURL(join(root, ".kello/generations", candidate.version, "router.js")).href;
     const generated = await import(registryUrl);
-    const runtimeUrl = pathToFileURL(join(root, ".loom/generations", candidate.version, "runtime.js")).href;
+    const runtimeUrl = pathToFileURL(join(root, ".kello/generations", candidate.version, "runtime.js")).href;
     const generatedRuntime = await import(runtimeUrl);
     expect(generatedRuntime.runtimeOptions().storage).toBe(generated.storage);
-    expect(await readFile(join(root, ".loom/generations", candidate.version, "worker.d.ts"), "utf8")).toContain(
+    expect(await readFile(join(root, ".kello/generations", candidate.version, "worker.d.ts"), "utf8")).toContain(
       "storageBackend",
     );
     await generated.storage.authorize(context);
@@ -740,7 +746,7 @@ authorize: ({ identity }) => { if (identity.subject !== "alice") throw new Error
         generateProject(root),
         /defineProcedureStorage|native procedure|registered internal procedure|configured attempts/,
       );
-      expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.loom/generations/" + first.version);
+      expect(await readlink(join(root, "kello/_generated/current"))).toBe("../../.kello/generations/" + first.version);
     }
     await generated.storage.authorize(context);
     const runtime = Bun.spawn(

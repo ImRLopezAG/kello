@@ -63,7 +63,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
       await cp(source, root, {
         recursive: true,
         filter: (path) =>
-          !["node_modules", "dist", "_generated", ".loom", ".turbo", ".next", ".output"].includes(basename(path)),
+          !["node_modules", "dist", "_generated", ".kello", ".turbo", ".next", ".output"].includes(basename(path)),
       });
       await cp(join(source, "kello/migrations"), join(root, "kello/migrations"), {
         recursive: true,

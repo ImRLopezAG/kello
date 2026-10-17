@@ -50,7 +50,7 @@ test("an ambiguous create is reconciled without replaying the mutation", async (
   try {
     const input = { name: "app", orgId: "org-test", region: "aws-us-east-1" };
     await assert.rejects(createNeonProject(root, input, provider), /reconcile/);
-    expect(await readFile(join(root, ".loom/onboarding.json"), "utf8")).not.toContain("secret-sentinel");
+    expect(await readFile(join(root, ".kello/onboarding.json"), "utf8")).not.toContain("secret-sentinel");
     expect((await createNeonProject(root, input, provider)).projectId).toBe("project-test");
     expect((await createNeonProject(root, input, provider)).projectId).toBe("project-test");
     expect(creates).toBe(1);
@@ -159,9 +159,9 @@ test("an existing link prevents an accidental extra cloud project", async () => 
     );
     expect(creates).toBe(0);
     await rm(join(root, ".neon"));
-    await mkdir(join(root, ".loom"), { recursive: true });
+    await mkdir(join(root, ".kello"), { recursive: true });
     await writeFile(
-      join(root, ".loom/project.json"),
+      join(root, ".kello/project.json"),
       JSON.stringify({
         format: 1,
         projectId: "project-existing",

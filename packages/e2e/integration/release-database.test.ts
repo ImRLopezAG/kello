@@ -161,7 +161,7 @@ test.skipIf(!connectionString)(
       );
       // Simulate a process losing its migration acknowledgement after the database committed.
       saved.completed = saved.completed.slice(0, 2);
-      await writeFile(join(root, ".loom/releases", options.releaseKey, "release.json"), JSON.stringify(saved));
+      await writeFile(join(root, ".kello/releases", options.releaseKey, "release.json"), JSON.stringify(saved));
       await withNeonReleaseDatabase(
         root,
         options,
@@ -217,7 +217,7 @@ test.skipIf(!connectionString)(
         (await admin.query(`SELECT count(*)::integer AS count FROM "${metadataNamespace}".deployment_activations`))
           .rows,
       ).toEqual([{ count: 0 }]);
-      const receipt = await readFile(join(root, ".loom/releases", options.releaseKey, "release.json"), "utf8");
+      const receipt = await readFile(join(root, ".kello/releases", options.releaseKey, "release.json"), "utf8");
       expect(receipt).not.toContain(options.activationToken);
       expect(receipt).not.toContain("loom-local-only");
       await writeFile(
