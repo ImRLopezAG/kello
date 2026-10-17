@@ -20,9 +20,9 @@ import { searchSchema, searchRelations } from "../fixtures/search-schema";
 test("generated search retains pagination without the retired watch engine", () => {
   const context = createSearchContext(searchRelations);
   const validators = createSearchValidators(searchSchema, searchRelations);
-  expect(typeof context.tasks.paginate).toBe("function");
+  expect(context.tasks.paginate).toBeTypeOf("function");
   expect(Object.hasOwn(context.tasks, "watch")).toBe(false);
-  expect(typeof validators.tasks.search).toBe("function");
+  expect(validators.tasks.search).toBeTypeOf("function");
   expect(Object.hasOwn(validators.tasks, "liveSearch")).toBe(false);
 });
 
