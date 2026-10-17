@@ -1,6 +1,6 @@
 ---
-title: Pagination and live windows
-description: Use native oRPC options for finite traversal, reactive loaded windows, suspense and request-scoped SSR.
+title: Pagination
+description: Traverse finite authorized search pages and declare live SQL separately.
 ---
 
 import Snippet from "../../../src/components/snippet.astro";
@@ -9,31 +9,26 @@ import server from "../../../examples/search-server.ts?raw";
 
 ## Choose a result lifecycle
 
-| Need                         | Generated native option               | Result                                                  |
-| ---------------------------- | ------------------------------------- | ------------------------------------------------------- |
-| One finite page              | `queryOptions`                        | `rows`, boundary cursors, optional decimal `count`      |
-| Accumulate finite pages      | `infiniteOptions`                     | TanStack pages of finite responses                      |
-| Keep a loaded window current | `liveOptions` on a streaming contract | Atomically replaced `pages`, cursors and optional count |
+| Need                    | Generated native option | Result                                             |
+| ----------------------- | ----------------------- | -------------------------------------------------- |
+| One finite page         | `queryOptions`          | `rows`, boundary cursors, optional decimal `count` |
+| Accumulate finite pages | `infiniteOptions`       | TanStack pages of finite responses                 |
 
-Each streaming contract publishes its first window directly. It needs no companion finite query to bootstrap the same data. Use the generated connection's `rpc` for selection-aware option inference; reconstructing `createTanstackQueryUtils(client)` loses the input-dependent output specialization in the pinned upstream version.
+Generated search provides finite pages. A separate declared Neon `.live()` SELECT can use validated page inputs; it does not inherit nested search mapping, counts or encrypted search cursor semantics.
 
 ## Client-only and suspense
 
 <Snippet code={clients} />
 
-These components require `KelloProviderWithAuth` and a `QueryClientProvider` above them. Authentication comes from the provider's auth hook; client-only rendering requires no frontend session server. `SuspenseTasks` and `SuspenseLiveTasks` need a React Suspense boundary plus an error boundary. The streaming variant suspends until its first window, then publishes updates without waiting for the stream to end. Search calls use ordinary TanStack hooks.
+These components require `KelloProviderWithAuth` and a `QueryClientProvider` above them. Authentication comes from the provider's auth hook; client-only rendering requires no frontend session server. `SuspenseTasks` needs a React Suspense boundary plus an error boundary. Search calls use ordinary TanStack hooks.
 
 `MoreTasks` starts with `initialPageParam: null`. After each response, `getNextPageParam` extracts `nextCursor`. TanStack automatically passes that value to oRPC's `input(cursor)` callback, which builds the next request by adding the cursor to the unchanged selection. The callback maps a page parameter into the contract's input; no component state stores or advances the cursor. oRPC requires this mapping because other contracts can paginate by offset, page number or a nested field. A returned null cursor terminates traversal.
 
 Backward traversal uses `direction: "backward"` and `previousCursor`; without a cursor it starts at the dataset tail. A separate child search contract handles independently paginated children: nested `limit` is a bounded preview, not a child cursor.
 
-`LiveTasks` expands the requested loaded window instead of concatenating pages from different snapshots. Changing `loadedPages` changes the request, cancels the old subscription and opens its replacement. The published window contains adjacent roots in display order with no duplicate roots at that snapshot. Keep requests within the contract's loaded-page and total-row budgets.
-
 ## Understand concurrent writes
 
 Each finite page has one database snapshot. Across separate requests, new rows before the boundary are not backfilled, deleted rows are skipped, and sort-key updates may move a row across the boundary. A boundary row may be deleted without invalidating its cursor. Refresh restarts traversal; count describes the current request's authorized snapshot.
-
-Live windows recompute all loaded roots in one read invocation after a tracked commit. Each event replaces the complete current window. They do not retain historical per-page ranges or replay missed events. Reconnect starts with a fresh authorized snapshot. Root, child, junction and authorization-table commits participate in the existing conservative revision tracking; this does not promise per-row invalidation or zero polling delay.
 
 ## SSR prefetch and hydration
 
@@ -41,7 +36,7 @@ Live windows recompute all loaded roots in one read invocation after a tracked c
 
 Call this separately for every request. Its QueryClient and connection are request-scoped; one user's cache cannot be reused for another. Supply the token from your existing auth provider and the request abort signal. `queryClient.query(...)` is the native finite operation. The returned dehydration payload carries the finite selected result for hydration.
 
-Live streams are browser subscriptions. Do not await their completion while rendering SSR. A Next.js or TanStack Start application can prefetch a finite contract, or render a client-only live component when no finite bootstrap is needed. SSR itself does not require hosting authentication in the frontend application.
+Neon live queries are browser subscriptions and are not issued during SSR. A Next.js or TanStack Start application can prefetch a finite contract, or render a client-only live component when no finite bootstrap is needed. SSR itself does not require hosting authentication in the frontend application.
 
 ## Cache controls and projection safety
 
@@ -52,6 +47,6 @@ Search-specific runtime checks preserve the native option surface while validati
 ## References
 
 - [Author a schema-derived search contract](/authoring/search)
-- [oRPC query, infinite and live options](https://orpc.dev/docs/integrations/tanstack-query)
+- [oRPC query and infinite options](https://orpc.dev/docs/integrations/tanstack-query)
 - [TanStack paginated queries](https://tanstack.com/query/latest/docs/framework/react/guides/paginated-queries)
-- [Neon Functions WebSockets](https://neon.com/docs/compute/functions/websockets)
+- [Declared live SQL](/authoring/functions#live-sql-procedures)

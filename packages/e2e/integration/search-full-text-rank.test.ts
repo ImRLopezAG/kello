@@ -688,26 +688,6 @@ test("U4 actual ranked handler: exact encrypted boundaries, traversal, invalidat
       const changed = await open(variant.schema, variant.runtime);
       await assert.rejects(changed.request({ ...input, cursor: first.nextCursor }), invalid);
     }
-    // watch constructs the native live contract; invalidation occurs in its
-    // actual readSearchPage invocation during native initial snapshot evaluation.
-    // Prove the live snapshot fixture itself reaches readSearchPage first.
-    const liveCurrent = await handler.watch(input);
-    try {
-      const result = await liveCurrent.next();
-      assert(!result.done);
-      expect(result.value.pages).toEqual([[{ label: "top" }]]);
-    } finally {
-      await liveCurrent.return?.();
-    }
-    await assert.rejects(async () => {
-      const stream = await handler.watch({ ...input, anchor: first.nextCursor });
-      try {
-        await stream.next();
-      } finally {
-        await stream.return?.();
-      }
-    }, invalid);
-
     // No retained transaction/snapshot across calls: each continuation is
     // compared to the CURRENT independently authorized SQL keyset oracle.
     const anchorPage = await handler.request({ ...input, limit: 25 });

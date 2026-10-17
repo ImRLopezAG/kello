@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { createRpcHttpApp } from "kello/neon";
 import type { RpcHttpOptions } from "kello/neon";
-import { AuthenticationError, createProjectProcedures, defineSchema } from "kello/server";
+import { createProjectProcedures, defineSchema } from "kello/server";
 import * as v from "valibot";
 const version = "a".repeat(64);
 const { procedure } = createProjectProcedures(defineSchema(() => ({})));
@@ -20,56 +20,6 @@ test("origin policy matches exact canonical origins and permits originless serve
     expect(allows(origin)).toBe(false);
   for (const origin of ["https://user:secret@app.example.test", "https://app.example.test/", "http://app.example.test"])
     expect(() => originPolicy([origin])).toThrow();
-});
-
-test("connection ticket issuance requires authentication even when calls permit anonymous users", async () => {
-  let issued = 0;
-  const options: RpcHttpOptions = {
-    router: { read: procedure.handler(() => null) },
-    version,
-    verify: async () => ({
-      identity: { issuer: "test", subject: "alice" },
-      expiresAt: Math.floor(Date.now() / 1000) + 60,
-    }),
-    allowAnonymous: true,
-    origins: ["https://app.example.test"],
-    tickets: {
-      issue: async () => {
-        issued++;
-        throw new AuthenticationError();
-      },
-    },
-  };
-  const app = createRpcHttpApp(options);
-  const request = (path: string, init: RequestInit) => app.fetch(new Request(`https://api.example.test${path}`, init));
-  const headers = {
-    "content-type": "application/json",
-    origin: "https://app.example.test",
-    "x-loom-protocol": "loom-orpc-2",
-    "x-loom-version": version,
-  };
-  expect((await request("/api/kello/ticket", { method: "POST", headers, body: "{}" })).status).toBe(401);
-  expect(issued).toBe(0);
-  expect(
-    (
-      await request("/api/kello/ticket", {
-        method: "POST",
-        headers: { ...headers, authorization: "Bearer token" },
-        body: "{}",
-      })
-    ).status,
-  ).toBe(500);
-  expect(issued).toBe(1);
-  const preflight = await request("/api/kello/ticket", {
-    method: "OPTIONS",
-    headers: {
-      origin: headers.origin,
-      "access-control-request-method": "POST",
-      "access-control-request-headers": "authorization,content-type",
-    },
-  });
-  expect(preflight.status).toBe(204);
-  expect(issued).toBe(1);
 });
 
 test("HTTP guards bound body reads, reject forged envelopes, and cancel stalled streams", async () => {

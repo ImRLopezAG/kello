@@ -16,7 +16,6 @@ import {
 import type { ProcedureContext } from "../../../apps/kello/src/core/server/index";
 import { searchErrors } from "../../../apps/kello/src/core/search/errors";
 import { searchSchemaMetadata } from "../../../apps/kello/src/core/search/metadata";
-import { evaluateLiveSnapshot, withLiveInvocation } from "../../../apps/kello/src/core/server/rpc/live-context";
 
 interface RankFixtureExtraFields {
   added?: ReturnType<typeof fields.text>;
@@ -102,7 +101,6 @@ export async function rankHandler(
       },
     } as const;
     const finite = validators.tables.documents.search(policy);
-    const live = validators.tables.documents.liveSearch(policy);
     const read = createDatabaseMiddleware(relations, "read", schema);
     const options = {
       connection,
@@ -125,34 +123,13 @@ export async function rankHandler(
         .handler(({ context, input }) => context.search.documents.paginate(input)),
       options,
     );
-    const watch = bindRpcDatabaseProcedure(
-      procedure
-        .errors(searchErrors)
-        .use(read)
-        .input(live.input)
-        .output(live.output)
-        .handler(({ context, input }) => context.search.documents.watch(input)),
-      options,
-    );
     const descriptor = searchSchemaMetadata(finite.input)?.descriptor;
     if (!descriptor) throw new Error("Missing native rank descriptor");
-    const liveTarget = Symbol("owned U4 live snapshot");
     return {
       connection,
       descriptor,
       request: (input: InferSchemaInput<typeof finite.input>, context = rankHandlerIdentity()) =>
         call(list, input, { context }),
-      watch: (input: InferSchemaInput<typeof live.input>, context = rankHandlerIdentity()) =>
-        // Use the native runtime's initial-snapshot context, without a server
-        // or subscription loop. All work still passes through the bound route.
-        evaluateLiveSnapshot(liveTarget, () =>
-          withLiveInvocation(
-            () => {
-              throw new Error("U4 fixture only owns initial live snapshots");
-            },
-            () => call(watch, input, { context }),
-          ),
-        ),
     };
   } catch (error) {
     await connection.close();

@@ -11,48 +11,23 @@ import * as v from "valibot";
 import {
   assessMigration,
   initializeProject,
-  prepareProject,
   generateRelease,
   planRelease,
-  synchronizeDevelopment,
-  DevelopmentReviewRequired,
+  applyMigrations,
   validateMigration,
 } from "kello/tooling";
-import type { DevelopmentDatabaseProvider } from "kello/tooling";
 
 const databaseUrl = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
 
-test("public CLI and development admission use current assessment without changing historical artifacts", async () => {
+test("public CLI migration assessment uses current policy without changing historical artifacts", async () => {
   const root = await mkdtemp(join(tmpdir(), "kello-006-callers-"));
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `fts_callers_${suffix}`;
   const metadata = `loom_${suffix}`;
   const runtimeRole = `runtime_${suffix}`;
-  const url = new URL(databaseUrl);
   const admin = new pg.Client({ connectionString: databaseUrl });
   await admin.connect();
   let targetVerified = false;
-  const api: DevelopmentDatabaseProvider = {
-    getProject: async () => ({ id: "project", name: "tasks", regionId: "test", pgVersion: 18 }),
-    listBranches: async () => [{ id: "br-developer", name: "developer", protected: false, isDefault: false }],
-    listEndpoints: async () => [
-      {
-        id: url.hostname.split(".")[0]!,
-        branchId: "br-developer",
-        type: "read_write",
-        autoscalingLimitMinCu: 0.25,
-        autoscalingLimitMaxCu: 1,
-        suspendTimeout: 300,
-      },
-    ],
-    getConnectionUri: async () => ({ uri: databaseUrl }),
-  };
-  const options = {
-    root,
-    databaseName: decodeURIComponent(url.pathname.slice(1)),
-    migrationRole: decodeURIComponent(url.username),
-    runtimeRole,
-  };
   const schema = (fullText: boolean) => `import { defineSchema, defineTable } from "kello/server";
 export default defineSchema((s) => ({tasks: defineTable({title:s.text().notNull(), body:s.text()}, {
 publicFields:["_id","title"], ${fullText ? 'fullText:{content:{config:"pg_catalog.simple",fields:[{field:"title",weight:"A"},{field:"body",weight:"D"}],version:"1"}}' : ""}
@@ -99,14 +74,17 @@ export default defineConfig({project:"tasks",database:{namespace:${JSON.stringif
     );
     await writeFile(join(root, "kello/schema.ts"), schema(false));
     await generateRelease(root, "initial");
-    const initial = await prepareProject(root);
-    await synchronizeDevelopment({ ...options, sourceVersion: initial.version }, api);
+    await applyMigrations({
+      root,
+      connectionString: databaseUrl,
+      migrations: "kello/_generated/migrations",
+      namespace,
+      metadataNamespace: metadata,
+      runtimeRole,
+    });
     await admin.query(`INSERT INTO "${namespace}".tasks(title) VALUES ('preserved')`);
-    const prior = await admin.query(
-      `SELECT artifact_hash, after_catalog_hash FROM "${metadata}".development_history ORDER BY ordinal`,
-    );
+    const prior = await admin.query(`SELECT hash FROM "${metadata}".migration_history ORDER BY ordinal`);
     await writeFile(join(root, "kello/schema.ts"), schema(true));
-    const changed = await prepareProject(root);
     const plan = await planRelease(root);
     const assessment = await assessMigration(plan);
     expect(plan.safety.automatic).toBe(true);
@@ -118,24 +96,9 @@ export default defineConfig({project:"tasks",database:{namespace:${JSON.stringif
     const diff = await run(["schema", "diff"]);
     expect(diff.plan).toEqual(plan);
     expect(diff.assessment).toEqual(assessment);
-    await assert.rejects(
-      synchronizeDevelopment({ ...options, sourceVersion: changed.version }, api),
-      (cause: unknown) => {
-        assert(cause instanceof DevelopmentReviewRequired);
-        assert.equal(cause.plan.safety.automatic, true);
-        assert.equal(cause.assessment?.safety.automatic, false);
-        assert.equal(cause.assessment?.artifactHash, cause.plan.hash);
-        assert.equal(cause.assessment?.blockingGinOperations.length, 1);
-        return true;
-      },
+    expect((await admin.query(`SELECT hash FROM "${metadata}".migration_history ORDER BY ordinal`)).rows).toEqual(
+      prior.rows,
     );
-    expect(
-      (
-        await admin.query(
-          `SELECT artifact_hash, after_catalog_hash FROM "${metadata}".development_history ORDER BY ordinal`,
-        )
-      ).rows,
-    ).toEqual(prior.rows);
     expect((await admin.query(`SELECT title, body FROM "${namespace}".tasks`)).rows).toEqual([
       { title: "preserved", body: null },
     ]);

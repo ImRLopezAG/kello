@@ -12,6 +12,7 @@ export interface ProcedureUpgradeOptions {
   readonly procedures: readonly RuntimeProcedureEntry[];
   readonly migrations: readonly JobMigration[];
   readonly dryRun?: boolean;
+  readonly signal?: AbortSignal | undefined;
 }
 export interface ProcedureUpgradeBlocker {
   readonly id: string;
@@ -188,7 +189,14 @@ export async function withProcedureUpgrade<T>(
     await client.query("COMMIT");
     return result;
   } catch (cause) {
-    await client.query("ROLLBACK").catch(() => {});
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // A failed rollback cannot be reported as successful caller cancellation.
+      // Other primary failures retain their existing precedence.
+      if (options.signal?.aborted && cause === options.signal.reason)
+        throw new Error("Procedure upgrade rollback failed");
+    }
     throw cause;
   }
 }

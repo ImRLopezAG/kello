@@ -29,6 +29,7 @@ export async function prepareCloudComponents(root: string) {
         effect: "4.0.0",
         "drizzle-orm": "1.0.0-rc.4",
       },
+      devDependencies: { "vite-plus": "1.0.0" },
     }),
   );
   const installed = Bun.spawnSync(["bun", "install", "--linker", "isolated", "--ignore-scripts"], {
@@ -66,6 +67,37 @@ const component = defineComponent({ name: "journal", env: { PREFIX: v.string(), 
 });
 export default component;`,
   );
+  // This fixture verifies ordinary component RPC and HTTP streaming. The public
+  // example's Neon .live() declaration has separate provider acceptance coverage.
+  await writeFile(
+    join(root, "kello/components/journal/contracts/entries.ts"),
+    `import { defineContract, oc } from "../_generated/contract";
+import { z } from "zod";
+const entry=z.object({_id:z.uuid(),text:z.string()});
+const base=oc.errors({UNAUTHORIZED:{},REJECTED:{message:"Could not save entry"}});
+export default defineContract({
+ list:base.output(z.array(entry)),
+ add:base.input(z.object({text:z.string().trim().min(1).max(200)})).output(entry),
+});`,
+  );
+  await writeFile(
+    join(root, "kello/components/journal/functions/entries.ts"),
+    `import { os } from "../_generated/rpc";
+import { and, desc, eq } from "drizzle-orm";
+import { Effect } from "effect";
+export default os.entries.router({
+ list:os.entries.list.handler(({context,errors})=>{
+  if(!context.identity) throw errors.UNAUTHORIZED();
+  const {entries}=context.tables;
+  return context.db.select({_id:entries._id,text:entries.text}).from(entries)
+   .where(and(eq(entries.owner,context.identity.subject),eq(entries.issuer,context.identity.issuer)))
+   .orderBy(desc(entries._createdAt),desc(entries._id)).limit(50);
+ }),
+ add:os.entries.add.effect(function*({context,input}){
+  return yield* Effect.promise(()=>context.internal.entries.insert(input));
+ }),
+});`,
+  );
   const privatePath = join(root, "kello/components/journal/internal/entries.ts");
   await writeFile(
     privatePath,
@@ -99,7 +131,7 @@ export default defineContract({
 export default os.journal.router({
  list:os.journal.list.handler(({context,input})=>context.components[input.target].rpc.entries.list()),
  add:os.journal.add.handler(({context,input})=>context.components[input.target].rpc.entries.add({text:input.text})),
- watch:os.journal.watch.handler(({context,input})=>context.components[input.target].rpc.entries.watch()),
+ watch:os.journal.watch.handler(async function*({context,input}){yield await context.components[input.target].rpc.entries.list();}),
 });`,
   );
   await configureCloudComponents(root, "v1:");

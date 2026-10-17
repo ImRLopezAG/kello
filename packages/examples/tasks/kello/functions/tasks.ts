@@ -1,19 +1,22 @@
 import { os } from "../_generated/rpc";
 import { and, eq, sql } from "drizzle-orm";
-import { ownedProjects, requireIdentity } from "../access";
+import { ownedProjects } from "../access";
 export default os.tasks.router({
   search: os.tasks.search.handler(({ context, input }) => context.search.tasks.paginate(input)),
-  watchSearch: os.tasks.watchSearch.handler(({ context, input }) => context.search.tasks.watch(input)),
-  list: os.tasks.list.handler(({ context, input }) =>
-    context.live(({ db, identity }) => {
-      const owner = requireIdentity(identity);
-      return db.query.tasks.findMany({
-        columns: { _id: true, projectId: true, title: true, done: true },
-        where: { projectId: { eq: input.projectId }, project: { ownerIssuer: owner.issuer, ownerId: owner.subject } },
-        orderBy: { _createdAt: "asc", _id: "asc" },
-        limit: 100,
-      });
-    }),
+  // Membership is enforced in SQL: the owned-project join is part of the live predicate.
+  list: os.tasks.list.live(({ context: { db, tables, identity }, input }) =>
+    db
+      .select({
+        _id: tables.tasks._id,
+        projectId: sql<typeof tables.tasks.projectId._.data>`${tables.tasks.projectId}`.as("projectId"),
+        title: tables.tasks.title,
+        done: tables.tasks.done,
+      })
+      .from(tables.tasks)
+      .innerJoin(tables.projects, eq(tables.tasks.projectId, tables.projects._id))
+      .where(and(ownedProjects(identity), eq(tables.tasks.projectId, input.projectId)))
+      .orderBy(tables.tasks._createdAt, tables.tasks._id)
+      .limit(100),
   ),
   create: os.tasks.create.handler(
     async ({

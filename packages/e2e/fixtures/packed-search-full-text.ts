@@ -39,21 +39,18 @@ export const policy = {
     labels: { scope: "public", columns: ["name"] },
     project: { scope: "public", columns: ["name"], relations: { organization: { scope: "public", columns: ["name"] } } },
   },
-  budgets: { pageSize: 7, nestedSize: 3, loadedPages: 2, textLength: 96, fullTextQueryBytes: 192, fullTextQueryNodes: 16, fullTextTimeoutMs: 1000 },
+  budgets: { pageSize: 7, nestedSize: 3, textLength: 96, fullTextQueryBytes: 192, fullTextQueryNodes: 16, fullTextTimeoutMs: 1000 },
 } as const;
 export default defineContract(({ validators }) => {
   const finite = validators.tables.tasks.search(policy);
-  const live = validators.tables.tasks.liveSearch(policy);
   return {
     list: oc.errors(searchErrors).input(finite.input).output(finite.output),
-    watch: oc.errors(searchErrors).input(live.input).output(live.output),
   };
 });
 `,
   "app/kello/functions/tasks.ts": `import { os } from "../_generated/rpc";
 export default os.tasks.router({
   list: os.tasks.list.handler(({ context, input }) => context.search.tasks.paginate(input)),
-  watch: os.tasks.watch.handler(({ context, input }) => context.search.tasks.watch(input)),
 });
 `,
   "app/kello/app.config.ts": `import { defineApplication } from "kello/server";
@@ -96,33 +93,6 @@ export async function finite(flag: boolean) {
   const optionalDone: Assert<Equal<(typeof defaults.rows)[number]["done"], boolean | undefined>> = true;
   await client.tasks.list({ ...literal, where: { AND: [{ body: { isNull: false } }, { title: { contains: "database" } }] }, count: true, cursor: null, direction: "backward", limit: 7 });
   void [exact, keys, id, body, at, count, amount, relations, labels, union, uncertain, optionalDone];
-}
-export async function live(flag: boolean) {
-  const stream = await client.tasks.watch({ ...native, loadedPages: 2, anchor: null, count: true });
-  for await (const window of stream) {
-    const row = window.pages[0]![0]!;
-    const id: Assert<Equal<typeof row._id, Id<"tasks">>> = true;
-    const body: Assert<Equal<typeof row.body, string | null>> = true;
-    const at: Assert<Equal<typeof row.at, Date | null>> = true;
-    const count: Assert<Equal<typeof row.count, bigint | null>> = true;
-    const amount: Assert<Equal<typeof row.amount, string | null>> = true;
-    const relations: Assert<Equal<typeof row.project, { name: string; organization: { name: string } } | null>> = true;
-    const labels: Assert<Equal<typeof row.labels, { name: string }[]>> = true;
-    void [id, body, at, count, amount, relations, labels];
-  }
-  for await (const window of await client.tasks.watch(literal)) {
-    const exact: Assert<Equal<(typeof window.pages)[number][number], { title: string }>> = true;
-    void exact;
-  }
-  for await (const window of await client.tasks.watch(flag ? literal : { ...matching, columns: { done: true } })) {
-    const union: Assert<Equal<(typeof window.pages)[number][number], { title: string } | { done: boolean }>> = true;
-    void union;
-  }
-  const columns: { title: boolean } = { title: flag };
-  for await (const window of await client.tasks.watch({ ...matching, columns })) {
-    const uncertain: Assert<Equal<(typeof window.pages)[number][number]["title"], string | undefined>> = true;
-    void uncertain;
-  }
 }
 // Hooks are compiled, never called by the runtime descriptor/bundle proof.
 export function useRankedOptions(flag: boolean) {
@@ -175,20 +145,6 @@ export function useRankedOptions(flag: boolean) {
   const infiniteAmount: Assert<Equal<typeof infiniteNative.amount, string | null>> = true;
   const infiniteLabels: Assert<Equal<typeof infiniteNative.labels, { name: string }[]>> = true;
   const infiniteProject: Assert<Equal<typeof infiniteNative.project, { name: string; organization: { name: string } } | null>> = true;
-  const window = useQuery(rpc.tasks.watch.liveOptions({ input: literal })).data!;
-  const liveExact: Assert<Equal<(typeof window.pages)[number][number], { title: string }>> = true;
-  const conditionalWindow = useQuery(rpc.tasks.watch.liveOptions({ input: conditional })).data!;
-  const liveUnion: Assert<Equal<(typeof conditionalWindow.pages)[number][number], { title: string } | { done: boolean }>> = true;
-  const widenedWindow = useQuery(rpc.tasks.watch.liveOptions({ input: widened })).data!;
-  const liveUncertain: Assert<Equal<(typeof widenedWindow.pages)[number][number]["title"], string | undefined>> = true;
-  const liveNative = useQuery(rpc.tasks.watch.liveOptions({ input: native })).data!.pages[0]![0]!;
-  const liveId: Assert<Equal<typeof liveNative._id, Id<"tasks">>> = true;
-  const liveBody: Assert<Equal<typeof liveNative.body, string | null>> = true;
-  const liveAt: Assert<Equal<typeof liveNative.at, Date | null>> = true;
-  const liveCount: Assert<Equal<typeof liveNative.count, bigint | null>> = true;
-  const liveAmount: Assert<Equal<typeof liveNative.amount, string | null>> = true;
-  const liveLabels: Assert<Equal<typeof liveNative.labels, { name: string }[]>> = true;
-  const liveProject: Assert<Equal<typeof liveNative.project, { name: string; organization: { name: string } } | null>> = true;
   const context: RpcCallContext = { idempotencyKey: "packed-ranked" };
   const initial = useQuery(rpc.tasks.list.queryOptions({ input: literal, context, retry: 1, staleTime: 100,
     initialData: { rows: [{ title: "cached" }], nextCursor: null, previousCursor: null },
@@ -199,8 +155,7 @@ export function useRankedOptions(flag: boolean) {
   const selected: string[] | undefined = useQuery(rpc.tasks.list.queryOptions({ input: literal, select: page => page.rows.map(row => row.title) })).data;
   void [exact, cache, suspenseExact, union, uncertain, nestedId, nestedBody, nestedAt, nestedCount, nestedAmount, nestedLabels,
     nestedProject, infiniteExact, infiniteSuspenseExact, infiniteUnion, infiniteUncertain, infiniteId, infiniteBody,
-    infiniteAt, infiniteCount, infiniteAmount, infiniteLabels, infiniteProject, liveExact, liveUnion, liveUncertain,
-    liveId, liveBody, liveAt, liveCount, liveAmount, liveLabels, liveProject, initialExact, selected];
+    infiniteAt, infiniteCount, infiniteAmount, infiniteLabels, infiniteProject, initialExact, selected];
 }
 `;
 
@@ -216,11 +171,6 @@ export const packedFullTextNegativeCases = [
     name: "ungranted-document",
     statement: 'client.tasks.list({ fullText: { document: "hidden", query: "database" } });',
     control: 'client.tasks.list({ fullText: { document: "content", query: "database" } });',
-  },
-  {
-    name: "live-ungranted-document",
-    statement: 'client.tasks.watch({ fullText: { document: "hidden", query: "database" } });',
-    control: 'client.tasks.watch({ fullText: { document: "content", query: "database" } });',
   },
   {
     name: "config",
@@ -274,11 +224,6 @@ export const packedFullTextNegativeCases = [
       "rpc.tasks.list.infiniteOptions({ input: (cursor: string | null) => ({ ...literal, columns: { title: true }, cursor }), initialPageParam: null, getNextPageParam: () => null });",
   },
   {
-    name: "live-forbidden-field",
-    statement: "rpc.tasks.watch.liveOptions({ input: { ...literal, columns: { title: true, secret: true } } });",
-    control: "rpc.tasks.watch.liveOptions({ input: { ...literal, columns: { title: true } } });",
-  },
-  {
     name: "nested-forbidden-field",
     statement: "client.tasks.list({ ...literal, with: { labels: { columns: { name: true, _id: true } } } });",
     control: "client.tasks.list({ ...literal, with: { labels: { columns: { name: true } } } });",
@@ -321,13 +266,6 @@ export const packedFullTextNegativeCases = [
     control:
       'rpc.tasks.list.infiniteOptions({ input: (cursor: string | null) => ({ ...literal, cursor }), initialPageParam: null, getNextPageParam: () => null, initialData: { pages: [{ rows: [{ title: "safe" }], nextCursor: null, previousCursor: null }], pageParams: [null] } });',
   },
-  {
-    name: "unsafe-live-data",
-    statement:
-      "rpc.tasks.watch.liveOptions({ input: literal, initialData: { pages: [[{ title: 42 }]], nextCursor: null, previousCursor: null } });",
-    control:
-      'rpc.tasks.watch.liveOptions({ input: literal, initialData: { pages: [[{ title: "safe" }]], nextCursor: null, previousCursor: null } });',
-  },
 ] as const;
 
 export const packedFullTextRuntime = `import assert from "node:assert/strict";
@@ -336,7 +274,7 @@ import { createSearchDataGuard } from "kello/client";
 import { contract } from "./app/kello/_generated/contract-registry.ts";
 import tasks from "./app/kello/functions/tasks.ts";
 const forbidden = /pg_catalog|packed-content-v1|packed-hidden-v1|fts_packed_private_marker|ts_rank|to_tsvector|plainto_tsquery|representation|weights?|taskLabels|secret|"(?:rank|_kello_rank|config|vector)"/;
-for (const name of ["list", "watch"]) {
+for (const name of ["list"]) {
   const input = contract.tasks[name]["~orpc"].inputSchemas[0];
   const node = searchPublicNode(input);
   assert.ok(node, "generated contract must retain the public descriptor");
@@ -356,11 +294,10 @@ for (const name of ["list", "watch"]) {
   assert.equal(json.properties.limit.maximum, 7);
   assert.equal(json.properties.with.properties.labels.properties.limit.maximum, 3);
   assert.equal(json.properties.with.properties.project.properties.fullText, undefined);
-  if (name === "watch") assert.equal(json.properties.loadedPages.maximum, 2);
   assert.doesNotMatch(JSON.stringify(json), forbidden);
   const selected = { fullText: { document: "content", query: "database" }, columns: { title: true } };
   const guard = createSearchDataGuard(["tasks", name], node);
-  function data(row) { return { ...(name === "list" ? { rows: [row] } : { pages: [[row]] }), nextCursor: null, previousCursor: null }; }
+  function data(row) { return { rows: [row], nextCursor: null, previousCursor: null }; }
   for (const [label, row] of [
     ["selected title", { title: "safe" }],
     ["compatible extra", { title: "safe", extra: "compatible" }],
@@ -383,26 +320,9 @@ for (const name of ["list", "watch"]) {
     ["secret", { title: "safe", secret: "private" }, false],
     ["wrong title", { title: 42 }, false],
   ]) {
-    if (name === "list") {
-      const checked = await output["~standard"].validate(data(row));
-      assert.equal(checked.issues === undefined, expected, name + ": output " + label);
-      if (expected) assert.deepEqual(checked.value, data(row), name + ": output preserves " + label);
-    } else {
-      async function* event() { yield data(row); }
-      const checked = await output["~standard"].validate(event());
-      assert.equal(checked.issues, undefined, name + ": iterator structure " + label);
-      const iterator = checked.value;
-      try {
-        if (expected) {
-          assert.deepEqual(await iterator.next(), { done: false, value: data(row) }, name + ": yielded output " + label);
-          assert.equal((await iterator.next()).done, true, name + ": completed " + label);
-        } else {
-          await assert.rejects(() => iterator.next(), { code: "ASYNC_ITERATOR_OBJECT_VALIDATION_FAILED" }, name + ": rejected yield " + label);
-        }
-      } finally {
-        await iterator.return();
-      }
-    }
+    const checked = await output["~standard"].validate(data(row));
+    assert.equal(checked.issues === undefined, expected, name + ": output " + label);
+    if (expected) assert.deepEqual(checked.value, data(row), name + ": output preserves " + label);
   }
   assert.equal((await input["~standard"].validate({ fullText: { document: "content", query: "database" }, columns: { title: true } })).issues, undefined);
   for (const value of [
@@ -441,7 +361,7 @@ function resolveReference(value) {
   return value;
 }
 const operations = [];
-for (const name of ["list", "watch"]) {
+for (const name of ["list"]) {
   const path = resolveReference(openapi.paths?.["/tasks/" + name]);
   const operation = resolveReference(path.post);
   assert.equal(operation.operationId, "tasks." + name);
@@ -468,24 +388,20 @@ for (const name of ["list", "watch"]) {
   const labels = resolveReference(withInput.properties.labels);
   assert.equal(resolveReference(labels.properties.limit).maximum, 3);
   assert.equal(resolveReference(withInput.properties.project).properties.fullText, undefined);
-  if (name === "watch") {
-    const loadedPages = resolveReference(input.properties.loadedPages);
-    assert.equal(loadedPages.type, "integer");
-    assert.equal(loadedPages.maximum, 2);
-  }
   operations.push(operation.operationId);
 }
-assert.deepEqual(operations, ["tasks.list", "tasks.watch"]);
-console.info(JSON.stringify({ proof: "packed-full-text-descriptor-openapi", descriptors: 2, operations }));
+assert.deepEqual(operations, ["tasks.list"]);
+console.info(JSON.stringify({ proof: "packed-full-text-descriptor-openapi", descriptors: 1, operations }));
 `;
 
 export const packedFullTextBrowser = `import assert from "node:assert/strict";
-import { build, stop } from "esbuild";
+import { build } from "vite-plus/pack";
+const result = await build({ config: false, entry: ["./app/kello/_generated/api.js"], deps: { alwaysBundle: [/.*/] }, platform: "browser", format: "esm", dts: false, write: false, report: false });
 try {
-const result = await build({ entryPoints: ["./app/kello/_generated/api.js"], bundle: true, platform: "browser", format: "esm", write: false, metafile: true });
-assert.ok(result.outputFiles.length > 0);
-const output = result.outputFiles.map(file => file.text).join("\\n");
-const inputs = Object.keys(result.metafile.inputs);
+const chunks = result.bundles.flatMap(bundle => bundle.chunks).filter(chunk => chunk.type === "chunk");
+assert.ok(chunks.length > 0);
+const output = chunks.map(chunk => chunk.code).join("\\n");
+const inputs = [...new Set(chunks.flatMap(chunk => Object.keys(chunk.modules)))];
 assert.ok(inputs.some(input => input.includes("node_modules/kello/")), "bundle must traverse the installed public package");
 for (const input of inputs) {
   const parts = input.split("/");
@@ -503,6 +419,6 @@ assert.match(output, /loom-search-projections/);
 assert.match(output, /fullText/);
 assert.match(output, /content/);
 assert.doesNotMatch(output, /fts_packed_private_marker|packed-content-v1|packed-hidden-v1|taskLabels|projectId|organizationId|secret|pg_catalog|ts_rank|to_tsvector|plainto_tsquery|DATABASE_URL|node:fs|node:crypto|pg-protocol|drizzle-orm|libpg-query|kello.search.descriptor/);
-console.info(JSON.stringify({ proof: "packed-full-text-public-browser", outputs: result.outputFiles.length, inputs, bytes: Buffer.byteLength(output) }));
-} finally { stop(); }
+console.info(JSON.stringify({ proof: "packed-full-text-public-browser", outputs: chunks.length, inputs, bytes: Buffer.byteLength(output) }));
+} finally { for (const bundle of result.bundles) await bundle[Symbol.asyncDispose](); }
 `;

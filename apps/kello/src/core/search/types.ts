@@ -14,12 +14,10 @@ import type {
 
 /** All search work is bounded by server-owned budgets. */
 export interface SearchBudgets {
-  /** Maximum roots per finite page or per live display page (default 100). */
+  /** Maximum roots per finite page (default 100). */
   readonly pageSize: number;
   /** Maximum rows in each selected child array (default 100). */
   readonly nestedSize: number;
-  /** Maximum live display pages recomputed in one snapshot (default 10). */
-  readonly loadedPages: number;
   /** Maximum filter operators, including nested Boolean and relation predicates. */
   readonly predicates: number;
   /** Maximum values in a membership list. */
@@ -40,13 +38,11 @@ export interface SearchBudgets {
   readonly fullTextTimeoutMs?: number;
 }
 /** Authorization receives the native table alias used in this SQL invocation. */
-export interface SearchScope<Table extends TableRelationalConfig, Graph extends AnyRelations = Record<never, never>> {
+export interface SearchScope<Table extends TableRelationalConfig> {
   /** Stable authorization policy name included in the cursor binding. */
   readonly name: string;
   /** Change when authorization semantics change to invalidate earlier cursors. */
   readonly version: string;
-  /** Complete graph-local policy reads; omit when unknown, use [] for no additional reads. */
-  readonly dependencies?: readonly (keyof Graph & string)[];
   readonly where: (context: { readonly table: Table["table"]; readonly identity: InvocationIdentity | null }) => SQL;
 }
 type FieldName<Table extends TableRelationalConfig> = keyof GetTableViewFieldSelection<Table["table"]> & string;
@@ -102,8 +98,8 @@ export type SearchPolicy<
   readonly order?: readonly Orderable<Model<Graph, Table>>[];
   readonly text?: readonly Textual<Table>[];
   readonly fullText?: Root extends true ? readonly [DocumentName<Table>, ...DocumentName<Table>[]] : never;
-  readonly scope: "public" | SearchScope<Table, Graph>;
-  readonly through?: { readonly [Name in keyof Graph]?: "public" | SearchScope<Graph[Name], Graph> };
+  readonly scope: "public" | SearchScope<Table>;
+  readonly through?: { readonly [Name in keyof Graph]?: "public" | SearchScope<Graph[Name]> };
   readonly budgets?: Partial<SearchBudgets>;
   readonly relations?: {
     readonly [Name in keyof Table["relations"]]?: SearchPolicy<
@@ -219,18 +215,6 @@ export type SearchSelection<
     readonly direction?: "forward" | "backward";
     readonly count?: boolean;
   };
-/** A coherent live loaded window, with a contract-specific anchor. */
-export type SearchLiveSelection<
-  Graph extends AnyRelations,
-  Table extends TableRelationalConfig,
-  Policy,
-> = SearchNestedSelection<Graph, Table, Policy> &
-  RootMatching<Policy> & {
-    readonly anchor?: string | null;
-    readonly loadedPages?: number;
-    readonly count?: boolean;
-  };
-
 type AllowedColumns<Policy> = Policy extends { columns: readonly (infer Key extends string)[] } ? Key : never;
 type DefiniteKeys<Columns, Value> = {
   [Key in keyof Columns]-?: [Columns[Key]] extends [Value] ? Key : never;
@@ -351,14 +335,6 @@ export interface SearchPage<Row> {
   readonly count?: string;
 }
 
-/** Each live event replaces every loaded page from one read snapshot. */
-export interface SearchWindow<Row> {
-  readonly pages: Row[][];
-  readonly nextCursor: string | null;
-  readonly previousCursor: string | null;
-  readonly count?: string;
-}
-
 /** Type-level projection retained by generated native client declarations. */
 export interface SearchProjector<Input = unknown> {
   readonly selection: Input;
@@ -376,14 +352,6 @@ export interface SchemaSearchProjector<
   readonly output: SearchPage<SearchRow<Graph, Table, Policy, this["input"]>>;
 }
 
-export interface SchemaLiveSearchProjector<
-  Graph extends AnyRelations,
-  Table extends TableRelationalConfig,
-  Policy,
-> extends SearchProjector<SearchLiveSelection<Graph, Table, Policy>> {
-  readonly output: SearchWindow<SearchRow<Graph, Table, Policy, this["input"]>>;
-}
-
 declare const searchProjection: unique symbol;
 declare const searchInvocationInput: unique symbol;
 
@@ -397,9 +365,8 @@ export type InferSearchInputProjector<Input> = typeof searchInvocationInput exte
     : never
   : never;
 /** Phantom type identity; this property is never present in wire results. */
-export type SearchWire<Projection extends SearchProjector> = ("pages" extends keyof Projection["output"]
-  ? { readonly pages: object[][] }
-  : { readonly rows: object[] }) & {
+export type SearchWire<Projection extends SearchProjector> = {
+  readonly rows: object[];
   readonly nextCursor: string | null;
   readonly previousCursor: string | null;
   readonly count?: string;

@@ -10,7 +10,6 @@ import {
   bindRpcDatabaseProcedure,
   createDatabaseMiddleware,
   createProjectProcedures,
-  createConnectionTickets,
   createJwtVerifier,
   defineSchema,
 } from "kello/server";
@@ -91,14 +90,7 @@ test.skipIf(!connectionString)("public HTTP verifies JWTs before atomic mutation
           }),
         },
       };
-      const tickets = createConnectionTickets({
-        db: connection.db,
-        metadataNamespace,
-        namespace: schema.metadata.namespace,
-        version,
-        deployment: "http-test",
-      });
-      const app = createRpcHttpApp({ router, version, verify, tickets, origins: ["https://app.example.test"] });
+      const app = createRpcHttpApp({ router, version, verify, origins: ["https://app.example.test"] });
       const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: (request) => app.fetch(request) });
       try {
         const key = crypto.randomUUID();
@@ -110,41 +102,7 @@ test.skipIf(!connectionString)("public HTTP verifies JWTs before atomic mutation
           "x-loom-version": version,
           "idempotency-key": key,
         };
-        const ticketUrl = new URL("/api/kello/ticket", server.url);
-        const credentials = new Set<string>();
-        for (let index = 0; index < 3; index++) {
-          const minted = await fetch(ticketUrl, { method: "POST", headers, body: "{}" });
-          expect(minted.status).toBe(200);
-          expect(minted.headers.get("cache-control")).toBe("no-store");
-          const credential = v.parse(v.object({ ticket: v.string(), expiresAt: v.number() }), await minted.json());
-          credentials.add(credential.ticket);
-          expect((await tickets.redeem(credential.ticket, headers.origin)).identity).toEqual({
-            issuer,
-            subject: "alice",
-            tenantId: "one",
-          });
-          await assert.rejects(tickets.redeem(credential.ticket, headers.origin), /Authentication failed/);
-        }
-        expect(credentials.size).toBe(3);
         const { authorization: _authorization, ...noAuth } = headers;
-        const { origin: _origin, ...noOrigin } = headers;
-        for (const ticketHeaders of [
-          { ...headers, authorization: "Bearer forged" },
-          noAuth,
-          { ...headers, origin: "https://attacker.example.test" },
-          noOrigin,
-        ]) {
-          const denied = await fetch(ticketUrl, { method: "POST", headers: ticketHeaders, body: "{}" });
-          expect([401, 403]).toContain(denied.status);
-          await denied.body?.cancel();
-        }
-        const forged = await fetch(ticketUrl, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ identity: { subject: "bob" } }),
-        });
-        expect(forged.status).toBe(400);
-        await forged.body?.cancel();
         const url = new URL("/api/kello/rpc/tasks/write", server.url);
         const payload = JSON.stringify({ json: { owner: "forged-bob" } });
         const first = await fetch(url, { method: "POST", headers, body: payload });

@@ -11,10 +11,10 @@ import { defineConfig, inspectDeploymentTarget } from "kello/tooling";
 import { runHistoricalAcceptance } from "../historical/run";
 
 const suite = v.parse(
-  v.picklist(["tasks", "jobs-storage", "services", "live", "upgrade", "components", "better-auth", "search"]),
+  v.picklist(["tasks", "jobs-storage", "services", "upgrade", "components", "better-auth", "search"]),
   process.env.LOOM_CLOUD_SUITE,
 );
-const projectId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.LOOM_CLOUD_PROJECT_ID);
+const projectId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.KELLO_CLOUD_PROJECT_ID);
 const branchId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.LOOM_CLOUD_BRANCH_ID);
 assert(projectId && branchId, "Required cloud acceptance needs a project and branch");
 const target = await inspectDeploymentTarget(
@@ -129,7 +129,6 @@ if (suite === "better-auth") {
 if (suite === "components") env.LOOM_CLOUD_COMPONENTS = "1";
 if (suite === "search") env.LOOM_CLOUD_SEARCH = "1";
 if (suite === "services") env.LOOM_CLOUD_SERVICES = "1";
-if (suite === "live") env.LOOM_CLOUD_LIVE = "1";
 if (suite === "upgrade") {
   if (!env.LOOM_CLOUD_PREVIOUS_VERSION) {
     const historical = await runHistoricalAcceptance(

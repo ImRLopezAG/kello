@@ -15,7 +15,12 @@ export interface KelloHydration {
 /** Call inside a request. The callback owns application prefetch; Kello owns teardown. */
 export async function withKelloServerSession<T extends SessionConnection, R>(
   createClient: (options: SessionClientOptions) => T,
-  options: { readonly url: string; readonly getToken: () => Promise<string | null>; readonly signal?: AbortSignal },
+  options: {
+    readonly sessionCookie?: string;
+    readonly url: string;
+    readonly getToken: () => Promise<string | null>;
+    readonly signal?: AbortSignal;
+  },
   run: (session: {
     readonly connection: T;
     readonly queryClient: ReturnType<typeof createQueryClient>;
@@ -28,7 +33,12 @@ export async function withKelloServerSession<T extends SessionConnection, R>(
   signal.throwIfAborted();
   if (!token) return null;
   const cachePrefix = `loom:${crypto.randomUUID()}`;
-  const connection = createClient({ url: options.url, getToken: async () => token, cachePrefix });
+  const connection = createClient({
+    url: options.url,
+    getToken: async () => token,
+    cachePrefix,
+    sessionCookie: options.sessionCookie,
+  });
   const queryClient = createQueryClient();
   let disposed = false;
   const dispose = () => {

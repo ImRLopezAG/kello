@@ -9,7 +9,9 @@ export async function publishDeployedClient(
   root: string,
   release: { projectId: string; branchId: string; version: string; serviceSlug: string },
   provider?: DiscoveryProvider,
+  signal?: AbortSignal,
 ) {
+  signal?.throwIfAborted();
   const saved = await readResolvedProject(root);
   if (!saved || saved.projectId !== release.projectId || saved.branchId !== release.branchId) return;
   await assertGeneratedVersion(root, release.version);
@@ -24,11 +26,15 @@ export async function publishDeployedClient(
     },
     provider,
   );
+  // A superseded or cancelled development revision must not publish its coordinates.
+  signal?.throwIfAborted();
   await saveResolvedProject(root, resolved);
+  signal?.throwIfAborted();
   await writeManagedPublicEnvironment(root, {
     LOOM_URL: resolved.public.serviceUrl,
     NEON_AUTH_URL: resolved.public.authUrl ?? null,
   });
+  signal?.throwIfAborted();
   // Public coordinates are outside release identity; immutable server artifacts remain unchanged.
   await publishProjectConfiguration(root, release.version, resolved.public);
 }

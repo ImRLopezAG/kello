@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import {
-  createSearchContext,
-  validateSelectedSearchOutput,
-  validateSearchHandlerOutput,
-} from "../../../apps/kello/src/core/search/executor";
+import { createSearchContext, validateSelectedSearchOutput } from "../../../apps/kello/src/core/search/executor";
 import { createSearchValidators } from "../../../apps/kello/src/core/search/contract";
 import { oc } from "../../../apps/kello/src/core/contract/index";
 import { searchSchema, searchRelations } from "../fixtures/search-schema";
@@ -83,27 +79,5 @@ describe("invocation-bound search", () => {
       expect(() =>
         validateSelectedSearchOutput(nested, input, { ...page, rows: [{ title: "visible", project }] }),
       ).toThrow("selected search");
-  });
-  it("closes a manual stream on an invalid first or later yield", async () => {
-    const selection = validators.tables.tasks.liveSearch({ scope: "public", columns: ["title", "done"] });
-    const live = searchContractDescriptor(oc.input(selection.input).output(selection.output));
-    if (!live) throw new Error("Missing descriptor");
-    for (const firstValid of [false, true]) {
-      let closed = false;
-      const source = (async function* () {
-        try {
-          if (firstValid) yield { pages: [[{ title: "visible" }]], nextCursor: null, previousCursor: null };
-          yield { pages: [[{ title: "visible", done: true }]], nextCursor: null, previousCursor: null };
-        } finally {
-          closed = true;
-        }
-      })();
-      const stream = validateSearchHandlerOutput(live, { columns: { title: true } }, source);
-      if (!(Symbol.asyncIterator in stream)) throw new Error("Missing stream");
-      if (firstValid) expect((await stream.next()).value).toMatchObject({ pages: [[{ title: "visible" }]] });
-      await expect(stream.next()).rejects.toThrow("selected search");
-      expect(closed).toBe(true);
-      expect((await stream.next()).done).toBe(true);
-    }
   });
 });

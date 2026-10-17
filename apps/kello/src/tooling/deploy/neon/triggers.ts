@@ -9,6 +9,7 @@ import type { KelloConfig } from "../../config/define-config";
 import { inspectDeploymentTarget } from "./target";
 import type { DeploymentEnvironment, DeploymentProvider, DeploymentTarget } from "./target";
 import { readStorageBuckets } from "./storage";
+import { rethrowSignalCancellation } from "./observe";
 
 export type DeploymentTriggerProvider = DeploymentProvider &
   Pick<NeonApi, "listBranchFunctions" | "listBranchTriggers" | "createBranchTrigger" | "updateBranchTrigger">;
@@ -292,7 +293,8 @@ export async function activateNeonTriggers(
       workerDeploymentId: deploymentId,
       triggers: Object.freeze(final.map((entry) => Object.freeze(entry))),
     });
-  } catch {
+  } catch (cause) {
+    rethrowSignalCancellation(cause, input.signal);
     throw new Error("Trigger activation incomplete; inspect provider state before resuming");
   }
 }

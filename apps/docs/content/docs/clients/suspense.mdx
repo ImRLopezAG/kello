@@ -1,6 +1,6 @@
 ---
 title: Suspense and errors
-description: Use native Suspense hooks for finite reads and explicit subscriptions.
+description: Use native Suspense hooks for finite reads and handle live status explicitly.
 ---
 
 ## Read after authentication
@@ -19,18 +19,12 @@ import { useKello } from "./kello-client";
 
 function Tasks() {
   const { rpc } = useKello();
-  const { data } = useSuspenseQuery(rpc.tasks.list.liveOptions());
-  return (
-    <ul>
-      {data.map((task) => (
-        <li key={task._id}>{task.title}</li>
-      ))}
-    </ul>
-  );
+  const { data } = useSuspenseQuery(rpc.tasks.greeting.queryOptions({ input: { name: "Ada" } }));
+  return <p>{data}</p>;
 }
 ```
 
-Here `kello-client` is the application binding from [client-only React](/clients/react). The first stream snapshot reveals the UI. Later snapshots update it without a second finite query. A finite read can use `useSuspenseQuery(rpc.tasks.greeting.queryOptions({ input: { name: "Ada" } }))` instead.
+Here `kello-client` is the application binding from [client-only React](/clients/react). Suspense waits for the finite result. Declared Neon live queries use `api.tasks.list.useLiveQuery()` with explicit `isPending`, `failed` and `status` handling; they do not expose TanStack `liveOptions` or an implicit Suspense resource.
 
 Do not use `enabled` as an authentication switch for Suspense queries. Mount the query component only when its input and authenticated provider are ready. Keep ordinary `useQuery` when the UI needs an explicitly disabled state.
 
@@ -38,7 +32,7 @@ Do not use `enabled` as an authentication switch for Suspense queries. Mount the
 
 Use a React or framework error boundary for an initial failure. The Start example uses its route `errorComponent` and reset callback. Keep a failed query out of its own error fallback to avoid immediately recreating the same failure. Mutations retain normal `useMutation` pending/error callbacks; they do not become Suspense reads.
 
-Once a live query has data, inspect its error state to show a disconnected or stale-data warning. `isFetching` can remain true for the lifetime of the stream, so it is not a loading spinner or proof of connectivity.
+Once a live query has data, inspect its error state to show a disconnected or stale-data warning. Use the live hook’s `status`; finite-query fetching state does not describe Neon connectivity.
 
 Kello's query-client defaults disable retries. Configure retries deliberately; restarting a read-only subscription and retrying an uncertain mutation have different consequences. See [subscriptions](/authoring/subscriptions#optimistic-updates-and-retries).
 

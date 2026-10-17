@@ -2,15 +2,15 @@ import { SignIn } from "./sign-in";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createKelloNeonReact } from "kello/react/neon";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import * as v from "valibot";
 import type { Id } from "kello/server";
-import { createClient, configuration } from "../kello/_generated/api";
+import { configuration } from "../kello/_generated/api";
+import { createClient } from "../kello/_generated/react";
 import "./style.css";
 
-const authUrl = import.meta.env.VITE_NEON_AUTH_URL ?? configuration.authUrl;
 const serviceUrl = import.meta.env.VITE_LOOM_URL ?? configuration.serviceUrl;
-const kello = authUrl ? createKelloNeonReact(createClient, { authUrl }) : undefined;
+const kello = serviceUrl ? createKelloNeonReact(createClient, { serviceUrl }) : undefined;
 
 function AddForm({
   label,
@@ -60,9 +60,10 @@ function AddForm({
 }
 
 type Api = ReturnType<typeof createClient>["rpc"];
+type Live = ReturnType<typeof createClient>["api"];
 
-function Tasks({ projectId, name, api }: { projectId: Id<"projects">; name: string; api: Api }) {
-  const tasks = useQuery(api.tasks.list.liveOptions({ input: { projectId } }));
+function Tasks({ projectId, name, api, live }: { projectId: Id<"projects">; name: string; api: Api; live: Live }) {
+  const tasks = live.tasks.list.useLiveQuery({ projectId });
   const add = useMutation(api.tasks.create.mutationOptions());
   const setDone = useMutation(api.tasks.setDone.mutationOptions());
   const [error, setError] = useState("");
@@ -81,7 +82,7 @@ function Tasks({ projectId, name, api }: { projectId: Id<"projects">; name: stri
         }}
       />
       {error && <p role="alert">{error}</p>}
-      {tasks.status === "success" ? (
+      {tasks.data !== undefined ? (
         <>
           <p className="count">
             {tasks.data.filter((task) => task.done).length} of {tasks.data.length} completed
@@ -123,12 +124,12 @@ function Tasks({ projectId, name, api }: { projectId: Id<"projects">; name: stri
   );
 }
 
-function Workspace({ name, signOut, api }: { name: string; signOut: () => void; api: Api }) {
-  const projects = useQuery(api.projects.list.liveOptions({ input: {} }));
+function Workspace({ name, signOut, api, live }: { name: string; signOut: () => void; api: Api; live: Live }) {
+  const projects = live.projects.list.useLiveQuery({});
   const create = useMutation(api.projects.create.mutationOptions());
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Id<"projects"> | null>(null);
   const active =
-    projects.status === "success"
+    projects.data !== undefined
       ? (projects.data.find((project) => project._id === selected) ?? projects.data[0])
       : undefined;
   return (
@@ -148,7 +149,7 @@ function Workspace({ name, signOut, api }: { name: string; signOut: () => void; 
       <main className="workspace">
         <aside aria-label="Projects">
           <h1>Projects</h1>
-          {projects.status === "success" ? (
+          {projects.data !== undefined ? (
             <nav aria-label="Project selection">
               {projects.data.map((project) => (
                 <button
@@ -175,10 +176,10 @@ function Workspace({ name, signOut, api }: { name: string; signOut: () => void; 
           />
         </aside>
         {active ? (
-          <Tasks api={api} key={active._id} projectId={active._id} name={active.name} />
+          <Tasks api={api} live={live} key={active._id} projectId={active._id} name={active.name} />
         ) : (
           <section className="welcome">
-            {projects.status === "success" && (
+            {projects.data !== undefined && (
               <>
                 <h2>Create your first project</h2>
                 <p>A place for the work you want to finish. Name a project, then add its next steps.</p>
@@ -192,7 +193,7 @@ function Workspace({ name, signOut, api }: { name: string; signOut: () => void; 
 }
 
 function ConnectedWorkspace({ bindings }: { bindings: NonNullable<typeof kello> }) {
-  const { rpc } = bindings.useKello();
+  const { rpc, api } = bindings.useKello();
   const session = bindings.useAuth();
   const [error, setError] = useState("");
   return (
@@ -200,6 +201,7 @@ function ConnectedWorkspace({ bindings }: { bindings: NonNullable<typeof kello> 
       {error && <p role="alert">{error}</p>}
       <Workspace
         api={rpc}
+        live={api}
         name={session.data?.user.name ?? "Your workspace"}
         signOut={async () => {
           setError("");
@@ -215,7 +217,7 @@ function App() {
     return (
       <main className="sign-in">
         <h1>Connect your Neon application</h1>
-        <p>Run kello link and deploy, then provide VITE_LOOM_URL and VITE_NEON_AUTH_URL.</p>
+        <p>Run kello link and deploy, then provide VITE_LOOM_URL.</p>
       </main>
     );
   return (

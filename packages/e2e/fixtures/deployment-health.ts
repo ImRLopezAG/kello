@@ -243,9 +243,10 @@ try {
     await assert.rejects(inspectNeonFunctionHealth(root, options, provider), refused);
     await writeFile(join(directory, "functions.json"), saved);
     assert.equal(requests, before);
+    const cancellation = AbortSignal.abort(new Error("health cancelled"));
     await assert.rejects(
-      inspectNeonFunctionHealth(root, { ...options, signal: AbortSignal.abort() }, provider),
-      refused,
+      inspectNeonFunctionHealth(root, { ...options, signal: cancellation }, provider),
+      (error) => error === cancellation.reason,
     );
     assert.equal(requests, before);
     assert.equal(await readFile(join(directory, "functions.json"), "utf8"), saved);

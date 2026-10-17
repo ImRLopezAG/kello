@@ -34,14 +34,11 @@ const configSchema = v.pipe(
           postgresVersion: v.optional(v.literal(18), 18),
           migrations: v.optional(path),
           runtimeUrlEnv: v.optional(secretName, "LOOM_DATABASE_URL"),
-          directRuntimeUrlEnv: v.optional(secretName, "LOOM_DIRECT_DATABASE_URL"),
           migrationUrlEnv: v.optional(secretName, "LOOM_MIGRATION_DATABASE_URL"),
           metadataNamespace: v.optional(v.pipe(identifier, v.regex(/^loom_[a-z0-9_]+$/)), "loom_meta"),
         }),
         v.check(
-          (database) =>
-            database.runtimeUrlEnv !== database.migrationUrlEnv &&
-            database.directRuntimeUrlEnv !== database.migrationUrlEnv,
+          (database) => database.runtimeUrlEnv !== database.migrationUrlEnv,
           "Runtime and migration credentials require separate environment variables",
         ),
       ),

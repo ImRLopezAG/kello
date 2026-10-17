@@ -55,11 +55,11 @@ import {
   componentBundleSource,
 } from "./components";
 
-async function bundleModule(root: string, source: string, plugins: BunPlugin[] = []) {
+async function bundleModule(root: string, source: string, plugins: BunPlugin[] = [], readOnly = false) {
   const { build } = await import("bun");
   // Bun resolves external packages relative to the virtual entry's existing parent.
-  await mkdir(await resolveProjectPath(root, ".loom/modules"), { recursive: true });
-  const entry = join(root, ".loom", "entry.ts");
+  if (!readOnly) await mkdir(await resolveProjectPath(root, ".loom/modules"), { recursive: true });
+  const entry = readOnly ? join(root, "entry.ts") : join(root, ".loom", "entry.ts");
   const result = await build({
     entrypoints: [entry],
     files: { [entry]: source },
@@ -68,7 +68,20 @@ async function bundleModule(root: string, source: string, plugins: BunPlugin[] =
     format: "esm",
     packages: "external",
     minify: { whitespace: true },
-    plugins,
+    plugins: readOnly
+      ? [
+          ...plugins,
+          {
+            name: "absolute-config-imports",
+            setup(build) {
+              build.onResolve({ filter: /^[^./]/ }, (args) => {
+                if (args.path.startsWith("node:") || args.path === "bun") return { path: args.path, external: true };
+                return { path: Bun.resolveSync(args.path, args.resolveDir || root), external: true };
+              });
+            },
+          },
+        ]
+      : plugins,
   });
   if (!result.success) throw new Error("Project TypeScript bundling failed", { cause: result.logs });
   const output = result.outputs[0];
@@ -126,7 +139,7 @@ async function optionalModule(
 }
 
 /** Loads operational configuration without requiring a compilable application schema or functions. */
-export async function loadProjectConfig(projectRoot: string) {
+export async function loadProjectConfig(projectRoot: string, options: { readOnly?: boolean } = {}) {
   const root = await resolveProjectPath(projectRoot, ".");
   const configFile = await resolveProjectPath(root, "kello.config.ts");
   const present = await stat(configFile).then(
@@ -140,9 +153,16 @@ export async function loadProjectConfig(projectRoot: string) {
     },
   );
   const loadedConfig = present
-    ? await bundleModule(root, `export { default } from ${JSON.stringify(configFile)};`)
+    ? await bundleModule(root, `export { default } from ${JSON.stringify(configFile)};`, [], options.readOnly)
     : undefined;
-  const configExports = loadedConfig ? await importBundle(root, loadedConfig.content, loadedConfig.hash) : undefined;
+  const configExports = loadedConfig
+    ? options.readOnly
+      ? v.parse(
+          moduleNamespace,
+          await import(`data:text/javascript;base64,${Buffer.from(loadedConfig.content).toString("base64")}`),
+        )
+      : await importBundle(root, loadedConfig.content, loadedConfig.hash)
+    : undefined;
   const authored = v.parse(configValidator, configExports ? configExports.default : {});
   // Validate project/branch conflicts before using saved discovery for operational defaults.
   const publicConfiguration = await readPublicProjectConfiguration(root, authored);

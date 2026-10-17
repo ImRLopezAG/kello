@@ -1,11 +1,6 @@
+import { startHttpHandlerServer } from "./http-handler-server";
 import { fileURLToPath } from "node:url";
-import {
-  projectRuntimeGraph,
-  applyMigrations,
-  loadProject,
-  projectMigrationScopes,
-  startDevelopmentServer,
-} from "kello/tooling";
+import { projectRuntimeGraph, applyMigrations, loadProject, projectMigrationScopes } from "kello/tooling";
 import { createJwtVerifier, createRpcRuntime, defineRpcAuth } from "kello/server";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import pg from "pg";
@@ -26,7 +21,7 @@ export async function startIntegrationBackend(
   const role = `${database}_runtime`;
   const admin = new pg.Client({ connectionString });
   await admin.connect();
-  let backend: Awaited<ReturnType<typeof startDevelopmentServer>> | undefined;
+  let backend: Awaited<ReturnType<typeof startHttpHandlerServer>> | undefined;
   let runtime: Awaited<ReturnType<typeof createRpcRuntime>> | undefined;
   async function stop() {
     try {
@@ -73,10 +68,10 @@ export async function startIntegrationBackend(
       ...projectRuntimeGraph(project),
       // Keep application authorization while this local fixture supplies its own JWT issuer.
       auth: defineRpcAuth({ authorize: project.auth.authorize, allowAnonymous: project.auth.allowAnonymous }),
-      config: { auth: { origins }, realtime: { pollIntervalMs: 100 } },
+      config: { auth: { origins } },
       assertActive: async (signal) => signal.throwIfAborted(),
     });
-    backend = await startDevelopmentServer({ ...runtime, auth: { ...runtime.auth, verify } }, { port: 0 });
+    backend = await startHttpHandlerServer({ ...runtime, auth: { ...runtime.auth, verify } });
     return {
       version: project.version,
       url: backend.url.origin,

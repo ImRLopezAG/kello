@@ -19,7 +19,7 @@ test("rate-limit metadata appends once, upgrades without rewriting history, and 
     );
     const options = { connectionString: connectionString!, metadataNamespace: namespace, runtimeRole };
     await bootstrapDatabase(options);
-    assert.equal(frameworkMigrations("loom_meta").length, 28);
+    assert.equal(frameworkMigrations("loom_meta").length, 29);
     assert.equal(
       frameworkMigrations("loom_meta")[26]!.hash,
       "f50a24458564feb24a4db10d1bebd0414c583f6b7d1f4cfc689623bf675bc9f3",
@@ -34,10 +34,15 @@ test("rate-limit metadata appends once, upgrades without rewriting history, and 
       history,
     );
     await owner.query(`DROP TABLE "${namespace}".rate_limit_buckets, "${namespace}".rate_limit_policies`);
-    await owner.query(`DELETE FROM "${namespace}".framework_migrations WHERE version=28`);
+    // Reconstruct the immutable pre-rate-limit prefix; later migrations must replay too.
+    await owner.query(`DELETE FROM "${namespace}".framework_migrations WHERE version>=28`);
     await owner.query(`CREATE TABLE "${namespace}".business_sentinel (value text NOT NULL)`);
     await owner.query(`INSERT INTO "${namespace}".business_sentinel VALUES ('preserve')`);
     await bootstrapDatabase(options);
+    assert.deepEqual(
+      (await owner.query(`SELECT version,hash FROM "${namespace}".framework_migrations ORDER BY version`)).rows,
+      history.map(({ version, hash }) => ({ version, hash })),
+    );
     assert.deepEqual(
       (
         await owner.query(

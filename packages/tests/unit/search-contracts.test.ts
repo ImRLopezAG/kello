@@ -14,7 +14,6 @@ import * as v from "valibot";
 import { z } from "zod";
 import { searchSchema, searchRelations, nestedSelection } from "../fixtures/search-schema";
 import { searchContractDescriptor } from "../../../apps/kello/src/core/search/metadata";
-import type { SearchScope } from "../../../apps/kello/src/core/search/types";
 
 const { validators } = createProjectContext(searchSchema, searchRelations);
 const policy = {
@@ -47,7 +46,6 @@ const policy = {
   },
 } as const;
 const search = validators.tables.tasks.search(policy);
-const live = validators.tables.tasks.liveSearch(policy);
 const valid = async (value: Parameters<(typeof search.input)["~standard"]["validate"]>[0]) =>
   !(await search.input["~standard"].validate(value)).issues;
 
@@ -241,10 +239,8 @@ describe("schema-derived search contracts", () => {
     expect(await valid({ where: { at: { eq: date } } })).toBe(false);
     expect(touched).toBe(false);
   });
-  it("keeps finite and explicit live-window contracts separate", async () => {
-    expect((await live.input["~standard"].validate({ loadedPages: 2, anchor: null })).issues).toBeUndefined();
-    for (const value of [{ cursor: "finite" }, { direction: "backward" }, { loadedPages: 11 }])
-      expect((await live.input["~standard"].validate(value)).issues).toBeDefined();
+  it("validates finite pages and rejects retired live-window controls", async () => {
+    expect(await valid({ loadedPages: 2 })).toBe(false);
     expect(await valid({ anchor: null })).toBe(false);
     expect(
       (await search.output["~standard"].validate({ rows: [{ title: "one" }], nextCursor: null, previousCursor: null }))
@@ -275,7 +271,6 @@ describe("schema-derived search contracts", () => {
     expect(() => defineContract({ watch: oc.input(search.input).output(eventIterator(search.output)) })).toThrow(
       /identity/,
     );
-    expect(() => defineContract({ watch: oc.input(live.input).output(live.output) })).not.toThrow();
     const contract = oc.errors(searchErrors).meta({ name: "search" }).input(search.input).output(search.output);
     expect(searchContractDescriptor(contract)?.fingerprint).toMatch(/^[a-f0-9]{64}$/);
     expect(searchContractDescriptor(contract)?.node.public.columns).toHaveProperty("title");
@@ -313,113 +308,5 @@ describe("schema-derived search contracts", () => {
     expect(json).toContain("maxItems");
     expect(json).not.toContain("taskLabels");
     expect(json).not.toContain("where: (");
-  });
-});
-
-describe("server-owned policy dependency declarations", () => {
-  const where = () => sql`true`;
-  function descriptorFor(dependencies?: readonly (keyof typeof searchRelations)[]) {
-    const scope: SearchScope<typeof searchRelations.tasks, typeof searchRelations> = {
-      name: "root",
-      version: "1",
-      where,
-    };
-    const pair = validators.tables.tasks.search({
-      columns: ["title"],
-      scope: dependencies === undefined ? scope : { ...scope, dependencies },
-    });
-    const descriptor = searchContractDescriptor(oc.input(pair.input).output(pair.output));
-    if (!descriptor) throw new Error("Missing search descriptor");
-    return descriptor;
-  }
-  it("preserves the accepted U1 fingerprint when declarations are omitted", () => {
-    // Accepted U1 6de6aac2 characterization under vp; callback source is hashed,
-    // so this literal intentionally belongs to the unit-test transform.
-    expect(descriptorFor().fingerprint).toBe("70c7fe2420ccd10ea07e27d93ec22dc3fe604614e4ab40cc14ead4d31e6ef651");
-  });
-  it("rejects client dependency declarations in finite and live selections", async () => {
-    for (const pair of [search, live]) {
-      for (const input of [
-        { dependencies: [] },
-        { scope: { dependencies: ["members"] } },
-        { with: { labels: { dependencies: [] } } },
-        { where: { dependencies: [] } },
-      ]) {
-        expect((await pair.input["~standard"].validate(input)).issues).toBeDefined();
-      }
-    }
-  });
-  it("distinguishes absent and empty and canonicalizes frozen runtime copies", () => {
-    const absent = descriptorFor();
-    const empty = descriptorFor([]);
-    expect(empty.fingerprint).not.toBe(absent.fingerprint);
-    const names: (keyof typeof searchRelations)[] = ["teams", "members", "teams"];
-    const declared = descriptorFor(names);
-    names.push("labels");
-    expect(declared.node.scope).toMatchObject({ dependencies: ["members", "teams"] });
-    if (declared.node.scope === "public") throw new Error("Missing scope");
-    expect(Object.isFrozen(declared.node.scope.dependencies)).toBe(true);
-    expect(declared.fingerprint).toBe(descriptorFor(["members", "teams"]).fingerprint);
-    expect(declared.fingerprint).not.toBe(empty.fingerprint);
-    expect(absent.node.scope).not.toHaveProperty("dependencies");
-  });
-  it("validates root, child and junction dependency names and array elements", () => {
-    expect(() =>
-      descriptorFor([
-        // @ts-expect-error unknown graph-local dependency
-        "typo",
-      ]),
-    ).toThrow(/dependenc/i);
-    for (const dependencies of [null, "members", [1]]) {
-      expect(() =>
-        validators.tables.tasks.search({
-          columns: ["title"],
-          scope: {
-            name: "root",
-            version: "1",
-            where,
-            // @ts-expect-error malformed JavaScript authoring at runtime boundary
-            dependencies,
-          },
-        }),
-      ).toThrow();
-    }
-    expect(() =>
-      validators.tables.tasks.search({
-        columns: ["title"],
-        scope: "public",
-        relations: {
-          project: {
-            columns: ["name"],
-            scope: {
-              name: "child",
-              version: "1",
-              where,
-              dependencies: [
-                // @ts-expect-error unknown graph-local dependency
-                "typo",
-              ],
-            },
-          },
-        },
-      }),
-    ).toThrow(/dependenc/i);
-    expect(() =>
-      validators.tables.tasks.search({
-        columns: ["title"],
-        scope: "public",
-        through: {
-          taskLabels: {
-            name: "junction",
-            version: "1",
-            where,
-            dependencies: [
-              // @ts-expect-error unknown graph-local dependency
-              "typo",
-            ],
-          },
-        },
-      }),
-    ).toThrow(/dependenc/i);
   });
 });

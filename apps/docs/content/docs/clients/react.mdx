@@ -7,7 +7,7 @@ description: Connect provider-owned authentication to native TanStack Query with
 
 ```tsx
 import { createKelloNeonReact } from "kello/react/neon";
-import { createClient } from "../kello/_generated/api";
+import { createClient } from "../kello/_generated/react";
 
 export const serviceUrl = import.meta.env.VITE_LOOM_SERVICE_URL;
 export const { KelloProvider, useKello, auth, useAuth } = createKelloNeonReact(createClient, { serviceUrl });
@@ -32,17 +32,17 @@ Inside a mounted consumer:
 ```tsx
 import { useQuery, useMutation } from "@tanstack/react-query";
 
-const { rpc } = useKello();
+const { rpc, api } = useKello();
 const greeting = useQuery(rpc.tasks.greeting.queryOptions({ input: { name: "Ada" } }));
-const tasks = useQuery(rpc.tasks.list.liveOptions());
+const tasks = api.tasks.list.useLiveQuery();
 const create = useMutation(rpc.tasks.create.mutationOptions());
 // Call from a submit or click handler.
 const addTask = () => create.mutate({ title: "Write the guide" });
 ```
 
-The documentation example's `tasks.list` is explicitly streaming. Its first event supplies the initial list; later events replace it. Do not also fetch a finite snapshot for the same client view. A finite contract uses `queryOptions`; writes use `mutationOptions`. These are native oRPC options consumed by TanStack hooks.
+The documentation example’s `tasks.list` is a declared Neon live SELECT. Its SDK subscription installs the initial rows and subsequent changes. Do not also fetch a finite snapshot for the same client view. A finite contract uses `queryOptions`; writes use `mutationOptions`. These are native oRPC options consumed by TanStack hooks.
 
-A successful database write wakes affected live reads. Ordinary finite query caches need your application's invalidation policy; Kello does not infer all cache relationships. See [subscriptions](/authoring/subscriptions) for optimistic updates and retry semantics.
+Neon updates the declared live result after committed writes. Ordinary finite query caches need your application's invalidation policy; Kello does not infer all cache relationships. See [subscriptions](/authoring/subscriptions) for optimistic updates and retry semantics.
 
 ## Disable SSR explicitly when needed
 

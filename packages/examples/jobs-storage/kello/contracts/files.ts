@@ -1,10 +1,11 @@
-import { defineContract, oc, eventIterator } from "kello/contract";
+import { defineContract, oc } from "kello/contract";
 import * as v from "valibot";
 import { intentArgs, jobStatus } from "../validation";
 const base = oc.errors({ UNAUTHORIZED: {}, FORBIDDEN: {} });
 export default defineContract(({ validators }) => ({
-  list: base.input(v.strictObject({})).output(
-    eventIterator(
+  list: base
+    .input(v.strictObject({}))
+    .output(
       v.array(
         v.strictObject({
           _id: validators.id("files"),
@@ -16,7 +17,7 @@ export default defineContract(({ validators }) => ({
           summary: v.nullable(v.string()),
         }),
       ),
-    ),
-  ),
+    )
+    .live(),
   status: base.input(intentArgs).output(v.nullable(jobStatus)),
 }));

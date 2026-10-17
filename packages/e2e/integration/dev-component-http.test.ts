@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "bun:test";
 import type { ComponentHttpMount } from "kello/server";
-import { startDevelopmentServer } from "../../../apps/kello/src/tooling/dev/server";
-import type { DevelopmentServerRuntime } from "../../../apps/kello/src/tooling/dev/server";
+import { startHttpHandlerServer } from "../fixtures/http-handler-server";
+import type { HttpFixtureRuntime } from "../fixtures/http-handler-server";
 
-test("development serves scoped component HTTP with the production access policies", async () => {
+test("HTTP adapter serves scoped component HTTP with the production access policies", async () => {
   let handled = 0;
   let stopped = 0;
   const componentHttp: ComponentHttpMount[] = [
@@ -35,7 +35,7 @@ test("development serves scoped component HTTP with the production access polici
       ],
     },
   ];
-  const runtime: DevelopmentServerRuntime & { componentHttp: ComponentHttpMount[] } = {
+  const runtime: HttpFixtureRuntime & { componentHttp: ComponentHttpMount[] } = {
     componentHttp,
     auth: {
       origins: [],
@@ -46,22 +46,12 @@ test("development serves scoped component HTTP with the production access polici
       }),
     },
     router: {},
-    snapshots: {},
     version: "a".repeat(64),
-    tickets: {
-      issue: async () => {
-        throw new Error("Not used");
-      },
-      redeem: async () => {
-        throw new Error("Not used");
-      },
-    },
-    realtime: { heartbeatMs: 1000, maxBufferedBytes: 1024 },
     stop: async () => {
       stopped++;
     },
   };
-  const server = await startDevelopmentServer(runtime, { port: 0 });
+  const server = await startHttpHandlerServer(runtime);
   try {
     const send = (signature: string) =>
       fetch(new URL("/api/components/identity/event", server.url), {

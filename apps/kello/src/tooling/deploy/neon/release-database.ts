@@ -17,6 +17,7 @@ import { inspectReleaseSchema, releaseSchemaRangeValidator } from "../compatibil
 import { withDeploymentActivationSessionOnConnection } from "./activation";
 import type { DeploymentActivationSession } from "./activation";
 import { withDeploymentConnection } from "./connection";
+import type { ExpectedDeploymentTarget } from "./connection";
 import type { DeploymentDatabaseProvider } from "./connection";
 import { inspectReleaseDatabase } from "./live-schema";
 import type { ReleaseDatabaseInspection } from "./live-schema";
@@ -44,6 +45,7 @@ export const releaseDatabaseOptionsValidator = v.strictObject({
 });
 export type NeonReleaseDatabaseOptions = v.InferInput<typeof releaseDatabaseOptionsValidator> & {
   readonly signal?: AbortSignal;
+  readonly expectedTarget?: ExpectedDeploymentTarget;
 };
 export interface NeonReleaseDatabaseSession {
   readonly client: pg.Client;
@@ -59,10 +61,15 @@ export async function withNeonReleaseDatabase<T>(
   operation: (session: NeonReleaseDatabaseSession) => Promise<T>,
   provider?: DeploymentDatabaseProvider,
 ): Promise<T> {
-  const { signal, ...values } = input;
+  const { signal, expectedTarget, ...values } = input;
   const parsed = v.safeParse(releaseDatabaseOptionsValidator, structuredClone(values));
   if (!parsed.success) throw new Error("Invalid release database input");
   const options = parsed.output;
+  if (
+    expectedTarget &&
+    (expectedTarget.runtimeRole !== options.runtimeRole || expectedTarget.deployment !== options.deployment)
+  )
+    throw new Error("Deployment target changed from the selected preview target");
   if (
     options.retainedReleaseKey &&
     (options.quarantine !== "preserve" || options.retainedReleaseKey === options.releaseKey)
@@ -89,6 +96,7 @@ export async function withNeonReleaseDatabase<T>(
     environment: options.environment,
     databaseName: options.databaseName,
     migrationRole: options.migrationRole,
+    ...(expectedTarget && { expectedTarget }),
   };
   return withDeploymentConnection(
     signal ? { ...connectionOptions, signal } : connectionOptions,

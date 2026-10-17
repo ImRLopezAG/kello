@@ -7,7 +7,6 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import * as v from "valibot";
 import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
 import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
-import { createRevisionCoordinator } from "../../../apps/kello/src/core/server/realtime/coordinator";
 import { defineComponent } from "../../../apps/kello/src/core/server/components/definition";
 import {
   defineApplication,
@@ -22,7 +21,7 @@ class VendorClient {
   }
 }
 
-test("assembled service contexts preserve SDK objects, mount configuration and forbidden live access", async () => {
+test("assembled service contexts preserve SDK objects, mount configuration and authorization", async () => {
   let acquired = 0;
   let released = 0;
   let authorized = false;
@@ -62,7 +61,6 @@ test("assembled service contexts preserve SDK objects, mount configuration and f
     .$context<ProcedureContext & { services: { sdk: VendorClient } }>()
     .handler(({ context }) => context.services.sdk.greet());
   const effects = createEffectRuntime(Layer.empty);
-  const coordinator = createRevisionCoordinator({ readRevisions: async () => ({}) });
   const pool = new pg.Pool({ connectionString: "postgresql://unused:unused@127.0.0.1:1/unused" });
   const db = drizzle({ client: pool });
   const graph = bindRuntimeGraph({
@@ -78,7 +76,6 @@ test("assembled service contexts preserve SDK objects, mount configuration and f
     exposures: [{ scope: "first", prefix: "first" }],
     application,
     effects,
-    coordinator,
     activate: async () => {},
     authorize: async () => {
       if (!authorized) throw new Error("Unauthorized");
@@ -97,13 +94,11 @@ test("assembled service contexts preserve SDK objects, mount configuration and f
     await assert.rejects(call(get, undefined, { context }));
     expect(acquired).toBe(0);
     authorized = true;
-    await assert.rejects(call(get, undefined, { context: { ...context, operation: "live" } }));
     expect(acquired).toBe(0);
     expect(await call(get, undefined, { context })).toEqual(["one", "two"]);
     expect(await call(get, undefined, { context })).toEqual(["one", "two"]);
     expect(acquired).toBe(2);
     expect(released).toBe(0);
-    await assert.rejects(call(get, undefined, { context: { ...context, operation: "live" } }));
     expect(acquired).toBe(2);
     const first = graph.router.first;
     assert(first && !(first instanceof Procedure) && "local" in first);
@@ -113,7 +108,6 @@ test("assembled service contexts preserve SDK objects, mount configuration and f
   } finally {
     await graph.stop();
     await effects.stop();
-    await coordinator.stop();
     await pool.end();
   }
   expect(released).toBe(2);
@@ -123,13 +117,11 @@ function serviceHarness(
   configuration: Pick<Parameters<typeof bindRuntimeGraph>[0], "entries" | "scopes" | "application" | "exposures">,
 ) {
   const effects = createEffectRuntime(Layer.empty);
-  const coordinator = createRevisionCoordinator({ readRevisions: async () => ({}) });
   const pool = new pg.Pool({ connectionString: "postgresql://unused:unused@127.0.0.1:1/unused" });
   const db = drizzle({ client: pool });
   const graph = bindRuntimeGraph({
     ...configuration,
     effects,
-    coordinator,
     activate: async () => {},
     authorize: async () => {},
     database: {
@@ -143,7 +135,6 @@ function serviceHarness(
     async close() {
       await graph.stop();
       await effects.stop();
-      await coordinator.stop();
       await pool.end();
     },
   };
@@ -317,7 +308,6 @@ test.skipIf(!serviceDatabaseUrl)("warmed SDKs reject explicit retryable and nest
   const relations = defineRelations(schema.tables);
   const connection = await connectDatabase({ schema, relations, connectionString: serviceDatabaseUrl });
   const effects = createEffectRuntime(Layer.empty);
-  const coordinator = createRevisionCoordinator({ readRevisions: async () => ({}) });
   const local = os.$context<ProcedureContext & { services: { sdk: VendorClient } }>().handler(({ context }) => {
     nestedEntries++;
     return context.services.sdk.greet();
@@ -344,7 +334,6 @@ test.skipIf(!serviceDatabaseUrl)("warmed SDKs reject explicit retryable and nest
   const graph = bindRuntimeGraph({
     application,
     effects,
-    coordinator,
     activate: async () => {},
     authorize: async () => {},
     entries: [
@@ -377,7 +366,6 @@ test.skipIf(!serviceDatabaseUrl)("warmed SDKs reject explicit retryable and nest
   } finally {
     await graph.stop();
     await effects.stop();
-    await coordinator.stop();
     await connection.close();
   }
 });

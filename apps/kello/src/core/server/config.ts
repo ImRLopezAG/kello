@@ -10,15 +10,11 @@ const milliseconds = (minimumSeconds: number, maximumSeconds: number) =>
     v.check((value) => value % 1000 === 0, "Use whole seconds in milliseconds"),
   );
 
-export const runtimeConfigValidator = v.object({
+export const runtimeConfigValidator = v.strictObject({
   openapi: v.optional(v.boolean(), false),
   auth: v.optional(authConfigValidator, {}),
-  realtime: v.optional(
+  rpc: v.optional(
     v.strictObject({
-      mode: v.optional(v.picklist(["polling", "notify"]), "polling"),
-      pollIntervalMs: v.optional(bounded(100, 60000), 1000),
-      heartbeatMs: v.optional(bounded(1000, 30000), 15000),
-      maxSubscriptions: v.optional(bounded(1, 1000), 100),
       maxResultBytes: v.optional(bounded(1024, 10485760), 1048576),
     }),
     {},
@@ -33,5 +29,5 @@ export const runtimeConfigValidator = v.object({
     {},
   ),
 });
-/** Runtime limits for subscriptions, jobs, storage, and authentication. Values are validated and defaulted before the server accepts requests. */
+/** Runtime limits for cloud jobs, storage, and authentication. Values are validated and defaulted before the server accepts requests. */
 export type RuntimeConfigInput = v.InferInput<typeof runtimeConfigValidator>;

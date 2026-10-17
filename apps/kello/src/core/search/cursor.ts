@@ -63,15 +63,7 @@ export function searchCursorBinding(
   context: SearchCursorContext,
 ): string {
   if (!validSearchSelection(descriptor.node.public, input)) throw new ORPCError("INVALID_SELECTION");
-  const {
-    limit: _limit,
-    loadedPages: _loadedPages,
-    cursor: _cursor,
-    anchor: _anchor,
-    direction: _direction,
-    count: _count,
-    ...selection
-  } = input;
+  const { limit: _limit, cursor: _cursor, direction: _direction, count: _count, ...selection } = input;
   return createHash("sha256")
     .update(
       canonical({

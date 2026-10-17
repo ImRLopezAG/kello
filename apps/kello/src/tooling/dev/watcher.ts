@@ -1,11 +1,12 @@
 import { watch } from "node:fs";
-import { realpath } from "node:fs/promises";
-import { resolve } from "node:path";
 import { resolveProjectPath } from "../config/paths";
 import { createDevelopmentCoordinator } from "./coordinator";
 import type { DevelopmentCoordinatorOptions, DevelopmentRevision } from "./coordinator";
 
 const ignoredDirectories = new Set([".git", ".loom", "node_modules", "dist", ".astro"]);
+// Release publication owns the root .env.local and its temporary sibling; neither is part of the source version.
+const publicationOutput =
+  /^(?:\.env\.local|\.\.env\.local-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp)$/;
 const componentArtifacts =
   /^_generated\.(?:staging|previous)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -14,37 +15,19 @@ export async function watchDevelopment(
   root: string,
   update: (revision: DevelopmentRevision) => Promise<void>,
   options: DevelopmentCoordinatorOptions = {},
-) {
-  return watchDevelopmentInternal(root, update, options);
-}
-
-/** Source-internal CLI ownership forwarding; absent from the public tooling barrel. */
-export async function watchDevelopmentWithOwnedOutput(
-  root: string,
-  update: (revision: DevelopmentRevision) => Promise<void>,
-  options: DevelopmentCoordinatorOptions,
-  ownedOutputPath: string,
-) {
-  return watchDevelopmentInternal(root, update, options, ownedOutputPath);
-}
-
-async function watchDevelopmentInternal(
-  root: string,
-  update: (revision: DevelopmentRevision) => Promise<void>,
-  options: DevelopmentCoordinatorOptions,
-  ownedOutputPath?: string,
+  signal?: AbortSignal,
 ) {
   const directory = await resolveProjectPath(root, ".");
-  const ownedFile = ownedOutputPath === undefined ? undefined : await realpath(ownedOutputPath);
+  signal?.throwIfAborted();
   const coordinator = createDevelopmentCoordinator(update, options);
   let stopped = false;
   let watchError: Error | null = null;
   const watcher = watch(directory, { recursive: true, encoding: "utf8" }, (_event, filename) => {
     if (stopped) return;
-    if (filename && ownedFile === resolve(directory, filename)) return;
     // A missing filename means the OS could not identify the change: conservatively rebuild.
     const parts = filename?.split(/[\\/]/);
     if (parts?.some((part) => ignoredDirectories.has(part))) return;
+    if (parts?.length === 1 && publicationOutput.test(parts[0] ?? "")) return;
     // Component codegen swaps sibling directories before publishing _generated.
     if (parts?.some((part) => componentArtifacts.test(part))) return;
     const generated = parts?.indexOf("_generated") ?? -1;
@@ -53,17 +36,29 @@ async function watchDevelopmentInternal(
     coordinator.invalidate();
   });
   const closed = new Promise<void>((resolve) => watcher.once("close", resolve));
-  async function stop(): Promise<void> {
+  let stopping: Promise<void> | undefined;
+  // Listener-triggered stops are observed here; the same rejection is returned to the caller's stop().
+  const cancel = () => {
+    stop().catch(() => {});
+  };
+  function stop(): Promise<void> {
+    signal?.removeEventListener("abort", cancel);
     if (!stopped) {
       stopped = true;
       watcher.close();
     }
-    await Promise.all([closed, coordinator.stop()]);
+    stopping ??= Promise.all([closed, coordinator.stop()]).then(() => {});
+    return stopping;
   }
   watcher.on("error", (cause) => {
     watchError = new Error("Development filesystem watcher failed", { cause });
-    void stop();
+    cancel();
   });
+  signal?.addEventListener("abort", cancel, { once: true });
+  if (signal?.aborted) {
+    await stop();
+    signal.throwIfAborted();
+  }
   coordinator.invalidate();
   return {
     get failure() {

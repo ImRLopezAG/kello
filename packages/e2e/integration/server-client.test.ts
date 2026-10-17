@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { createORPCClient, createRpcHttpTransport } from "kello/client";
 import { createRpcHttpApp } from "kello/neon";
 import type { RouterClient } from "@orpc/server";
@@ -87,5 +87,97 @@ test("SSR cancellation interrupts pending credentials without sending a request"
       transport.dispose();
       await pending.catch(() => undefined);
     }
+  }
+});
+
+test("ordinary async-iterator procedures stream over HTTP and finalize on cancellation", async () => {
+  const finalized = Promise.withResolvers<void>();
+  const router = {
+    count: os.$context<ProcedureContext>().handler(async function* () {
+      try {
+        for (let index = 0; ; index++) {
+          yield index;
+          await Bun.sleep(5);
+        }
+      } finally {
+        finalized.resolve();
+      }
+    }),
+  };
+  const app = createRpcHttpApp({
+    router,
+    version: "a".repeat(64),
+    origins: [],
+    verify: async (token) => ({ identity: { subject: token, issuer: "test" }, expiresAt: Date.now() / 1000 + 60 }),
+  });
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: (request) => app.fetch(request) });
+  const transport = createRpcHttpTransport({
+    url: server.url.origin,
+    version: "a".repeat(64),
+    getToken: async () => "alice",
+  });
+  try {
+    const client = createORPCClient<RouterClient<typeof router, RpcCallContext>>(transport.link);
+    const received: number[] = [];
+    for await (const value of await client.count()) {
+      received.push(value);
+      if (received.length === 3) break;
+    }
+    expect(received).toEqual([0, 1, 2]);
+    expect(await Promise.race([finalized.promise.then(() => "finalized"), Bun.sleep(1_000).then(() => "open")])).toBe(
+      "finalized",
+    );
+  } finally {
+    transport.dispose();
+    await server.stop(true);
+  }
+});
+
+// Characterize the inherited total stream deadline without waiting thirty seconds.
+test("ordinary HTTP iterators retain the client 30-second deadline and finalize on expiry", async () => {
+  const deadline = new AbortController();
+  const timeout = spyOn(AbortSignal, "timeout").mockImplementation((milliseconds) => {
+    expect(milliseconds).toBe(30_000);
+    return deadline.signal;
+  });
+  const finalized = Promise.withResolvers<void>();
+  const router = {
+    count: os.$context<ProcedureContext>().handler(async function* () {
+      try {
+        for (let index = 0; ; index++) {
+          yield index;
+          await Bun.sleep(5);
+        }
+      } finally {
+        finalized.resolve();
+      }
+    }),
+  };
+  const app = createRpcHttpApp({
+    router,
+    version: "a".repeat(64),
+    origins: [],
+    verify: async () => ({ identity: { subject: "alice", issuer: "test" }, expiresAt: Date.now() / 1000 + 60 }),
+  });
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: (request) => app.fetch(request) });
+  const transport = createRpcHttpTransport({
+    url: server.url.origin,
+    version: "a".repeat(64),
+    getToken: async () => "alice",
+  });
+  try {
+    const client = createORPCClient<RouterClient<typeof router, RpcCallContext>>(transport.link);
+    const iterator = await client.count();
+    expect((await iterator.next()).value).toBe(0);
+    expect(timeout).toHaveBeenCalledWith(30_000);
+    deadline.abort(new DOMException("Deadline exceeded", "TimeoutError"));
+    await assert.rejects(iterator.next());
+    expect(await Promise.race([finalized.promise.then(() => "finalized"), Bun.sleep(1_000).then(() => "open")])).toBe(
+      "finalized",
+    );
+  } finally {
+    timeout.mockRestore();
+    transport.dispose();
+    await server.stop(true);
   }
 });

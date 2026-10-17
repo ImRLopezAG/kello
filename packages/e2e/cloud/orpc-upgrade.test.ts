@@ -25,7 +25,7 @@ const hash = v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/));
 test.skipIf(process.env.LOOM_CLOUD_UPGRADE !== "1")(
   "populated Neon release resumes and migrates a retained legacy job",
   async () => {
-    const projectId = process.env.LOOM_CLOUD_PROJECT_ID;
+    const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
     const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
     const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
     const runtimeRole = process.env.LOOM_CLOUD_RUNTIME_ROLE;

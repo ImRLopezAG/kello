@@ -1,15 +1,13 @@
 import { os } from "../_generated/rpc";
 import { ownedProjects, requireIdentity } from "../access";
 export default os.projects.router({
-  list: os.projects.list.handler(({ context }) =>
-    context.live(({ db, tables: { projects }, identity }) =>
-      db
-        .select({ _id: projects._id, name: projects.name })
-        .from(projects)
-        .where(ownedProjects(identity))
-        .orderBy(projects._createdAt, projects._id)
-        .limit(100),
-    ),
+  list: os.projects.list.live(({ context: { db, tables, identity } }) =>
+    db
+      .select({ _id: tables.projects._id, name: tables.projects.name })
+      .from(tables.projects)
+      .where(ownedProjects(identity))
+      .orderBy(tables.projects._createdAt, tables.projects._id)
+      .limit(100),
   ),
   create: os.projects.create.handler(
     async ({

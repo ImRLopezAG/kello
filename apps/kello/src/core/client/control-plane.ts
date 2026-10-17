@@ -122,7 +122,7 @@ export function createControlPlaneRequest(options: ClientOptions) {
   if (!Number.isInteger(timeout) || timeout < 1 || timeout > 120000) throw new Error("Invalid client timeout");
   if (!Number.isInteger(limit) || limit < 1024 || limit > 10485760) throw new Error("Invalid response byte limit");
   async function request(
-    endpoint: "call" | "ticket" | "storage",
+    endpoint: "storage",
     prepare: () => { body: string; maximum: number },
     callOptions: Pick<CallOptions, "signal" | "identityKey">,
   ): Promise<JsonValue> {

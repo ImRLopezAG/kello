@@ -15,7 +15,7 @@ export const neonInjectedVariables = [
 ] as const;
 
 const injected = new Set<string>(neonInjectedVariables);
-const managed = new Set(["LOOM_ACTIVATION_TOKEN", "LOOM_SEARCH_CURSOR_KEY"]);
+const managed = new Set(["LOOM_ACTIVATION_TOKEN", "LOOM_SEARCH_CURSOR_KEY", "LOOM_REALTIME_SECRET"]);
 
 /** Provider-injected values are validated at runtime, never copied from the deployer's environment. */
 export function applicationEnvironmentSources(declaration: ApplicationEnvironment = {}) {
@@ -72,3 +72,20 @@ export function componentEnvironmentDeclarations(nodes: ComponentGraph["nodes"])
   );
 }
 import type { ComponentGraph } from "kello/server";
+import type { RealtimeProvider } from "../../neon/api";
+
+/** Live deployments re-read Realtime on the selected branch at release time and
+ * carry the SDK secret only in managed function variables. Ordinary HTTP apps skip this. */
+export async function resolveRealtimeEnvironment(
+  live: boolean,
+  target: { readonly projectId: string; readonly branchId: string },
+  provider: RealtimeProvider,
+): Promise<{ readonly LOOM_REALTIME_SECRET?: string }> {
+  if (!live) return {};
+  const state = await provider.get(target.projectId, target.branchId);
+  if (!state.enabled || state.pending || !state.invocationUrl)
+    throw new Error("Realtime is not ready on the selected branch. Run `kello realtime enable` first.");
+  const secret = await provider.secret(target.projectId, target.branchId);
+  if (!secret) throw new Error("Neon Realtime secret is unavailable");
+  return { LOOM_REALTIME_SECRET: secret };
+}

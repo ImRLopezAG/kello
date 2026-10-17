@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
-import { buildFunctionBundle } from "@neon/config-runtime/v1";
+import { buildNeonFunctionBundle } from "kello/tooling";
 import type { NeonApi } from "@neon/config-runtime/v1";
 
 /** Deploy the generated service under independently identified Functions. */
@@ -19,14 +19,7 @@ export async function deployLiveServices(options: {
   const existing = await options.provider.listBranchFunctions(options.projectId, options.branchId);
   for (const slug of options.slugs ?? ["loomlivea", "loomliveb"]) {
     assert(!existing.some((fn) => fn.slug === slug), "Live test requires unused owned function slugs");
-    const bundle = await buildFunctionBundle({
-      slug,
-      name: "Kello live acceptance",
-      source,
-      env: {},
-      runtime: "nodejs24",
-      bundler: "esbuild",
-    });
+    const bundle = await buildNeonFunctionBundle(source);
     const deployment = await options.provider.deployBranchFunction(options.projectId, options.branchId, slug, {
       bundle,
       runtime: "nodejs24",

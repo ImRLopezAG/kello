@@ -40,27 +40,10 @@ const runtimeProjectors = {
     status,
     durationMs: duration,
   },
-  "realtime.listener": {
-    type: (value): value is "realtime.listener" => value === "realtime.listener",
-    status: (value): value is "connected" | "degraded" | "idle" =>
-      value === "connected" || value === "degraded" || value === "idle",
-  },
-  "realtime.coordinator": {
-    type: (value): value is "realtime.coordinator" => value === "realtime.coordinator",
-    subscriptions: count,
-    evaluating: count,
-    queued: count,
-  },
   "transaction.retry": {
     type: (value): value is "transaction.retry" => value === "transaction.retry",
     kind: (value): value is "query" | "mutation" => value === "query" || value === "mutation",
     attempt,
-  },
-  "revision.read": {
-    type: (value): value is "revision.read" => value === "revision.read",
-    status,
-    durationMs: duration,
-    tableCount: count,
   },
   "job.claim": {
     type: (value): value is "job.claim" => value === "job.claim",

@@ -15,10 +15,7 @@ import type {
 
 const runtime = {
   "rpc.procedure": { type: "rpc.procedure", mode: "finite", status: "success", durationMs: 0.5 },
-  "realtime.listener": { type: "realtime.listener", status: "connected" },
-  "realtime.coordinator": { type: "realtime.coordinator", subscriptions: 0, evaluating: 1, queued: 2 },
   "transaction.retry": { type: "transaction.retry", kind: "query", attempt: 1 },
-  "revision.read": { type: "revision.read", status: "success", durationMs: 0, tableCount: 0 },
   "job.claim": { type: "job.claim", ageMs: 0, dueLagMs: 0.5, attempt: 1, recovered: false },
   "job.lease.reaped": { type: "job.lease.reaped", count: 0 },
   "job.lease.lost": { type: "job.lease.lost", reason: "deadline" },
@@ -41,6 +38,15 @@ const stages = {
 const isNumber = Schema.is(Schema.Number);
 
 describe("finite diagnostics projection", () => {
+  test("rejects retired LISTEN, coordinator and revision-read observations", () => {
+    for (const event of [
+      { type: "realtime.listener", status: "connected" },
+      { type: "realtime.coordinator", subscriptions: 0, evaluating: 0, queued: 0 },
+      { type: "revision.read", status: "success", durationMs: 1, tableCount: 1 },
+    ])
+      expect(projectRuntimeMetric(event)).toBeNull();
+  });
+
   test("keeps the single unknown-input and finite result contracts", () => {
     expectTypeOf<Parameters<typeof projectRuntimeMetric>>().toEqualTypeOf<[input: unknown]>();
     expectTypeOf<Parameters<typeof projectDeploymentMetric>>().toEqualTypeOf<[input: unknown]>();
@@ -65,11 +71,6 @@ describe("finite diagnostics projection", () => {
           mode,
           status,
         });
-    for (const status of ["connected", "degraded", "idle"])
-      expect(projectRuntimeMetric({ type: "realtime.listener", status })).toEqual({
-        type: "realtime.listener",
-        status,
-      });
     for (const kind of ["query", "mutation"])
       expect(projectRuntimeMetric({ ...runtime["transaction.retry"], kind })).toEqual({
         ...runtime["transaction.retry"],
@@ -77,7 +78,7 @@ describe("finite diagnostics projection", () => {
       });
     for (const reason of ["deadline", "ownership", "activation", "queue"])
       expect(projectRuntimeMetric({ type: "job.lease.lost", reason })).toEqual({ type: "job.lease.lost", reason });
-    for (const type of ["revision.read", "database.acquire"] as const)
+    for (const type of ["database.acquire"] as const)
       for (const status of ["success", "error"])
         expect(projectRuntimeMetric({ ...runtime[type], status })).toEqual({ ...runtime[type], status });
     expect(projectRuntimeMetric({ ...runtime["job.claim"], recovered: true })).toEqual({
@@ -336,8 +337,8 @@ describe("owned diagnostics session", () => {
       expect(lines).toHaveLength(0);
       await vi.advanceTimersByTimeAsync(100);
       const records: DiagnosticsRecord[] = lines.map((line) => JSON.parse(line));
-      expect(records).toHaveLength(39);
-      expect(records.slice(0, 9).map((record) => record.event)).toEqual(Object.values(runtime));
+      expect(records).toHaveLength(36);
+      expect(records.slice(0, 6).map((record) => record.event)).toEqual(Object.values(runtime));
       records.forEach((record, index) => {
         expect(record.schemaVersion).toBe(1);
         expect(record.scope).toBe("local-process");
@@ -347,7 +348,7 @@ describe("owned diagnostics session", () => {
       expect(lines.join("")).not.toContain("SECRET");
       const snapshot = session.snapshot();
       Object.assign(snapshot, { accepted: 0 });
-      expect(session.snapshot().accepted).toBe(39);
+      expect(session.snapshot().accepted).toBe(36);
     } finally {
       await stop(session);
     }

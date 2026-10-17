@@ -10,9 +10,7 @@ import { call, ORPCError } from "@orpc/server";
 import type { RouterClient, InferSchemaInput } from "@orpc/server";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink as HttpLink } from "@orpc/client/fetch";
-import { RPCLink as SocketLink } from "@orpc/client/websocket";
 import { RPCHandler as HttpHandler } from "@orpc/server/fetch";
-import { RPCHandler as SocketHandler } from "@orpc/server/websocket";
 import { Context, Effect } from "effect";
 import * as v from "valibot";
 import {
@@ -159,7 +157,6 @@ test.skipIf(!connectionString)(
           },
         } as const;
         const finite = validators.tables.tasks.search(policy);
-        const live = validators.tables.tasks.liveSearch(policy);
         const options = {
           connection,
           replay: { metadataNamespace, deployment: "search-test" },
@@ -520,17 +517,6 @@ test.skipIf(!connectionString)(
             }),
           options,
         );
-        const stream = bindRpcDatabaseProcedure(
-          procedure
-            .use(read)
-            .input(live.input)
-            .output(live.output)
-            .handler(async function* () {
-              yield { pages: [[{ title: "good" }]], nextCursor: null, previousCursor: null };
-              yield { pages: [[{ title: "bad", owner: "hidden" }]], nextCursor: null, previousCursor: null };
-            }),
-          options,
-        );
         await assert.rejects(call(manual, { columns: { title: true } }, { context: alice }), {
           code: "INTERNAL_SERVER_ERROR",
         });
@@ -552,39 +538,21 @@ test.skipIf(!connectionString)(
         await assert.rejects(call(wrongMiddleware, { columns: { title: true } }, { context: alice }), {
           code: "INTERNAL_SERVER_ERROR",
         });
-        const iterator = await call(stream, { columns: { title: true } }, { context: alice });
-        expect((await iterator.next()).value).toMatchObject({ pages: [[{ title: "good" }]] });
-        await assert.rejects(iterator.next(), { code: "INTERNAL_SERVER_ERROR" });
-        await iterator.return?.();
         const router = { list, manual };
         const http = new HttpHandler(router);
-        const sockets = new SocketHandler(router);
         let transportContext = alice;
         const server = Bun.serve({
           hostname: "127.0.0.1",
           port: 0,
-          async fetch(request, server) {
-            if (new URL(request.url).pathname === "/ws" && server.upgrade(request)) return;
+          async fetch(request) {
             return (
               (await http.handle(request, { context: transportContext })).response ??
               new Response("Not found", { status: 404 })
             );
           },
-          websocket: {
-            async message(socket, message) {
-              await sockets.message(socket, message, { context: transportContext });
-            },
-            async close(socket) {
-              await sockets.close(socket);
-            },
-          },
         });
-        const socket = new WebSocket(`ws://127.0.0.1:${server.port}/ws`);
         try {
-          const clients = [
-            createORPCClient<RouterClient<typeof router>>(new HttpLink({ origin: server.url.origin })),
-            createORPCClient<RouterClient<typeof router>>(new SocketLink({ connect: () => socket })),
-          ];
+          const clients = [createORPCClient<RouterClient<typeof router>>(new HttpLink({ origin: server.url.origin }))];
           for (const client of clients) {
             expect((await client.list(input)).count).toBe("6");
             await assert.rejects(client.manual({ columns: { title: true } }), { code: "INTERNAL_SERVER_ERROR" });
@@ -598,7 +566,6 @@ test.skipIf(!connectionString)(
           await assert.rejects(request(input, contextFor(null)), { code: "UNAUTHORIZED" });
           expect(statements.some((text) => text.includes(`"${namespace}"."tasks"`))).toBe(false);
         } finally {
-          socket.close();
           await server.stop(true);
         }
       } finally {

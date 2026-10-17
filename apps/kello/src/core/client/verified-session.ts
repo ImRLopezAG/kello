@@ -18,10 +18,16 @@ export async function verifyClientSession(
   signal.throwIfAborted();
   const token = await abortable(options.getToken(), signal);
   if (!token) throw new Error("Authentication required");
+  const headers = new Headers({
+    authorization: `Bearer ${token}`,
+    "x-loom-protocol": "loom-orpc-2",
+    "x-loom-version": options.version,
+  });
+  if (options.sessionCookie) headers.set("cookie", options.sessionCookie);
   const response = await fetch(`${options.url.replace(/\/$/, "")}/api/kello/session`, {
     method: "POST",
-    headers: { authorization: `Bearer ${token}`, "x-loom-protocol": "loom-orpc-2", "x-loom-version": options.version },
-    credentials: "omit",
+    headers,
+    credentials: options.credentials ?? "omit",
     redirect: "error",
     cache: "no-store",
     signal,

@@ -22,7 +22,7 @@ Use explicit tenant and record predicates for every operation, including relatio
 
 ## Realtime and background work
 
-WebSocket setup uses short-lived, single-use connection tickets. Subscription reevaluation still needs current authorization; an earlier successful response is not a permanent grant.
+Declared `.live()` procedures issue and renew authorized queries through HTTP. The official Neon SDK owns live delivery. A trusted server login resolver binds the verified credential to its actual session generation and expiry. Row and live membership permissions belong in SQL; transaction-local settings, RLS and a previous successful issuance do not authorize future rows. No Kello connection tickets or application WebSocket server remain.
 
 Background jobs carry trusted invocation context. Decide which authorization checks remain valid at execution time, particularly when membership can be revoked while a job is queued. Do not derive trusted job identity from arbitrary function arguments.
 

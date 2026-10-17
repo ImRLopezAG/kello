@@ -7,7 +7,6 @@ export type { StorageUpload, StorageStatus, StorageSignedUpload, StorageSignedDo
 export { createORPCClient } from "@orpc/client";
 export type { ClientLink } from "@orpc/client";
 
-export { createRpcTransport } from "./rpc-transport";
 export type { RpcTransportOptions, RpcCallContext } from "./rpc-transport";
 
 export { createRpcHttpTransport } from "./rpc-http-transport";

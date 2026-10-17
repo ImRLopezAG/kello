@@ -25,10 +25,10 @@ async function neon(args: string[]): Promise<string> {
   }
 }
 
-test.skipIf(!process.env.LOOM_CLOUD_PROJECT_ID)(
+test.skipIf(!process.env.KELLO_CLOUD_PROJECT_ID)(
   "Neon PostgreSQL 18 bootstraps and preserves runtime role isolation",
   async () => {
-    const projectId = v.parse(identifier, process.env.LOOM_CLOUD_PROJECT_ID);
+    const projectId = v.parse(identifier, process.env.KELLO_CLOUD_PROJECT_ID);
     const branchId = v.parse(identifier, process.env.LOOM_CLOUD_BRANCH_ID);
     const branches = v.parse(
       v.array(
@@ -95,7 +95,7 @@ test.skipIf(!process.env.LOOM_CLOUD_PROJECT_ID)(
       );
       assert.deepEqual(
         history.rows.map(({ version }) => version),
-        Array.from({ length: 27 }, (_, index) => index + 1),
+        Array.from({ length: 29 }, (_, index) => index + 1),
       );
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
       assert.deepEqual(

@@ -1,11 +1,12 @@
-import { createKelloNeonApi } from "../../neon/api";
+import { createKelloNeonApi, createRealtimeProvider } from "../../neon/api";
+import type { RealtimeProvider } from "../../neon/api";
 import { createHmac } from "node:crypto";
 import type { NeonApi } from "@neon/config-runtime/v1";
 import * as v from "valibot";
 import { loadProject } from "../../project/load";
 import { applyNeonFunctions } from "./apply";
 import { prepareNeonEntrypoints } from "./entrypoints";
-import { neonInjectedVariables } from "./environment";
+import { neonInjectedVariables, resolveRealtimeEnvironment } from "./environment";
 import { slugsValidator } from "./plan";
 import { readNeonFunctionReceipt } from "./receipt";
 import type { NeonFunctionReceipt } from "./receipt";
@@ -28,6 +29,7 @@ import { publishNeonTriggerBindings } from "./trigger-bindings";
 import { inspectRetainedRelease } from "./retained-release";
 import { provisionSearchCursorKey } from "./search-key";
 import { searchContractDescriptor } from "../../../core/search/metadata";
+import { liveQueryRows } from "../../../core/realtime/contract";
 
 export interface NeonReleasePreparationOptions extends Omit<NeonReleaseDatabaseOptions, "inputHash"> {
   readonly slugs: Readonly<{ service: string; worker: string }>;
@@ -49,12 +51,28 @@ function acknowledgement(stage: "bootstrap" | "functions", receipt: NeonFunction
   };
 }
 
+/** Key confidential deployment inputs with the existing activation secret before persisting identity. */
+export function releaseInputHash(
+  activationToken: string,
+  input: Pick<NeonReleasePreparationOptions, "slugs" | "variables"> &
+    Pick<ReturnType<typeof releaseResources>, "schedules" | "storage">,
+  realtimeEnvironment: Readonly<Record<string, string>>,
+): string {
+  const variables = Object.fromEntries(
+    Object.entries({ ...input.variables, ...realtimeEnvironment }).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  );
+  return createHmac("sha256", activationToken)
+    .update(JSON.stringify({ ...input, variables }))
+    .digest("hex");
+}
+
 /** Prepares database, functions and disabled triggers; the callback retains the locks for health and activation. */
 export async function withNeonReleasePreparation<T>(
   root: string,
   input: NeonReleasePreparationOptions,
   operation: (session: NeonReleaseDatabaseSession) => Promise<T>,
   provider?: NeonApi,
+  realtime?: RealtimeProvider,
 ): Promise<T> {
   const { signal = new AbortController().signal, ...values } = input;
   const { slugs: names, variables: environment, ...databaseOptions } = structuredClone(values);
@@ -75,6 +93,7 @@ export async function withNeonReleasePreparation<T>(
     "NEON_API_KEY",
     "LOOM_ACTIVATION_TOKEN",
     "LOOM_SEARCH_CURSOR_KEY",
+    "LOOM_REALTIME_SECRET",
     project.config.database.migrationUrlEnv,
   ];
   if (
@@ -84,20 +103,27 @@ export async function withNeonReleasePreparation<T>(
     throw new Error("Release environment overrides a reserved variable");
   const connectionString = variables[project.config.database.runtimeUrlEnv];
   if (!connectionString) throw new Error("Missing release runtime connection");
-  const directConnectionString = variables[project.config.database.directRuntimeUrlEnv];
-  if (
-    project.config.realtime.mode === "notify" &&
-    (!directConnectionString || new URL(directConnectionString).hostname.includes("-pooler"))
-  )
-    throw new Error("Notify mode requires a direct runtime connection");
   const { schedules, buckets, storage } = releaseResources(project, slugs.worker);
-  const sortedVariables = Object.fromEntries(
-    Object.entries(variables).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-  );
-  const inputHash = createHmac("sha256", databaseOptions.activationToken)
-    .update(JSON.stringify({ slugs, variables: sortedVariables, schedules, storage }))
-    .digest("hex");
   const api = provider ?? createKelloNeonApi();
+  const selectedTarget = await inspectDeploymentTarget(project.config, databaseOptions.environment, api);
+  const expected = databaseOptions.expectedTarget;
+  if (
+    expected &&
+    (["projectId", "branchId", "endpointId"] as const).some((key) => selectedTarget[key] !== expected[key])
+  )
+    throw new Error("Deployment target changed from the selected preview target");
+  const searchProcedures = [...project.procedures, ...project.componentScopes.flatMap((scope) => scope.procedures)];
+  const realtimeEnvironment = await resolveRealtimeEnvironment(
+    searchProcedures.some((entry) => liveQueryRows(entry.definition) !== undefined),
+    selectedTarget,
+    realtime ?? createRealtimeProvider(),
+  );
+  signal.throwIfAborted();
+  const inputHash = releaseInputHash(
+    databaseOptions.activationToken,
+    { slugs, variables, schedules, storage },
+    realtimeEnvironment,
+  );
   return withNeonReleaseDatabase(
     project.root,
     { ...databaseOptions, inputHash, signal },
@@ -109,7 +135,6 @@ export async function withNeonReleasePreparation<T>(
         slugs,
       });
       const context = { config: project.config, environment: databaseOptions.environment };
-      const searchProcedures = [...project.procedures, ...project.componentScopes.flatMap((scope) => scope.procedures)];
       const cursorEnvironment = searchProcedures.some((entry) => searchContractDescriptor(entry.definition))
         ? {
             LOOM_SEARCH_CURSOR_KEY: await provisionSearchCursorKey(session.client, {
@@ -122,14 +147,20 @@ export async function withNeonReleasePreparation<T>(
       const functionOptions = {
         ...context,
         slugs,
-        variables: { ...variables, ...cursorEnvironment, LOOM_ACTIVATION_TOKEN: databaseOptions.activationToken },
+        variables: {
+          ...variables,
+          ...cursorEnvironment,
+          ...realtimeEnvironment,
+          LOOM_ACTIVATION_TOKEN: databaseOptions.activationToken,
+        },
         signal,
       };
       async function assertTarget() {
         signal.throwIfAborted();
         if (
           JSON.stringify(await inspectDeploymentTarget(project.config, databaseOptions.environment, api)) !==
-          JSON.stringify(database.target)
+            JSON.stringify(database.target) ||
+          JSON.stringify(selectedTarget) !== JSON.stringify(database.target)
         )
           throw new Error("Release provider target changed");
         signal.throwIfAborted();
@@ -142,15 +173,6 @@ export async function withNeonReleasePreparation<T>(
         runtimeRole: databaseOptions.runtimeRole,
         signal,
       });
-      if (project.config.realtime.mode === "notify" && directConnectionString)
-        await inspectRuntimeDatabase({
-          connectionString: directConnectionString,
-          database: database.database,
-          namespace: database.namespace,
-          metadataNamespace: database.metadataNamespace,
-          runtimeRole: databaseOptions.runtimeRole,
-          signal,
-        });
       let receipt = journal.read();
       if (databaseOptions.retainedReleaseKey) {
         await activation.assertActive();

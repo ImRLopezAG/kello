@@ -4,14 +4,15 @@ import { createRoot } from "react-dom/client";
 import { createKelloNeonReact } from "kello/react/neon";
 import { useQuery } from "@tanstack/react-query";
 import * as v from "valibot";
-import { createClient, configuration } from "../kello/_generated/api";
+import { configuration } from "../kello/_generated/api";
+import { createClient } from "../kello/_generated/react";
 import "./style.css";
 
-const authUrl = import.meta.env.VITE_NEON_AUTH_URL ?? configuration.authUrl;
 const serviceUrl = import.meta.env.VITE_LOOM_URL ?? configuration.serviceUrl;
-const kello = authUrl ? createKelloNeonReact(createClient, { authUrl }) : undefined;
+const kello = serviceUrl ? createKelloNeonReact(createClient, { serviceUrl }) : undefined;
 type Api = ReturnType<typeof createClient>["rpc"];
 type Storage = ReturnType<typeof createClient>["storage"];
+type Live = ReturnType<typeof createClient>["api"];
 
 function Processing({ intentId, api }: { intentId: string; api: Api }) {
   const query = useQuery(
@@ -152,8 +153,20 @@ function Download({ intentId, storage }: { intentId: string; storage: Storage })
   );
 }
 
-function Catalog({ name, signOut, api, storage }: { name: string; signOut: () => void; api: Api; storage: Storage }) {
-  const files = useQuery(api.files.list.liveOptions({ input: {} }));
+function Catalog({
+  name,
+  signOut,
+  api,
+  live,
+  storage,
+}: {
+  name: string;
+  signOut: () => void;
+  api: Api;
+  live: Live;
+  storage: Storage;
+}) {
+  const files = live.files.list.useLiveQuery({});
   return (
     <>
       <header className="topbar">
@@ -177,7 +190,7 @@ function Catalog({ name, signOut, api, storage }: { name: string; signOut: () =>
           </aside>
           <section aria-label="Upload catalog">
             <h2>Your uploads</h2>
-            {files.status === "success" ? (
+            {files.data !== undefined ? (
               files.data.length === 0 ? (
                 <div className="empty">
                   <h3>No uploads yet</h3>
@@ -227,13 +240,14 @@ function Catalog({ name, signOut, api, storage }: { name: string; signOut: () =>
   );
 }
 function ConnectedCatalog({ bindings }: { bindings: NonNullable<typeof kello> }) {
-  const { rpc, storage } = bindings.useKello();
+  const { rpc, api, storage } = bindings.useKello();
   const session = bindings.useAuth();
   const [error, setError] = useState("");
   return (
     <>
       {error && <p role="alert">{error}</p>}
       <Catalog
+        live={api}
         api={rpc}
         storage={storage}
         name={session.data?.user.name ?? "Your workspace"}
@@ -251,7 +265,7 @@ function App() {
     return (
       <main>
         <h1>Connect your Neon application</h1>
-        <p>Run kello link and deploy, then provide VITE_LOOM_URL and VITE_NEON_AUTH_URL.</p>
+        <p>Run kello link and deploy, then provide VITE_LOOM_URL.</p>
       </main>
     );
   return (

@@ -21,7 +21,6 @@ function fullMappingFixture(durationMs = 7): (DiagnosticsRuntimeEvent | Diagnost
       events.push({ type: "rpc.procedure", mode, status, durationMs });
   }
   for (const status of ["success", "error"] as const) {
-    events.push({ type: "revision.read", status, durationMs, tableCount: 99 });
     events.push({ type: "database.acquire", status, durationMs, total: 99, idle: 98, waiting: 97 });
   }
   for (const kind of ["query", "mutation"] as const) events.push({ type: "transaction.retry", kind, attempt: 99 });
@@ -262,10 +261,8 @@ describe("private diagnostics metrics", () => {
     expect(Effect.runSync(Metric.value(canary)).count).toBe(123);
   });
 
-  test("excluded variants register nothing and malformed RPC tuples cannot create arbitrary series", () => {
+  test("malformed RPC tuples cannot create arbitrary series", () => {
     const metrics = createDiagnosticsMetrics();
-    expect(metrics.observe({ type: "realtime.coordinator", subscriptions: 10, evaluating: 2, queued: 3 })).toBe(true);
-    expect(metrics.observe({ type: "realtime.listener", status: "connected" })).toBe(true);
     for (const event of [
       { type: "rpc.procedure", mode: "arbitrary", status: "success", durationMs: 1 },
       { type: "rpc.procedure", mode: "finite", status: "arbitrary", durationMs: 1 },
@@ -276,7 +273,7 @@ describe("private diagnostics metrics", () => {
     expect(instruments(metrics.snapshot())).toEqual([]);
   });
 
-  test("full mapping is exactly 68 fixed tuples, 54 counters and 14 histograms", () => {
+  test("full mapping is exactly 64 fixed tuples, 52 counters and 12 histograms", () => {
     const metrics = createDiagnosticsMetrics();
     for (const event of fullMappingFixture()) {
       const labeledEvent = { ...event, secret: "PAYLOAD_CANARY", sequence: 99 };
@@ -289,7 +286,7 @@ describe("private diagnostics metrics", () => {
         for (const suffix of ["count", "duration"])
           expected.push(`kello.rpc.procedure.${suffix}|mode=${mode},status=${status}`);
       }
-    for (const prefix of ["revision.read", "database.acquire"])
+    for (const prefix of ["database.acquire"])
       for (const status of ["success", "error"]) {
         for (const suffix of ["count", "duration"]) expected.push(`kello.${prefix}.${suffix}|status=${status}`);
       }
@@ -318,10 +315,10 @@ describe("private diagnostics metrics", () => {
     for (const reason of lossReasons) expected.push(`kello.diagnostics.loss.count|reason=${reason}`);
     const payload = metrics.snapshot();
     expect(seriesKeys(payload)).toEqual(expected.sort());
-    expect(expected).toHaveLength(68);
+    expect(expected).toHaveLength(64);
     const data = instruments(payload);
-    expect(data.reduce((sum, metric) => sum + (metric.sum?.dataPoints.length ?? 0), 0)).toBe(54);
-    expect(data.reduce((sum, metric) => sum + (metric.histogram?.dataPoints.length ?? 0), 0)).toBe(14);
+    expect(data.reduce((sum, metric) => sum + (metric.sum?.dataPoints.length ?? 0), 0)).toBe(52);
+    expect(data.reduce((sum, metric) => sum + (metric.histogram?.dataPoints.length ?? 0), 0)).toBe(12);
     for (const metric of data) {
       expect(metric.unit).toBe(
         metric.histogram ? "ms" : metric.name === "kello.job.lease.reaped.count" ? "{job}" : "{event}",
@@ -403,7 +400,6 @@ describe("private diagnostics metrics", () => {
     metrics.observe({ type: "job.lease.reaped", count: 3 });
     for (const attempt of [1, 99]) metrics.observe({ type: "transaction.retry", kind: "query", attempt });
     metrics.observe({ type: "rpc.procedure", mode: "mutation", status: "success", durationMs: 100 });
-    metrics.observe({ type: "revision.read", status: "success", tableCount: 10, durationMs: 25 });
     metrics.observe({ type: "database.acquire", status: "success", total: 3, idle: 2, waiting: 1, durationMs: 7 });
     metrics.observe({ type: "job.claim", recovered: true, attempt: 99, ageMs: 500, dueLagMs: 10 });
     const data = instruments(metrics.snapshot());
@@ -415,7 +411,6 @@ describe("private diagnostics metrics", () => {
     );
     for (const [name, sum] of [
       ["rpc.procedure.duration", 100],
-      ["revision.read.duration", 25],
       ["database.acquire.duration", 7],
       ["job.claim.age", 500],
       ["job.claim.due_lag", 10],
@@ -469,7 +464,7 @@ describe("private diagnostics metrics", () => {
     for (const event of fullMappingFixture(Number.MAX_VALUE)) expect(metrics.observe(event)).toBe(true);
     for (const reason of lossReasons) expect(metrics.loss(reason, Number.MAX_SAFE_INTEGER)).toBe(true);
     const payload: MetricsData = metrics.snapshot();
-    expect(seriesKeys(payload)).toHaveLength(68);
+    expect(seriesKeys(payload)).toHaveLength(64);
     // Typed wire fixture at the numeric limits: every bucket can hold Uint32.MAX_VALUE.
     // Counters reach MAX_SAFE_INTEGER through count-based observations; no private registry seam.
     for (const metric of instruments(payload)) {
@@ -498,6 +493,6 @@ describe("private diagnostics metrics", () => {
     const decoded = JSON.parse(new TextDecoder().decode(bytes)) as MetricsData;
     expect(decoded).toEqual(payload);
     expect(seriesKeys(decoded)).toEqual(seriesKeys(payload));
-    expect(instruments(decoded).flatMap((metric) => metric.histogram?.dataPoints ?? [])).toHaveLength(14);
+    expect(instruments(decoded).flatMap((metric) => metric.histogram?.dataPoints ?? [])).toHaveLength(12);
   });
 });

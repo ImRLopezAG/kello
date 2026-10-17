@@ -5,8 +5,8 @@ import {
   prepareNeonScheduleTriggers,
   prepareNeonStorageTriggers,
   prepareNeonStorageBuckets,
-  activateNeonTriggers,
 } from "kello/tooling";
+import { activateNeonTriggers } from "../../../apps/kello/src/tooling/deploy/neon/triggers";
 import type {
   DeploymentTriggerProvider,
   DeploymentStorageProvider,
@@ -204,9 +204,8 @@ test("trigger activation verifies provider state and honors cancellation before 
     workerDeploymentId: 1,
     assertActive: async () => {},
   };
-  await expect(activateNeonTriggers({ ...options, signal: AbortSignal.abort() }, f.provider)).rejects.toThrow(
-    "Trigger activation incomplete",
-  );
+  const cancelled = AbortSignal.abort();
+  await expect(activateNeonTriggers({ ...options, signal: cancelled }, f.provider)).rejects.toBe(cancelled.reason);
   expect(f.calls).toEqual(["create:wake", "create:daily"]);
   f.state.ignoreEnable = true;
   await expect(activateNeonTriggers(options, f.provider)).rejects.toThrow("Trigger activation incomplete");

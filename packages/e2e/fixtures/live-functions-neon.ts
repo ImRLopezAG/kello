@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { sql } from "drizzle-orm";
+import { chromium, type Browser } from "playwright";
 import {
   bindRpcDatabaseProcedure,
   connectDatabase,
@@ -25,16 +26,21 @@ const run = crypto.randomUUID();
 const namespace = `live_${run.replaceAll("-", "")}`;
 const metadataNamespace = `loom_${namespace}`;
 const root = await mkdtemp(join(tmpdir(), "loom-live-neon-"));
+const cleanupErrors: string[] = [];
 const report = {
   run,
   namespace,
   admission: false,
   issuance: 0,
   status: "starting",
+  browserVerified: false,
   schemaDropped: false,
   poolClosed: false,
+  cleanupErrors,
 };
-const reportFile = `/private/tmp/loom-live-functions-${run}.json`;
+const reportFile = join(tmpdir(), `loom-live-functions-${run}.json`);
+const verifyBrowser = process.argv.includes("--verify");
+let browser: Browser | undefined;
 let connection: Awaited<ReturnType<typeof connectDatabase>> | undefined;
 let server: ReturnType<typeof Bun.serve> | undefined;
 let allocated = false;
@@ -159,7 +165,11 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
     },
   ]);
   stage = "application";
-  const prepared = await prepareApplicationEnvironment(loaded.application, { SECRET: secret.secret });
+  const prepared = await prepareApplicationEnvironment(
+    loaded.application,
+    { SECRET: secret.secret, LOOM_REALTIME_SECRET: secret.secret },
+    { database: database.name, deployment: run },
+  );
   assert(prepared.liveQueries);
   stage = "procedure";
   const leaf = loaded.procedures.find((entry) => entry.path.join(".") === "tasks.list");
@@ -250,9 +260,49 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
   report.status = "ready";
   await writeFile(reportFile, JSON.stringify(report, null, 2), { mode: 0o600 });
   console.log(JSON.stringify({ status: "READY", port: server.port, run, reportFile }));
-  const timeout = setTimeout(finish, 240_000);
-  await finished;
-  clearTimeout(timeout);
+  if (verifyBrowser) {
+    stage = "browser-verification";
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+    page.setDefaultTimeout(30_000);
+    await page.goto(server.url.href);
+    await page.waitForFunction(() => document.querySelector("#status")?.textContent === "live");
+    async function rows(title: string) {
+      await page.waitForFunction((expected) => {
+        const text = document.querySelector("#rows")?.textContent;
+        if (!text) return false;
+        const value: unknown = JSON.parse(text);
+        return Array.isArray(value) && value.length === 1 && value[0]?.title === expected;
+      }, title);
+    }
+    await rows("alpha");
+    await page.getByRole("button", { name: "Update and confirm", exact: true }).click();
+    await page.waitForFunction(() => document.querySelector("#result")?.textContent === "confirmed");
+    await rows("alpha-updated");
+    await page.getByRole("button", { name: "Next page", exact: true }).click();
+    await rows("beta");
+    await page.getByRole("button", { name: "Invalid input", exact: true }).click();
+    await page.waitForFunction(() => document.querySelector("#result")?.textContent === "invalid-rejected");
+    assert.equal((await page.request.post(new URL("/outage", server.url).href)).status(), 200);
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await page.waitForFunction(() => document.querySelector("#status")?.textContent === "error");
+    assert.equal(await page.locator("#rows").textContent(), "");
+    assert.equal((await page.request.post(new URL("/outage", server.url).href)).status(), 200);
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await page.waitForFunction(() => document.querySelector("#status")?.textContent === "live");
+    await rows("beta");
+    await page.getByRole("button", { name: "First page", exact: true }).click();
+    await rows("alpha-updated");
+    await page.getByRole("button", { name: "Logout", exact: true }).click();
+    await page.waitForFunction(() => document.querySelector("#status")?.textContent === "closed");
+    assert.equal(await page.locator("#rows").textContent(), "");
+    assert.equal(await page.locator("#result").textContent(), "disposed");
+    report.browserVerified = true;
+  } else {
+    const timeout = setTimeout(finish, 240_000);
+    await finished;
+    clearTimeout(timeout);
+  }
   report.status = "closed";
 } catch (cause) {
   report.status = "failed";
@@ -276,20 +326,43 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
   );
   process.exitCode = 1;
 } finally {
-  if (server) await server.stop();
+  try {
+    await browser?.close();
+  } catch {
+    cleanupErrors.push("browser");
+  }
+  try {
+    await server?.stop(true);
+  } catch {
+    cleanupErrors.push("server");
+  }
   if (connection) {
-    try {
-      if (allocated) {
-        await connection.db.execute(sql`DROP SCHEMA ${sql.identifier(metadataNamespace)} CASCADE`);
-        await connection.db.execute(sql`DROP SCHEMA ${sql.identifier(namespace)} CASCADE`);
-        report.schemaDropped = true;
+    if (allocated) {
+      for (const schema of [metadataNamespace, namespace]) {
+        try {
+          await connection.db.execute(sql`DROP SCHEMA IF EXISTS ${sql.identifier(schema)} CASCADE`);
+        } catch {
+          cleanupErrors.push("schema");
+        }
       }
-    } finally {
+      report.schemaDropped = !cleanupErrors.includes("schema");
+    }
+    try {
       await connection.close();
       report.poolClosed = true;
+    } catch {
+      cleanupErrors.push("pool");
     }
   }
-  await rm(root, { recursive: true, force: true });
+  try {
+    await rm(root, { recursive: true, force: true });
+  } catch {
+    cleanupErrors.push("root");
+  }
+  if (cleanupErrors.length) {
+    report.status = "failed";
+    process.exitCode = 1;
+  }
   await writeFile(reportFile, JSON.stringify(report, null, 2), { mode: 0o600 });
   console.log(JSON.stringify(report));
 }

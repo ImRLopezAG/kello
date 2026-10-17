@@ -47,7 +47,7 @@ Component `functions/` operations are exported to the mounting backend. They bec
 app.use(catalog, { public: "store" });
 ```
 
-This publishes the mount's exported RPC graph under `store`; private operations remain absent from the browser client, OpenAPI, HTTP, and WebSocket dispatch. Keep operations that must remain private under `internal/`, and apply authorization middleware to exported operations before publishing the mount.
+This publishes the mount's exported RPC graph under `store`; private operations remain absent from the browser client, OpenAPI, HTTP dispatch. Keep operations that must remain private under `internal/`, and apply authorization middleware to exported operations before publishing the mount.
 
 The generated client uses native oRPC utilities:
 
@@ -60,7 +60,7 @@ const rpc = createTanstackQueryUtils(connection.client);
 const options = rpc.store.products.get.queryOptions({ input: { id } });
 ```
 
-Use `mutationOptions` for mutations. Declare an `eventIterator` output contract before using `liveOptions`; Kello never synthesizes a live endpoint from a finite query. See [React and subscriptions](/authoring/subscriptions) for SSR cache isolation, cancellation, and explicit streaming examples. Browser and SSR consumers import the public generated API, never component setup files or SDK factories.
+Use `mutationOptions` for mutations. Declare `.live()` on a flat row-array contract for Neon updates, or `eventIterator` for ordinary HTTP streaming. Iterators do not acquire live-query semantics. See [React and subscriptions](/authoring/subscriptions) for SSR cache isolation, cancellation, and explicit streaming examples. Browser and SSR consumers import the public generated API, never component setup files or SDK factories.
 
 ## HTTP and packages
 

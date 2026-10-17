@@ -3,13 +3,14 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { open, readFile, realpath, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
-import { apply, buildFunctionBundle } from "@neon/config-runtime/v1";
+import { apply } from "@neon/config-runtime/v1";
+import { buildNeonFunctionBundle } from "./bundle";
 import type { NeonApi } from "@neon/config-runtime/v1";
 import * as v from "valibot";
 import { planNeonFunctions } from "./plan";
 import type { NeonFunctionPlanOptions } from "./plan";
 import { neonInjectedVariables } from "./environment";
-import { readWithSignal } from "./observe";
+import { readWithSignal, rethrowSignalCancellation } from "./observe";
 import { neonFunctionPolicy } from "./policy";
 import { inspectDeploymentTarget } from "./target";
 import { loadFunctionReceipt, receiptDirectory, withFunctionApplyLock, writeFunctionReceipt } from "./receipt";
@@ -83,14 +84,7 @@ async function archiveFunction(
   slug: string,
   source: string,
 ): Promise<NeonFunctionReceipt["functions"][number]> {
-  const bytes = await buildFunctionBundle({
-    slug,
-    name: `Kello ${role}`,
-    source,
-    env: {},
-    runtime: "nodejs24",
-    bundler: "esbuild",
-  });
+  const bytes = await buildNeonFunctionBundle(source);
   const bundleHash = digest(bytes);
   const filename = join(directory, `${bundleHash}.zip`);
   const temporary = join(directory, `.bundle-${randomUUID()}.tmp`);
@@ -308,7 +302,8 @@ export async function applyNeonFunctions(root: string, input: NeonFunctionApplyO
         }
       }
       await assertTarget();
-    } catch {
+    } catch (cause) {
+      rethrowSignalCancellation(cause, signal);
       throw new Error("Function deployment incomplete; inspect the saved function receipt before resuming");
     }
     return Object.freeze({ path: join(directory, "functions.json"), receipt: structuredClone(progress) });

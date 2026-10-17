@@ -22,29 +22,12 @@ export { resolveProjectPath } from "./config/paths";
 export { discoverProcedures } from "./codegen/procedures";
 export { initializeProject } from "./project/initialize";
 export { loadProject, loadProjectConfig } from "./project/load";
-export { quarantineDevelopmentDatabase } from "./dev/quarantine";
-export { quarantineProjectDevelopment } from "./dev/project";
 export { createDevelopmentCoordinator } from "./dev/coordinator";
 export { watchDevelopment } from "./dev/watcher";
-export { startDevelopmentServer } from "./dev/server";
-export { startDevelopmentRuntime } from "./dev/runtime";
 export { startDevelopment } from "./dev/development";
 export { startProjectDevelopment } from "./dev/project";
-export { createDevelopmentJobLoop } from "./dev/jobs";
-export { createDevelopmentCronLoop } from "./dev/crons";
+export { buildNeonFunctionBundle } from "./deploy/neon/bundle";
 export type { DevelopmentOptions, ActiveDevelopmentGeneration } from "./dev/development";
-export type { DevelopmentRuntimeOptions } from "./dev/runtime";
-export type { DevelopmentServerRuntime, DevelopmentServerOptions } from "./dev/server";
-export { inspectDevelopmentTarget } from "./dev/target";
-export type { DevelopmentProvider, DevelopmentTarget } from "./dev/target";
-export { withDevelopmentConnection } from "./dev/connection";
-export type {
-  DevelopmentDatabaseProvider,
-  DevelopmentConnectionOptions,
-  DevelopmentDatabaseIdentity,
-} from "./dev/connection";
-export { synchronizeDevelopment, DevelopmentReviewRequired } from "./dev/sync";
-export type { DevelopmentSyncOptions, DevelopmentSyncReceipt } from "./dev/sync";
 export type { DevelopmentRevision, DevelopmentFailure, DevelopmentCoordinatorOptions } from "./dev/coordinator";
 export { generateProject, prepareProject, activateProject, assertGeneratedVersion } from "./codegen/generate";
 export { createSnapshot, emptySnapshot, inspectSnapshot, snapshotHash } from "./migrations/adapter";
@@ -74,7 +57,6 @@ export {
 export { bootstrapDatabase } from "./migrations/bootstrap";
 export { registerRateLimitPolicies, cleanupRateLimits } from "./migrations/rate-limits";
 export type { CleanupRateLimitsOptions, RateLimitCleanupResult } from "./migrations/rate-limits";
-export { installRevisionTracking } from "./migrations/revisions";
 export type { BootstrapOptions } from "./migrations/bootstrap";
 export { applyMigrations, applyMigrationsOnConnection } from "./migrations/runner";
 export type { ApplyMigrationsOptions, ApplyMigrationsOnConnectionOptions, MigrationReceipt } from "./migrations/runner";
@@ -179,3 +161,7 @@ export type {
   DiagnosticsRuntimeEvent,
   DiagnosticsDeploymentEvent,
 } from "./diagnostics";
+export { enableRealtime, readRealtimeStatus } from "./config/resolve";
+export type { RealtimeEnableOptions, RealtimeStatus } from "./config/resolve";
+export { createRealtimeProvider, RealtimeError } from "./neon/api";
+export type { RealtimeBranchState, RealtimeEnableInput, RealtimeProvider } from "./neon/api";

@@ -347,6 +347,28 @@ export function frameworkMigrations(namespace: string) {
     )`,
     `CREATE INDEX rate_limit_buckets_cleanup ON ${schema}.rate_limit_buckets (cleanup_after_ms)`,
   ]);
+  versions.push([
+    // Select by both the historical trigger name and the selected metadata function.
+    // A foreign dependency refuses DROP FUNCTION rather than being removed by CASCADE.
+    `DO $kello_retire$
+    DECLARE owned record;
+    BEGIN
+      FOR owned IN
+        SELECT n.nspname AS namespace, c.relname AS relation, t.tgname AS trigger
+        FROM pg_catalog.pg_trigger t
+        JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE NOT t.tgisinternal AND t.tgname = 'loom_table_revision'
+          AND t.tgfoid = pg_catalog.to_regprocedure('${schema}.advance_table_revision()')
+      LOOP
+        EXECUTE pg_catalog.format('DROP TRIGGER %I ON %I.%I', owned.trigger, owned.namespace, owned.relation);
+      END LOOP;
+    END
+    $kello_retire$`,
+    `DROP FUNCTION IF EXISTS ${schema}.advance_table_revision()`,
+    `DROP TABLE IF EXISTS ${schema}.table_revisions`,
+    `DROP TABLE IF EXISTS ${schema}.connection_tickets`,
+  ]);
   return versions.map((statements, index) => ({
     version: index + 1,
     statements,
@@ -449,9 +471,7 @@ export async function bootstrapSession(
     await client.query(`REVOKE ALL (claim_version) ON ${schema}.jobs FROM PUBLIC, ${role}`);
     await client.query(`GRANT USAGE ON SCHEMA ${schema} TO ${role}`);
     await client.query(`GRANT SELECT, INSERT ON ${schema}.mutation_results TO ${role}`);
-    await client.query(`GRANT SELECT, INSERT, DELETE ON ${schema}.connection_tickets TO ${role}`);
     await client.query(`GRANT SELECT, INSERT ON ${schema}.client_sessions TO ${role}`);
-    await client.query(`GRANT SELECT ON ${schema}.table_revisions TO ${role}`);
     await client.query(`GRANT SELECT ON ${schema}.jobs, ${schema}.procedure_releases TO ${role}`);
     await client.query(
       `GRANT INSERT (id, deployment, deduplication_key, fingerprint, call, identity, due_at, state, attempts, max_attempts, retry_delay_seconds, lease_owner, lease_expires_at, fencing_token, cancel_requested, result, error_code, created_at, lease_version) ON ${schema}.jobs TO ${role}`,

@@ -5,7 +5,7 @@ import { bootstrapSession } from "../../migrations/bootstrap";
 import { quoteIdentifier } from "../../migrations/connection";
 import { createKelloNeonApi } from "../../neon/api";
 import { withDeploymentConnection } from "./connection";
-import type { DeploymentConnectionOptions, DeploymentDatabaseProvider } from "./connection";
+import type { DeploymentConnectionOptions, DeploymentDatabaseProvider, ExpectedDeploymentTarget } from "./connection";
 import { releaseDatabaseOptionsValidator } from "./release-database";
 
 const managedOptions = v.pick(releaseDatabaseOptionsValidator, [
@@ -20,13 +20,24 @@ const managedOptions = v.pick(releaseDatabaseOptionsValidator, [
 /** Secrets remain in owner-only Postgres metadata and Neon, never in link files or receipts. */
 export async function resolveManagedDeploymentCredentials(
   config: KelloConfig,
-  input: v.InferInput<typeof managedOptions>,
+  input: v.InferInput<typeof managedOptions> & { readonly expectedTarget?: ExpectedDeploymentTarget },
   provider?: DeploymentDatabaseProvider,
   signal?: AbortSignal,
 ) {
-  const options = v.parse(managedOptions, input);
+  const { expectedTarget, ...values } = input;
+  const options = v.parse(managedOptions, values);
+  if (
+    expectedTarget &&
+    (expectedTarget.runtimeRole !== options.runtimeRole || expectedTarget.deployment !== options.deployment)
+  )
+    throw new Error("Deployment target changed from the selected preview target");
   const api = provider ?? createKelloNeonApi();
-  const connection: DeploymentConnectionOptions = signal ? { config, ...options, signal } : { config, ...options };
+  const connection: DeploymentConnectionOptions = {
+    config,
+    ...options,
+    ...(signal && { signal }),
+    ...(expectedTarget && { expectedTarget }),
+  };
   return withDeploymentConnection(
     connection,
     async (client, target) => {

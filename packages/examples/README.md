@@ -2,13 +2,13 @@
 
 These applications use generated oRPC clients. They do not replace TanStack Query's options, cache, hydration, or mutation APIs.
 
-| Example                        | What to examine                                                                                                                                                        |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [integrations](./integrations) | Standalone schema comparison backend: Zod, Valibot, mixed schemas, Effect handlers/services, Effect Schema, typed errors, finite reads and explicit live contracts     |
-| [next](./next)                 | Own Zod + Effect backend, Next.js App Router, request-scoped server prefetch, React Server Components, Query hydration, browser WebSocket subscriptions                |
-| [start](./start)               | Own Valibot + async-handler backend, TanStack Start loader/server function, request-scoped QueryClient, native Router SSR integration, browser WebSocket subscriptions |
-| [tasks](./tasks)               | React/Vite, Neon Auth, Valibot validators, relational tasks and optimistic updates                                                                                     |
-| [jobs-storage](./jobs-storage) | Neon Auth, Object Storage, durable jobs and live upload state                                                                                                          |
+| Example                        | What to examine                                                                                                                                                            |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [integrations](./integrations) | Standalone schema comparison backend: Zod, Valibot, mixed schemas, Effect handlers/services, Effect Schema, typed errors, finite reads and explicit live contracts         |
+| [next](./next)                 | Own Zod + Effect backend, Next.js App Router, request-scoped server prefetch, React Server Components, Query hydration, browser Neon Realtime subscriptions                |
+| [start](./start)               | Own Valibot + async-handler backend, TanStack Start loader/server function, request-scoped QueryClient, native Router SSR integration, browser Neon Realtime subscriptions |
+| [tasks](./tasks)               | React/Vite, Neon Auth, Valibot validators, relational tasks and optimistic updates                                                                                         |
+| [jobs-storage](./jobs-storage) | Neon Auth, Object Storage, durable jobs and live upload state                                                                                                              |
 
 ## Run the Next.js and Start examples
 
@@ -55,10 +55,10 @@ try {
   server.dispose();
 }
 
-// Browser session: native WebSocket transport, including explicit subscriptions.
+// Browser session: HTTPS calls; `.live()` procedures subscribe through Neon Realtime.
+// realtimeUrl defaults to the discovered configuration.realtimeUrl.
 const browser = createClient({ url, getToken });
 const rpc = createTanstackQueryUtils(browser.client);
-// useQuery(rpc.examples.watch.liveOptions())
 // useMutation(rpc.examples.add.mutationOptions())
 // Dispose when this session ends.
 ```
@@ -77,7 +77,7 @@ The independent schema comparison backend is useful for comparing libraries side
 - `effectSchema`: Effect Schema adapted through `Schema.toStandardSchemaV1`.
 - `notes`: generated `Database` and `Tables` Effect services; issuer-and-subject ownership filters and the latest 50 notes.
 - `add`: Zod mutation input and database-backed persistence. No automatic mutation retries.
-- `watch`: explicit `eventIterator(...)` contract and fresh authorized `context.live(...)` snapshots.
+- `watch`: a `.live()` contract whose handler returns one Drizzle SELECT with its ownership predicate in SQL; the browser subscribes with the generated `api.examples.watch.useLiveQuery()`.
 
 Standard Schema lets each boundary use its chosen library. It does **not** make a Valibot schema directly nestable inside `z.object`, or guarantee that arbitrary transforms can be represented in OpenAPI. Generated table validators remain Valibot. The table field validation example uses a Zod schema independently. Unsupported OpenAPI schema conversions fail rather than silently advertising unconstrained data.
 
@@ -111,9 +111,9 @@ Wrap the authenticated subtree with `KelloProvider`. Pass a memoized `auth={sess
 
 ```tsx
 function Notes() {
-  const { rpc } = useKello();
+  const { rpc, api } = useKello();
   const notes = useQuery(rpc.examples.notes.queryOptions());
-  const live = useQuery(rpc.examples.watch.liveOptions());
+  const live = api.examples.watch.useLiveQuery();
   const add = useMutation(rpc.examples.add.mutationOptions());
   // Native oRPC options, inferred inputs/outputs, and native TanStack hooks.
 }
@@ -127,7 +127,7 @@ For SSR, create a fresh `createQueryClient()` from `kello/client` and call the g
 
 `createCookieSessionHandler` from `kello/server` implements the `/api/session` endpoint. Supply `verify(token, signal)` to authenticate against your own identity provider or a protected backend procedure. `lib/session.ts` contains only that application policy and the service URL. Both Next route handlers and Start server routes delegate to the same Fetch `Request`/`Response` handler.
 
-The bridge uses an HttpOnly, SameSite=Lax `loom_session` cookie, adds Secure on HTTPS, checks mutation origins, bounds tokens to 3800 ASCII characters, and binds token reads to the page's fingerprint. Responses are not cacheable. The browser adapter intentionally obtains the bearer token for WebSocket authentication; this is not an identity provider, token refresh service, or protection against same-origin XSS. Applications with an existing auth SDK can skip the bridge and supply `KelloAuth` (`sessionKey`, `getToken`, optional `subscribe`) directly. `subscribe` must notify when identity changes; change `sessionKey` and replace the auth object when switching users.
+The bridge uses an HttpOnly, SameSite=Lax `loom_session` cookie, adds Secure on HTTPS, checks mutation origins, bounds tokens to 3800 ASCII characters, and binds token reads to the page's fingerprint. Responses are not cacheable. The browser adapter intentionally obtains the bearer token for authenticated HTTP calls and live issuance; this is not an identity provider, token refresh service, or protection against same-origin XSS. Applications with an existing auth SDK can skip the bridge and supply `KelloAuth` (`sessionKey`, `getToken`, optional `subscribe`) directly. `subscribe` must notify when identity changes; change `sessionKey` and replace the auth object when switching users.
 
 ## Migration history
 

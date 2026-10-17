@@ -1,162 +1,84 @@
+import type { NeonApi } from "@neon/config-runtime/v1";
 import * as v from "valibot";
-import { prepareProject, activateProject } from "../codegen/generate";
-import { synchronizeDevelopment } from "./sync";
-import { startDevelopmentRuntime, developmentRuntimeOptions } from "./runtime";
-import type { DevelopmentRuntimeOptions } from "./runtime";
-import { startDevelopmentServer, developmentServerLimits } from "./server";
-import type { DevelopmentServerOptions } from "./server";
-import type { DevelopmentTarget } from "./target";
-import type { DevelopmentDatabaseProvider } from "./connection";
-import { watchDevelopment, watchDevelopmentWithOwnedOutput } from "./watcher";
+import { generateProject } from "../codegen/generate";
+import { readResolvedProject } from "../config/resolve";
+import { deployProjectRelease, readProjectRelease } from "../deploy/neon/project";
+import { inspectDeploymentTarget } from "../deploy/neon/target";
+import { watchDevelopment } from "./watcher";
 import type { DevelopmentCoordinatorOptions, DevelopmentRevision } from "./coordinator";
-import { createDevelopmentJobLoop, developmentJobInterval } from "./jobs";
-import { createDevelopmentCronLoop } from "./crons";
 
-export interface DevelopmentOptions
-  extends
-    Omit<DevelopmentRuntimeOptions, "sourceVersion" | "signal">,
-    DevelopmentServerOptions,
-    DevelopmentCoordinatorOptions {
-  readonly jobPollMs?: number;
+export interface DevelopmentOptions extends DevelopmentCoordinatorOptions {
+  readonly root: string;
+  /** Release declaration; kello.config.ts uses its linked preview deployment settings. */
+  readonly file?: string;
+  readonly signal?: AbortSignal;
 }
 export interface ActiveDevelopmentGeneration {
   readonly version: string;
-  readonly target: DevelopmentTarget;
+  readonly branchId: string;
 }
 
-/** Owns the watcher and listener; initial or later failed edits remain observable and recover on the next save. */
-export async function startDevelopment(input: DevelopmentOptions, provider?: DevelopmentDatabaseProvider) {
-  return startDevelopmentInternal(input, provider);
+/** Refuses anything except the linked, unprotected, non-default preview branch before any release work. */
+async function assertLinkedPreview(root: string, file: string, provider?: NeonApi, signal?: AbortSignal) {
+  const { project, declaration } = await readProjectRelease(root, file, signal);
+  if (declaration.environment !== "preview") throw new Error("Development deploys only to a preview target");
+  const target = await inspectDeploymentTarget(project.config, "preview", provider);
+  const linked = await readResolvedProject(root);
+  if (!linked || linked.projectId !== target.projectId || linked.branchId !== target.branchId)
+    throw new Error("Development preview target must be the linked branch");
+  signal?.throwIfAborted();
+  return {
+    projectId: target.projectId,
+    branchId: target.branchId,
+    endpointId: target.endpointId,
+    databaseName: declaration.databaseName,
+    migrationRole: declaration.migrationRole,
+    runtimeRole: declaration.runtimeRole,
+    namespace: project.config.database.namespace,
+    metadataNamespace: project.config.database.metadataNamespace,
+    deployment: declaration.deployment,
+  };
 }
 
-/** Source-internal CLI ownership forwarding; absent from the public tooling barrel. */
-export async function startDevelopmentWithOwnedOutput(
-  input: DevelopmentOptions,
-  provider: DevelopmentDatabaseProvider | undefined,
-  ownedOutputPath: string,
-) {
-  return startDevelopmentInternal(input, provider, ownedOutputPath);
-}
-
-async function startDevelopmentInternal(
-  input: DevelopmentOptions,
-  provider?: DevelopmentDatabaseProvider,
-  ownedOutputPath?: string,
-) {
-  const { port, maxConnections, debounceMs, jobPollMs, storageBackend, ...values } = input;
-  const parsed = v.safeParse(v.omit(developmentRuntimeOptions, ["sourceVersion"]), values);
-  const transport = v.safeParse(developmentServerLimits, { port, maxConnections });
+/** Watches sources and deploys each new source version to the one linked preview target. No local backend runs. */
+export async function startDevelopment(input: DevelopmentOptions, provider?: NeonApi) {
+  const { root, file = "kello.config.ts", signal } = input;
   const debounce = v.safeParse(
     v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(60_000)), 75),
-    debounceMs,
+    input.debounceMs,
   );
-  const jobsInterval = v.safeParse(developmentJobInterval, jobPollMs);
-  if (!parsed.success || !transport.success || !debounce.success || !jobsInterval.success)
-    throw new Error("Invalid development options");
-  const options = parsed.output;
-  const storage: Partial<Record<"storageBackend", NonNullable<DevelopmentOptions["storageBackend"]>>> = {};
-  if (storageBackend) storage.storageBackend = Object.freeze({ ...storageBackend });
-  let server: Awaited<ReturnType<typeof startDevelopmentServer>> | undefined;
+  if (!debounce.success) throw new Error("Invalid development options");
+  signal?.throwIfAborted();
+  const selected = await assertLinkedPreview(root, file, provider, signal);
   let active: ActiveDevelopmentGeneration | null = null;
-  let fatal: Error | null = null;
-  let stopping: Promise<void> | undefined;
-  let background: ReturnType<typeof createDevelopmentJobLoop> | undefined;
-  let cronBackground: ReturnType<typeof createDevelopmentCronLoop> | undefined;
+  let url: URL | null = null;
   const update = async (revision: DevelopmentRevision) => {
-    if (fatal) throw fatal;
-    const candidate = await prepareProject(options.root);
+    signal?.throwIfAborted();
+    // A failed build throws here, leaving the previous cloud release serving.
+    const candidate = await generateProject(root);
     revision.assertCurrent();
+    // Publication rewrites .env.local; an unchanged source version is not a new release.
     if (candidate.version === active?.version) return;
-    await synchronizeDevelopment(
-      {
-        root: options.root,
-        sourceVersion: candidate.version,
-        databaseName: options.databaseName,
-        migrationRole: options.migrationRole,
-        runtimeRole: options.runtimeRole,
-        signal: revision.signal,
-      },
-      provider,
-    );
+    const current = await assertLinkedPreview(root, file, provider, revision.signal);
+    if (JSON.stringify(selected) !== JSON.stringify(current))
+      throw new Error(
+        "Development must keep the selected preview target; restart development to select another target",
+      );
     revision.assertCurrent();
-    const started = await startDevelopmentRuntime(
-      { ...options, ...storage, sourceVersion: candidate.version, signal: revision.signal },
-      provider,
-    );
-    let transferred = false;
-    let runtime = started.runtime;
-    try {
-      const jobs = createDevelopmentJobLoop(started.runtime.worker, jobsInterval.output);
-      const crons = createDevelopmentCronLoop(started.cronSchedules, started.runtime.crons);
-      runtime = {
-        ...started.runtime,
-        async stop() {
-          jobs.halt();
-          crons.halt();
-          try {
-            await crons.stop();
-          } finally {
-            try {
-              await jobs.stop();
-            } finally {
-              await started.runtime.stop();
-            }
-          }
-        },
-      };
-      revision.assertCurrent();
-      const activated = () => {
-        background?.halt();
-        cronBackground?.halt();
-        background = jobs;
-        cronBackground = crons;
-        if (stopping) {
-          jobs.halt();
-          crons.halt();
-        } else {
-          jobs.start();
-          crons.start();
-        }
-        active = Object.freeze({ version: candidate.version, target: started.target });
-      };
-      if (server) {
-        transferred = true;
-        const result = await server.replace(runtime, revision.signal, async (install) => {
-          await activateProject(options.root, candidate.version, revision.signal, () => {
-            install();
-            activated();
-          });
-        });
-        if (!result.retired) {
-          fatal = new Error("Development retirement failed; restart development");
-          throw fatal;
-        }
-      } else {
-        transferred = true;
-        const initial = await startDevelopmentServer(runtime, transport.output);
-        let installed = false;
-        try {
-          await activateProject(options.root, candidate.version, revision.signal, () => {
-            server = initial;
-            installed = true;
-            activated();
-          });
-        } finally {
-          if (!installed) await initial.stop();
-        }
-      }
-    } finally {
-      if (!transferred) await runtime.stop();
-    }
+    const receipt = await deployProjectRelease(root, file, provider, revision.signal, {
+      ...selected,
+      version: candidate.version,
+    });
+    revision.assertCurrent();
+    const linked = await readResolvedProject(root);
+    url = linked?.public.serviceUrl ? new URL(linked.public.serviceUrl) : null;
+    active = Object.freeze({ version: candidate.version, branchId: receipt.identity.target.branchId });
   };
   const coordinatorOptions = { debounceMs: debounce.output };
-  const watcher =
-    ownedOutputPath === undefined
-      ? await watchDevelopment(options.root, update, coordinatorOptions)
-      : await watchDevelopmentWithOwnedOutput(options.root, update, coordinatorOptions, ownedOutputPath);
+  const watcher = await watchDevelopment(root, update, coordinatorOptions, signal);
   return {
     get url(): URL | null {
-      return server ? new URL(server.url) : null;
+      return url;
     },
     get active(): ActiveDevelopmentGeneration | null {
       return active;
@@ -167,26 +89,9 @@ async function startDevelopmentInternal(
     get watchError() {
       return watcher.watchError;
     },
-    get workerFailure() {
-      return background?.failure ?? null;
-    },
-    get cronFailure() {
-      return cronBackground?.failure ?? null;
-    },
     flush: watcher.flush,
     settled: watcher.settled,
-    stop(): Promise<void> {
-      if (!stopping)
-        stopping = (async () => {
-          background?.halt();
-          cronBackground?.halt();
-          try {
-            await watcher.stop();
-          } finally {
-            await server?.stop();
-          }
-        })();
-      return stopping;
-    },
+    // Stops watching and awaits any started release's own cleanup; the shared preview branch is kept.
+    stop: watcher.stop,
   };
 }

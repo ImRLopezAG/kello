@@ -101,3 +101,129 @@ export function createKelloNeonApi(): NeonApi {
     revokeCredential: (...args) => invoke((api) => api.revokeCredential(...args)),
   };
 }
+
+export class RealtimeError extends Error {
+  constructor(
+    readonly code:
+      | "REALTIME_DENIED"
+      | "REALTIME_PROVIDER_FAILED"
+      | "REALTIME_COMPUTE_MISSING"
+      | "REALTIME_ORIGINS_INVALID"
+      | "REALTIME_ORIGINS_CONFLICT"
+      | "REALTIME_TARGET_PROTECTED",
+    message: string,
+  ) {
+    super(message);
+    this.name = "RealtimeError";
+  }
+}
+export interface RealtimeBranchState {
+  readonly enabled: boolean;
+  readonly pending: boolean;
+  readonly invocationUrl: string | undefined;
+  readonly allowedOrigins: readonly string[];
+}
+export interface RealtimeEnableInput {
+  readonly projectId: string;
+  readonly branchId: string;
+  readonly allowedOrigins: readonly string[];
+  readonly timeoutMs: number;
+}
+export interface RealtimeProvider {
+  get(projectId: string, branchId: string): Promise<RealtimeBranchState>;
+  hasCompute(projectId: string, branchId: string): Promise<boolean>;
+  /** Resolves when ready or when the bounded wait expires; callers re-read state before reporting. */
+  enable(input: RealtimeEnableInput): Promise<void>;
+  /** Server-only signing secret. Never persist, log, or place in public configuration. */
+  secret(projectId: string, branchId: string): Promise<string>;
+}
+interface Branch {
+  projectId: string;
+  branchId: string;
+}
+interface RealtimeClient {
+  realtime: {
+    get(params: Branch): Promise<{
+      enabled: boolean;
+      pending: boolean;
+      invocation_url?: string;
+      allowed_origins?: string[];
+    }>;
+    enable(
+      params: Branch & { allowed_origins?: string[] },
+      options: { waitForReadiness: boolean; wait: { timeoutMs: number } },
+    ): Promise<void>;
+    secret(params: Branch): Promise<{ secret: string; pending: boolean }>;
+  };
+  postgres: { endpoints: { listByBranch(params: Branch): Promise<readonly unknown[]> } };
+}
+
+/** Provider text can echo request data, so only fixed messages leave this boundary. */
+function realtimeFailure(cause: unknown): Error {
+  if (cause instanceof NeonCredentialError) return cause;
+  const kind = cause instanceof Error && "kind" in cause ? cause.kind : undefined;
+  return kind === "auth"
+    ? new RealtimeError(
+        "REALTIME_DENIED",
+        "Neon denied Realtime access for the selected branch. Check profile permissions.",
+      )
+    : new RealtimeError(
+        "REALTIME_PROVIDER_FAILED",
+        "Neon Realtime request failed. Check `kello realtime status` before retrying.",
+      );
+}
+
+export function createRealtimeProvider(client: RealtimeClient = createKelloNeonClient()): RealtimeProvider {
+  return {
+    get: async (projectId, branchId) => {
+      try {
+        const state = await client.realtime.get({ projectId, branchId });
+        return {
+          enabled: state.enabled,
+          pending: state.pending,
+          invocationUrl: state.invocation_url,
+          allowedOrigins: state.allowed_origins ?? [],
+        };
+      } catch (cause) {
+        throw realtimeFailure(cause);
+      }
+    },
+    hasCompute: async (projectId, branchId) => {
+      try {
+        return (await client.postgres.endpoints.listByBranch({ projectId, branchId })).length > 0;
+      } catch (cause) {
+        throw realtimeFailure(cause);
+      }
+    },
+    enable: async ({ projectId, branchId, allowedOrigins, timeoutMs }) => {
+      try {
+        await client.realtime.enable(
+          { projectId, branchId, allowed_origins: [...allowedOrigins] },
+          { waitForReadiness: true, wait: { timeoutMs } },
+        );
+      } catch (cause) {
+        // An expired readiness wait means the change was accepted and is still pending.
+        if (
+          cause instanceof Error &&
+          "kind" in cause &&
+          cause.kind === "timeout" &&
+          "source" in cause &&
+          cause.source === "wait"
+        )
+          return;
+        throw realtimeFailure(cause);
+      }
+    },
+    secret: async (projectId, branchId) => {
+      let state;
+      try {
+        state = await client.realtime.secret({ projectId, branchId });
+      } catch (cause) {
+        throw realtimeFailure(cause);
+      }
+      // A pending rotation has not yet published the replacement secret.
+      if (state.pending) throw new RealtimeError("REALTIME_PROVIDER_FAILED", "Neon Realtime secret is still rotating.");
+      return state.secret;
+    },
+  };
+}

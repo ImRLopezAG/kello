@@ -55,11 +55,18 @@ test.skipIf(!connectionString)(
         storageBackend: { ...storage.target, connect: () => storage },
         assertActive: async () => {},
       });
+      const reads = new pg.Pool({ connectionString: address.href, max: 1 });
       try {
         assert(runtime.storage);
         const alice = { issuer: "example", subject: "alice", tenantId: "one" };
         const call = (name: string, args: JsonValue, identity: InvocationIdentity | null = alice) =>
-          callExample(runtime, name.split(":"), args, identity);
+          callExample(
+            runtime,
+            name.split(":"),
+            args,
+            identity,
+            name === "files:list" ? { database, query: (sql, values) => reads.query(sql, values) } : undefined,
+          );
         const readStatus = async (intentId: string) => {
           const result = await call("files:status", { intentId });
           assert(result.ok, JSON.stringify(result));
@@ -128,7 +135,11 @@ test.skipIf(!connectionString)(
         assert(other.ok);
         assert.deepEqual(other.value, []);
       } finally {
-        await runtime.stop();
+        try {
+          await runtime.stop();
+        } finally {
+          await reads.end();
+        }
       }
     } finally {
       await storage.close();

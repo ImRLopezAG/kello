@@ -10,6 +10,8 @@ import {
   defineApplication,
   prepareApplicationEnvironment,
 } from "../../../apps/kello/src/core/server/application/definition";
+import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
+import { defineTable } from "../../../apps/kello/src/core/schema/table";
 import { liveRowsSource } from "../../../apps/kello/src/tooling/codegen/live-query";
 import { applicationClientArtifacts } from "../../../apps/kello/src/tooling/codegen/application";
 import { discoverProcedures } from "../../../apps/kello/src/tooling/codegen/procedures";
@@ -22,6 +24,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import * as v from "valibot";
+import { z } from "zod";
 
 const rows = v.array(v.strictObject({ id: v.string(), title: v.string() }));
 const list = oc
@@ -235,8 +238,9 @@ test("normal function discovery emits opt-in HTTP live bindings without server r
   };
   const files = applicationClientArtifacts(project, "/project/src/generated");
   expect(files["api.js"]).toContain('const livePaths = [["tasks","list"]]');
-  expect(files["api.js"]).toContain("isLive(path) ? http.link : transport.link");
-  expect(files["api.js"]).toContain("live.dispose(); http.dispose(); transport.dispose()");
+  expect(files["api.js"]).not.toMatch(/createRpcTransport\b/);
+  expect(files["api.js"]).toContain("options.realtimeUrl ?? configuration.realtimeUrl");
+  expect(files["api.js"]).toContain("live.dispose(); transport.dispose()");
   expect(files["api.js"]).toContain("Use the generated useLiveQuery hook");
   expect(files["react.js"]).toContain("createLiveQueryHooks");
   expect(files["react.js"]).not.toMatch(/contract-registry|kello\/server|kello\/contract|test-db|nrt_live_/);
@@ -248,17 +252,22 @@ test("normal function discovery emits opt-in HTTP live bindings without server r
   expect(ordinary["api.js"]).not.toContain("createNeonLiveClient");
 });
 
-test("application environment binds server-only Realtime and the genuine session resolver once", async () => {
+test("application environment binds the managed Realtime secret and the genuine session resolver once", async () => {
   const resolveLogin = vi.fn(async () => context().login);
   const app = defineApplication({
-    env: { REALTIME_SECRET: v.string() },
-    liveQueries: ({ env }) => ({ ...context().liveQueries, secret: env.REALTIME_SECRET, resolveLogin }),
+    liveQueries: ({ realtime }) => ({ ...context().liveQueries, secret: realtime.secret, resolveLogin }),
     rpc: ({ os }) => ({ os }),
   });
-  const prepared = await prepareApplicationEnvironment(app, { REALTIME_SECRET: "private-test-value" });
+  const prepared = await prepareApplicationEnvironment(
+    app,
+    { LOOM_REALTIME_SECRET: "private-test-value" },
+    { database: "test-db", deployment: "test-deployment" },
+  );
   expect(prepared.liveQueries?.secret).toBe("private-test-value");
   expect(prepared.liveQueries?.resolveLogin).toBe(resolveLogin);
   expect(resolveLogin).not.toHaveBeenCalled();
+  // Without the deployment-managed secret, live issuance stays unconfigured (fails closed).
+  expect((await prepareApplicationEnvironment(app, {})).liveQueries).toBeUndefined();
 });
 
 test("generated modules execute with real public exports, HTTP issuance and SSR-safe typed hooks", async () => {
@@ -328,3 +337,84 @@ console.log("generated-live-ok");
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("generated live rows accept framework ID branding without accepting arbitrary transforms", async () => {
+  const schema = defineSchema((s) => ({ tasks: defineTable({ title: s.text().notNull() }) }));
+  const rows = v.array(v.object({ _id: schema.id("tasks"), title: v.string() }));
+  const source = liveRowsSource(rows);
+  const generated: unknown = new Function("v", `return ${source}`)(v);
+  const validate = v.parse(v.object({ "~standard": v.object({ validate: v.function() }) }), generated)["~standard"]
+    .validate;
+  const valid = [{ _id: "4a3b1915-33ab-4eec-99fe-7d11a38a98fa", title: "task" }];
+  expect(await validate(valid)).toEqual(await rows["~standard"].validate(valid));
+  expect(await validate([{ _id: "not-a-uuid", title: "task" }])).toMatchObject({ issues: expect.any(Array) });
+  expect(() =>
+    liveRowsSource(
+      v.array(
+        v.object({
+          _id: v.pipe(
+            schema.id("tasks"),
+            v.transform(() => "changed"),
+          ),
+        }),
+      ),
+    ),
+  ).toThrow();
+});
+
+test("Zod live rows retain UUID and string checks and reject transforms", () => {
+  const source = liveRowsSource(z.array(z.object({ _id: z.uuid(), text: z.string().min(1).max(200) })));
+  expect(source).toContain("z.fromJSONSchema(");
+  const generated = new Function("z", `return ${source}`)(z);
+  expect(generated.safeParse([{ _id: "00000000-0000-4000-8000-000000000001", text: "note" }]).success).toBe(true);
+  expect(generated.safeParse([{ _id: "invalid", text: "note" }]).success).toBe(false);
+  expect(generated.safeParse([{ _id: "00000000-0000-4000-8000-000000000001", text: "" }]).success).toBe(false);
+  expect(generated.safeParse([{ _id: "00000000-0000-4000-8000-000000000001", text: "x".repeat(201) }]).success).toBe(
+    false,
+  );
+  expect(() => liveRowsSource(z.array(z.object({ text: z.string().transform((text) => text.length) })))).toThrow();
+});
+
+test("Zod live generation refuses checks and actions missing from JSON Schema", () => {
+  const unsupported = [
+    z.array(z.object({ text: z.string().refine((text) => text === "allowed") })),
+    z.array(z.object({ text: z.string() }).refine((row) => row.text === "allowed")),
+    z.array(z.object({ text: z.string() })).superRefine((_rows, context) => {
+      context.addIssue({ code: "custom", message: "not allowed" });
+    }),
+    z.array(z.object({ text: z.string().trim() })),
+    z.array(z.object({ text: z.string().toLowerCase() })),
+    z.array(z.object({ text: z.coerce.string() })),
+  ];
+  for (const rows of unsupported) expect(() => liveRowsSource(rows)).toThrow();
+});
+
+test("Zod live generation refuses regex flags rather than widening validation", () => {
+  const rows = z.array(z.object({ text: z.string().regex(/^[^a]+$/i) }));
+  expect(rows.safeParse([{ text: "A" }]).success).toBe(false);
+  expect(() => liveRowsSource(rows)).toThrow();
+  const source = liveRowsSource(z.array(z.object({ text: z.string().regex(/^[^a]+$/) })));
+  const generated = new Function("z", `return ${source}`)(z);
+  expect(generated.safeParse([{ text: "A" }]).success).toBe(true);
+  expect(generated.safeParse([{ text: "a" }]).success).toBe(false);
+});
+
+test.each([
+  ["schema protocol", z.url({ protocol: /^https$/ }), "http://example.com"],
+  ["check protocol", z.string().check(z.url({ protocol: /^https$/ })), "http://example.com"],
+  ["hostname", z.url({ hostname: /^allowed\.example$/ }), "https://other.example/path"],
+])("Zod live generation refuses unrepresented URL %s restrictions", (_name, field, text) => {
+  const rows = z.array(z.object({ text: field }));
+  expect(rows.safeParse([{ text }]).success).toBe(false);
+  expect(() => liveRowsSource(rows)).toThrow();
+});
+
+test.each([z.url({ normalize: true }), z.string().check(z.url({ normalize: true }))])(
+  "Zod live generation refuses URL normalization",
+  (field) => {
+    const rows = z.array(z.object({ text: field }));
+    const input = [{ text: "https://EXAMPLE.com:443/a/../b" }];
+    expect(rows.parse(input)).not.toEqual(input);
+    expect(() => liveRowsSource(rows)).toThrow();
+  },
+);

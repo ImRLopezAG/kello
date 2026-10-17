@@ -3,7 +3,7 @@ import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema"
 import { defineTable } from "../../../apps/kello/src/core/schema/table";
 import { fields } from "../../../apps/kello/src/core/schema/fields";
 import { createSearchValidators } from "../../../apps/kello/src/core/search/contract";
-import type { SearchSelection, SearchLiveSelection, SearchRow } from "../../../apps/kello/src/core/search/types";
+import type { SearchSelection, SearchRow } from "../../../apps/kello/src/core/search/types";
 
 const schema = defineSchema(() => ({
   articles: defineTable(
@@ -36,7 +36,6 @@ const policy = {
   order: ["title"],
 } as const;
 validators.articles.search(policy);
-validators.articles.liveSearch(policy);
 // @ts-expect-error Undeclared document.
 validators.articles.search({ ...policy, fullText: ["missing"] });
 // @ts-expect-error Every source requires text permission.
@@ -48,9 +47,7 @@ validators.legacy.search({ scope: "public", columns: ["title"], fullText: ["cont
 // @ts-expect-error Grants belong only to root.
 validators.articles.search({ ...policy, relations: { child: policy } });
 type Input = SearchSelection<typeof graph, typeof graph.articles, typeof policy>;
-type Live = SearchLiveSelection<typeof graph, typeof graph.articles, typeof policy>;
 const valid: Input = { fullText: { document: "content", query: "raw" }, columns: { title: true } };
-const live: Live = { fullText: { document: "content", query: "" }, loadedPages: 2 };
 // @ts-expect-error A query cannot override ranked ordering.
 const order: Input = {
   fullText: { document: "content", query: "raw" },
@@ -59,7 +56,7 @@ const order: Input = {
 // @ts-expect-error No user-owned configuration.
 const config: Input = { fullText: { document: "content", query: "raw", config: "pg_catalog.simple" } };
 // @ts-expect-error Document names remain literal grants.
-const name: Live = { fullText: { document: "missing", query: "raw" } };
+const name: Input = { fullText: { document: "missing", query: "raw" } };
 // @ts-expect-error Nested selection cannot request FTS.
 const nested: Input = { with: { child: { fullText: { document: "content", query: "raw" } } } };
 type Legacy = SearchSelection<typeof graph, typeof graph.legacy, { columns: readonly ["title"] }>;
@@ -78,4 +75,4 @@ export type ProjectionUnchanged = Assert<
     { title: string }
   >
 >;
-void [valid, live, order, config, name, nested, ungranted];
+void [valid, order, config, name, nested, ungranted];

@@ -1,5 +1,4 @@
 import { useInfiniteQuery, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { createKelloReact } from "kello/react";
 import { createClient } from "./kello/_generated/api";
 import { taskSelection } from "./search-selection";
@@ -37,25 +36,4 @@ export function MoreTasks() {
       </button>
     </>
   );
-}
-
-export function LiveTasks() {
-  const { rpc } = useKello();
-  const [loadedPages, setLoadedPages] = useState(1);
-  const result = useQuery(rpc.search.watch.liveOptions({ input: { ...taskSelection, loadedPages }, retry: false }));
-  return (
-    <>
-      <p>{result.data?.pages.flatMap((page) => page.map((task) => task.title)).join(", ")}</p>
-      <button disabled={!result.data?.nextCursor} onClick={() => setLoadedPages((pages) => pages + 1)}>
-        Expand window
-      </button>
-    </>
-  );
-}
-
-/** Suspends until the first window arrives; later commits replace that window. */
-export function SuspenseLiveTasks() {
-  const { rpc } = useKello();
-  const { data } = useSuspenseQuery(rpc.search.watch.liveOptions({ input: taskSelection, retry: false }));
-  return <p>{data.pages.flatMap((page) => page.map((task) => task.title)).join(", ")}</p>;
 }

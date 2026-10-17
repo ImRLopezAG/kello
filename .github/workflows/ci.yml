@@ -82,5 +82,26 @@ jobs:
           PGPASSWORD=loom-ci-only psql -h 127.0.0.1 -p 56432 -U postgres -d kello_test -c 'SELECT 1'
       - name: PostgreSQL integration and packed Bun/Node consumers
         run: bun run test:integration
+      - name: Pack verified package
+        working-directory: apps/kello
+        run: |
+          mkdir -p "$RUNNER_TEMP/kello-package"
+          bun pm pack --ignore-scripts --filename "$RUNNER_TEMP/kello-package/kello.tgz"
+          node --input-type=module <<'JS'
+          import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const dir = `${process.env.RUNNER_TEMP}/kello-package`;
+          const sha256 = createHash('sha256').update(readFileSync(`${dir}/kello.tgz`)).digest('hex');
+          writeFileSync(`${dir}/manifest.json`, JSON.stringify({commit: process.env.GITHUB_SHA, name: pkg.name, version: pkg.version, sha256}));
+          JS
+      - name: Retain verified package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kello-package
+          path: ${{ runner.temp }}/kello-package/
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
       - name: Report validation scope
         run: echo 'Integration tests only, including PostgreSQL, Collector and packed Bun/Node consumers. Required package builds run through Turbo. Browser and Neon acceptance run separately.' >> "$GITHUB_STEP_SUMMARY"

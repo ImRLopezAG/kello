@@ -81,10 +81,12 @@ const inputNegatives = [
 const cases = [];
 function record(name) { assert.equal(cases.includes(name), false); cases.push(name); }
 function data(name, row) {
-  return { ...(name === "list" ? { rows: [row] } : { pages: [[row]] }), nextCursor: null, previousCursor: null };
+  assert.equal(name, "list");
+  return { rows: [row], nextCursor: null, previousCursor: null };
 }
 const forbidden = /pg_catalog|packed-content-v1|packed-hidden-v1|fts_packed_private_marker|ts_rank|to_tsvector|plainto_tsquery|representation|weights?|taskLabels|secret|"(?:rank|_kello_rank|config|vector)"/;
-for (const name of ["list", "watch"]) {
+assert.equal(Object.hasOwn(contract, "watch"), false);
+for (const name of ["list"]) {
   const input = contract[name]["~orpc"].inputSchemas[0];
   const output = contract[name]["~orpc"].outputSchemas[0];
   const node = searchPublicNode(input);
@@ -104,31 +106,9 @@ for (const name of ["list", "watch"]) {
   // Missing selected title is a cache negative, not a descriptor negative.
   for (const [label, row, expected] of outputCases) {
     const value = data(name, row);
-    if (name === "list") {
-      const checked = await output["~standard"].validate(value);
-      assert.equal(checked.issues === undefined, expected, label);
-      if (expected) assert.deepEqual(checked.value, value);
-    } else {
-      let finalized = false;
-      async function* event() { try { yield value; } finally { finalized = true; } }
-      const checked = await output["~standard"].validate(event());
-      assert.equal(checked.issues, undefined, "validation is lazy until next()");
-      const iterator = checked.value;
-      const errors = [];
-      try {
-        if (expected) {
-          assert.deepEqual(await iterator.next(), { done: false, value });
-          assert.equal((await iterator.next()).done, true);
-        } else {
-          await assert.rejects(() => iterator.next(), { code: "ASYNC_ITERATOR_OBJECT_VALIDATION_FAILED" });
-        }
-      } catch (cause) { errors.push(cause); }
-      finally {
-        try { await iterator.return(); } catch (cause) { errors.push(cause); }
-        if (!finalized) errors.push(new Error("source iterator finally did not run"));
-      }
-      if (errors.length) throw new AggregateError(errors, "live validation/return failed");
-    }
+    const checked = await output["~standard"].validate(value);
+    assert.equal(checked.issues === undefined, expected, label);
+    if (expected) assert.deepEqual(checked.value, value);
     record(name + ":output:" + label);
   }
   assert.equal((await input["~standard"].validate(selected)).issues, undefined);
@@ -150,7 +130,6 @@ try {
       getNextPageParam: page => page.nextCursor, getPreviousPageParam: page => page.previousCursor,
       initialData: { pages: [data("list", row)], pageParams: [null] },
       placeholderData: () => ({ pages: [data("list", row)], pageParams: [null] }) })],
-    ["live", row => rpc.tasks.watch.liveOptions({ input: selected, initialData: data("watch", row), placeholderData: () => data("watch", row) })],
   ];
   for (const [kind, build] of builders) {
     for (const [label, row, expected] of cacheCases) {
@@ -158,7 +137,7 @@ try {
         const options = build(row);
         assert.ok(Array.isArray(options.queryKey));
         assert.equal(typeof options.queryFn, "function");
-        const value = kind === "infinite" ? { pages: [data("list", row)], pageParams: [null] } : data(kind === "live" ? "watch" : "list", row);
+        const value = kind === "infinite" ? { pages: [data("list", row)], pageParams: [null] } : data("list", row);
         assert.deepEqual(options.initialData(), value);
         assert.deepEqual(options.placeholderData(), value);
       } else {
@@ -171,11 +150,10 @@ try {
     ["query", value => rpc.tasks.list.queryOptions({ input: selected, placeholderData: () => value })],
     ["infinite", value => rpc.tasks.list.infiniteOptions({ input: cursor => ({ ...selected, cursor }), initialPageParam: null,
       getNextPageParam: page => page.nextCursor, placeholderData: () => value })],
-    ["live", value => rpc.tasks.watch.liveOptions({ input: selected, placeholderData: () => value })],
   ];
   for (const [kind, build] of placeholderBuilders) {
     for (const [label, row] of cacheCases.filter(item => !item[2])) {
-      const value = kind === "infinite" ? { pages: [data("list", row)], pageParams: [null] } : data(kind === "live" ? "watch" : "list", row);
+      const value = kind === "infinite" ? { pages: [data("list", row)], pageParams: [null] } : data("list", row);
       const options = build(value);
       assert.equal(options.initialData(), undefined);
       assert.equal(options.placeholderData(), undefined);
@@ -190,11 +168,11 @@ finally {
   try { connection.dispose(); } catch (cause) { errors.push(cause); }
 }
 if (errors.length) throw new AggregateError(errors, "options/transport cleanup failed");
-assert.equal(cases.length, 60);
+assert.equal(cases.length, 34);
 console.info(JSON.stringify({ proof: "packed-full-text-node-consumer", runtime, resolutions,
   currentGeneration: identity.currentGeneration, generationVersion: version,
   descriptorConstruction: "public authored mjs declarations; generated TS registry not executed",
-  descriptors: 2, finiteOutputCases: 7, liveOutputCases: 7, cacheCases: 10,
-  inputCases: 12, maskedDescriptorCases: 2, nativeOptionCases: 15, placeholderCases: 6, distinctKeyCases: 1,
+  descriptors: 1, finiteOutputCases: 7, cacheCases: 5,
+  inputCases: 6, maskedDescriptorCases: 1, nativeOptionCases: 10, placeholderCases: 4, distinctKeyCases: 1,
   cases, caseCount: cases.length, databaseExecution: false }));
 `;

@@ -497,9 +497,9 @@ test("packed public full-text consumer executes under independently pinned Node 
     assert.equal(consumer.currentGeneration, currentGeneration);
     assert.equal(consumer.generationVersion, generationVersion);
     assert.equal(consumer.databaseExecution, false);
-    assert.equal(consumer.caseCount, 60);
-    assert.equal(consumer.cases.length, 60);
-    assert.equal(new Set(consumer.cases).size, 60);
+    assert.equal(consumer.caseCount, 34);
+    assert.equal(consumer.cases.length, 34);
+    assert.equal(new Set(consumer.cases).size, 34);
     assert.equal(commands, 6);
     await emit(consumer, errors);
     requireNoErrors(errors, "consumer receipt failed");
@@ -554,7 +554,7 @@ test("packed public full-text consumer executes under independently pinned Node 
     {
       proof: "packed-full-text-node-complete",
       commands,
-      caseCount: 60,
+      caseCount: 34,
       packageChecksum,
       ownershipSettled,
       rootRemoved: true,

@@ -28,29 +28,33 @@ export function NotesPanel({ initialNotes = [], hydration }: { initialNotes?: No
   );
 }
 function ConnectedNotes() {
-  const { rpc } = useKello();
+  const { rpc, api } = useKello();
   const [signOutFailed, setSignOutFailed] = useState(false);
   const greeting = useQuery(rpc.examples.greeting.queryOptions({ input: { name: "Next.js" } }));
-  const live = useQuery(rpc.examples.watch.liveOptions());
+  const notes = api.examples.watch.useLiveQuery();
   const save = useMutation(rpc.examples.add.mutationOptions());
   return (
     <section>
       {greeting.data && <p>Signed in as {greeting.data.owner}</p>}
       <p role="status">
-        {live.isError
-          ? "Live connection unavailable"
-          : live.data
-            ? "Live updates connected"
-            : "Connecting live updates…"}
+        {notes.status === "error" ? "Notes unavailable" : notes.data ? "Notes loaded" : "Loading notes…"}
       </p>
-      <NoteList notes={live.data ?? []} />
+      <NoteList notes={notes.data ?? []} />
       <form
         onSubmit={(event) => {
           event.preventDefault();
           const form = event.currentTarget;
           const text = new FormData(form).get("text");
           const input = z.string().trim().min(1).max(200).safeParse(text);
-          if (input.success) save.mutate({ text: input.data }, { onSuccess: () => form.reset() });
+          if (input.success)
+            save.mutate(
+              { text: input.data },
+              {
+                onSuccess: () => {
+                  form.reset();
+                },
+              },
+            );
         }}
       >
         <label>

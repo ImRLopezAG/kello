@@ -17,15 +17,11 @@ import { connectDatabase } from "./database/connection";
 import type { DatabaseOptions } from "./database/connection";
 import { createRpcAuthentication } from "./auth/rpc-definition";
 import type { RpcAuthDefinition } from "./auth/rpc-definition";
-import { createConnectionTickets } from "./auth/tickets";
 import type { JobMigration } from "./jobs/rpc-migrations";
 import { createRpcJobQueue } from "./jobs/rpc-queue";
 import { createRpcJobWorker } from "./jobs/rpc-worker";
 import { createRpcCronDispatcher } from "./jobs/rpc-crons";
 import { createTransactionalRpcScheduler } from "./jobs/rpc-service";
-import { createDependencyRegistry } from "./realtime/dependencies";
-import { createRevisionCoordinator } from "./realtime/coordinator";
-import { listenForRevisions } from "./realtime/notifications";
 import { bindRuntimeGraph } from "./rpc/runtime-graph";
 import type { RuntimeProcedureEntry } from "./rpc/runtime-graph";
 import { generateRpcOpenAPI } from "./rpc/openapi";
@@ -63,10 +59,7 @@ export interface RpcRuntimeOptions<Relations extends AnyRelations> extends Datab
     readonly crons?: Readonly<Record<string, ProcedureCron>>;
     readonly storage?: ProcedureStorageDefinition;
   }[];
-  /** Internal generation rollout switch; never selected by an RPC request. */
-  readonly selectiveInvalidation?: boolean;
   readonly jobMigrations?: readonly JobMigration[];
-  readonly directConnectionString?: string;
   readonly config?: RuntimeConfigInput;
   readonly auth?: RpcAuthDefinition;
   readonly crons?: Readonly<Record<string, ProcedureCron>>;
@@ -88,7 +81,10 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
     ? { branchId: options.branchId!, key: (options.environment ?? process.env).LOOM_SEARCH_CURSOR_KEY! }
     : undefined;
   let application = options.application
-    ? await prepareApplicationEnvironment(options.application, options.environment ?? process.env)
+    ? await prepareApplicationEnvironment(options.application, options.environment ?? process.env, {
+        database: decodeURIComponent(new URL(options.connectionString).pathname.slice(1)),
+        deployment: options.deployment,
+      })
     : undefined;
   const config = v.parse(runtimeConfigValidator, options.config ?? {});
   const auth = createRpcAuthentication(config.auth, options.auth);
@@ -136,27 +132,6 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
     }
   }
   Object.freeze(allCrons);
-  const directConnectionString = options.directConnectionString;
-  if (config.realtime.mode === "notify" && !directConnectionString)
-    throw new Error("Notify mode requires a direct runtime database URL");
-  if (config.realtime.mode === "notify" && directConnectionString) {
-    const direct = URL.parse(directConnectionString);
-    const pooled = URL.parse(options.connectionString);
-    if (
-      !direct ||
-      !pooled ||
-      ["host", "hostaddr", "port", "user", "password", "database", "dbname", "options", "connectionString"].some(
-        (key) => direct.searchParams.has(key) || pooled.searchParams.has(key),
-      ) ||
-      direct.hostname.includes("-pooler") ||
-      direct.hostname !== pooled.hostname.replace("-pooler", "") ||
-      (direct.port || "5432") !== (pooled.port || "5432") ||
-      direct.pathname !== pooled.pathname ||
-      direct.username !== pooled.username ||
-      !["postgres:", "postgresql:"].includes(direct.protocol)
-    )
-      throw new Error("Direct runtime URL must match the runtime database and role");
-  }
   const idempotency = { metadataNamespace, deployment };
   validateIdempotencyOptions(idempotency);
   const shutdown = new AbortController();
@@ -201,18 +176,6 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       current,
     );
   }
-  const dependencyRegistry = createDependencyRegistry(metadataNamespace, [
-    { scope: "", schema: options.schema },
-    ...(options.scopes ?? []).flatMap((scope) =>
-      scope.name && scope.schema ? [{ scope: scope.name, schema: scope.schema }] : [],
-    ),
-  ]);
-  const allRevisions = dependencyRegistry.read;
-  const dependencies = {
-    registry: dependencyRegistry,
-    authorization: auth.dependencies,
-    selective: options.selectiveInvalidation ?? true,
-  };
   await activate(shutdown.signal);
   const connection = await connectDatabase({ ...options, connectionString });
   let objectStorage: ReturnType<RuntimeStorageBackend["connect"]> | undefined;
@@ -364,46 +327,15 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       }, config);
     const runtimeConnection = { ...connection, transaction };
     const scheduler = createTransactionalRpcScheduler({ version, internal, queue });
-    const coordinatorOptions = {
-      readRevisions: () =>
-        own(undefined, async (_input, signal) => {
-          await activate(signal);
-          return allRevisions(connection.db);
-        }),
-      intervalMs: config.realtime.pollIntervalMs,
-      maxSubscriptions: config.realtime.maxSubscriptions,
-    };
-    const coordinator = createRevisionCoordinator(
-      config.realtime.mode === "notify" && directConnectionString
-        ? {
-            ...coordinatorOptions,
-            wakeups: (wake) =>
-              listenForRevisions(
-                {
-                  connectionString: directConnectionString,
-                  runtimeRole: decodeURIComponent(new URL(connectionString).username),
-                  namespace: options.schema.metadata.namespace,
-                  componentNamespaces: (options.scopes ?? []).flatMap((scope) =>
-                    scope.schema ? [scope.schema.metadata.namespace] : [],
-                  ),
-                  metadataNamespace,
-                },
-                wake,
-              ),
-          }
-        : coordinatorOptions,
-    );
     const scopeDatabases = new Map(
       [...new Set(["", ...(options.scopes ?? []).map((scope) => scope.name)])].map((scope) => [
         scope,
         {
           connection: runtimeConnection,
           replay: idempotency,
+          maxResultBytes: config.rpc.maxResultBytes,
           scope,
-          revisions: allRevisions,
-          dependencies,
           scheduler: scope ? createTransactionalRpcScheduler({ version, internal, queue, scope }) : scheduler,
-          maxResultBytes: config.realtime.maxResultBytes,
           authorize: auth.authorize,
           search,
         },
@@ -417,7 +349,6 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       exposures: options.exposures,
       scopes: options.scopes,
       effects,
-      coordinator,
       activate,
       authorize: auth.authorize,
       databaseForScope: (scope) => {
@@ -428,16 +359,14 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       database: {
         connection: runtimeConnection,
         replay: idempotency,
-        revisions: allRevisions,
-        dependencies,
+        maxResultBytes: config.rpc.maxResultBytes,
         scheduler,
-        maxResultBytes: config.realtime.maxResultBytes,
         authorize: auth.authorize,
         search,
       },
     });
     // Reject incomplete public contracts before a candidate can be activated.
-    if (config.openapi) await generateRpcOpenAPI(graph.snapshots);
+    if (config.openapi) await generateRpcOpenAPI(graph.router);
     const worker = Object.freeze(
       createRpcJobWorker({
         queue,
@@ -463,25 +392,6 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
         ),
       recordWake: (delivery, at, signal) =>
         own({ delivery, at }, ({ delivery, at }, current) => cronDispatcher.recordWake(delivery, at, current), signal),
-    });
-    const connectionTickets = createConnectionTickets({
-      ...idempotency,
-      db: connection.db,
-      namespace: options.schema.metadata.namespace,
-      version,
-      assertActive: (db) => activate(shutdown.signal, db),
-    });
-    const tickets = Object.freeze<typeof connectionTickets>({
-      issue: (...args) =>
-        own(args, async (args, signal) => {
-          await activate(signal);
-          return connectionTickets.issue(...args);
-        }),
-      redeem: (...args) =>
-        own(args, async (args, signal) => {
-          await activate(signal);
-          return connectionTickets.redeem(...args);
-        }),
     });
     return Object.freeze({
       authHttp,
@@ -536,26 +446,17 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
         : auth,
       version,
       router: graph.router,
-      snapshots: graph.snapshots,
       openapi: config.openapi,
       worker,
       crons,
-      tickets,
       storage,
-      realtime: Object.freeze({
-        coordinator,
-        heartbeatMs: config.realtime.heartbeatMs,
-        maxSubscriptions: config.realtime.maxSubscriptions,
-        maxBufferedBytes: config.realtime.maxResultBytes,
-      }),
       stop(): Promise<void> {
         if (stopping) return stopping;
         let workerStopped: Promise<void> | undefined;
-        let pollerStopped: Promise<void> | undefined;
         stopping = Promise.resolve().then(async () => {
           try {
             await Promise.all([effects.stop(), graph.stop()]);
-            await Promise.all([workerStopped, pollerStopped]);
+            await workerStopped;
           } finally {
             await close();
           }
@@ -563,7 +464,6 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
         stopped = true;
         shutdown.abort();
         workerStopped = worker.stop();
-        pollerStopped = coordinator.stop();
         return stopping;
       },
     });

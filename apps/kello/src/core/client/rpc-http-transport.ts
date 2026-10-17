@@ -8,8 +8,7 @@ import * as v from "valibot";
 import { abortable } from "../adapters/neon/abortable";
 import type { RpcCallContext, RpcTransportOptions } from "./rpc-transport";
 
-/** Request-scoped native HTTP transport for SSR and other non-browser callers.
- * Browser live subscriptions use createRpcTransport's WebSocket connection. */
+/** One native HTTP transport for ordinary calls/streams and live issuance/renewal. */
 export function createRpcHttpTransport(options: RpcTransportOptions) {
   const { url, version, getToken } = options;
   if (!/^[a-f0-9]{64}$/.test(version)) throw new Error("Invalid RPC version");
@@ -28,7 +27,7 @@ export function createRpcHttpTransport(options: RpcTransportOptions) {
       const token = await abortable(getToken(), signal ?? shutdown.signal);
       shutdown.signal.throwIfAborted();
       if (!token) throw new Error("Authentication required");
-      return {
+      const headers = new Headers({
         authorization: `Bearer ${token}`,
         "x-loom-protocol": "loom-orpc-2",
         "x-loom-version": version,
@@ -37,9 +36,12 @@ export function createRpcHttpTransport(options: RpcTransportOptions) {
           context.idempotencyKey === undefined
             ? crypto.randomUUID()
             : v.parse(v.pipe(v.string(), v.uuid()), context.idempotencyKey),
-      };
+      });
+      if (options.sessionCookie) headers.set("cookie", options.sessionCookie);
+      return headers;
     },
-    fetch: (address, init) => fetch(address, { ...init, credentials: "omit", redirect: "error", cache: "no-store" }),
+    fetch: (address, init) =>
+      fetch(address, { ...init, credentials: options.credentials ?? "omit", redirect: "error", cache: "no-store" }),
   });
   const link: ClientLink<RpcCallContext> = {
     async call(path, input, options) {
@@ -55,7 +57,7 @@ export function createRpcHttpTransport(options: RpcTransportOptions) {
   return Object.freeze({
     storage: createSessionStorage(options, shutdown.signal),
     link,
-    verifySession: () => verifyClientSession({ url, version, getToken }, shutdown.signal),
+    verifySession: () => verifyClientSession(options, shutdown.signal),
     dispose: () => shutdown.abort(),
   });
 }

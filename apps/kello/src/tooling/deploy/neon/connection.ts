@@ -16,6 +16,19 @@ export interface DeploymentConnectionOptions {
   readonly databaseName: string;
   readonly migrationRole: string;
   readonly signal?: AbortSignal;
+  /** Authority pinned by the caller (development); the resolved connection must match it before any write. */
+  readonly expectedTarget?: ExpectedDeploymentTarget;
+}
+export interface ExpectedDeploymentTarget {
+  readonly projectId: string;
+  readonly branchId: string;
+  readonly endpointId: string;
+  readonly databaseName: string;
+  readonly migrationRole: string;
+  readonly runtimeRole: string;
+  readonly namespace: string;
+  readonly metadataNamespace: string;
+  readonly deployment: string;
 }
 
 export interface DeploymentDatabaseIdentity {
@@ -87,7 +100,21 @@ export async function withDeploymentConnection<T>(
   const environment = v.parse(v.picklist(["preview", "production"]), options.environment);
   const api = provider ?? createKelloNeonApi();
   signal?.throwIfAborted();
+  const expected = options.expectedTarget;
+  if (
+    expected &&
+    (expected.databaseName !== databaseName ||
+      expected.migrationRole !== roleName ||
+      expected.namespace !== config.database.namespace ||
+      expected.metadataNamespace !== config.database.metadataNamespace)
+  )
+    throw new Error("Deployment target changed from the selected preview target");
+  const assertExpected = (resolved: DeploymentTarget) => {
+    if (expected && (["projectId", "branchId", "endpointId"] as const).some((key) => resolved[key] !== expected[key]))
+      throw new Error("Deployment target changed from the selected preview target");
+  };
   const target = await inspectDeploymentTarget(config, environment, api);
+  assertExpected(target);
   const credentials = await api
     .getConnectionUri(target.projectId, {
       branchId: target.branchId,
@@ -112,6 +139,7 @@ export async function withDeploymentConnection<T>(
       )
     )
       throw new Error("Deployment target changed while acquiring the lock");
+    assertExpected(current);
     signal?.throwIfAborted();
     deploymentConnections.set(
       client,

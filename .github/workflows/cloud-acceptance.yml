@@ -11,8 +11,45 @@ defaults:
     shell: bash
 
 jobs:
+  realtime:
+    environment: neon-acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: neon-authorized-smoke-target
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.2"
+      - name: Install and build
+        run: bun install --frozen-lockfile && bun run build
+      - name: Install Chromium
+        working-directory: packages/e2e
+        run: bunx --no-install playwright install --with-deps chromium
+      - name: Verify generated live functions and cloud services
+        working-directory: packages/e2e
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          test -n "$NEON_API_KEY"
+          bun fixtures/neon-realtime-smoke.ts
+          bun fixtures/live-functions-neon.ts --verify
+          bun fixtures/cloud-bundle-smoke.ts
+          bun fixtures/cloud-jobs-smoke.ts
+          bun fixtures/cloud-storage-smoke.ts
+      - name: Record acceptance scope
+        if: always()
+        run: echo 'Generated contract .live(), typed React pagination, mutation confirmation, validation, outage recovery and logout run against the fixed admitted disposable Neon target. UUID-owned Function/job/storage resources are removed by each fixture. Provider credentials are required; no local database or backend fallback is supported.' >> "$GITHUB_STEP_SUMMARY"
+
   database:
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     environment: neon-acceptance
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -27,28 +64,19 @@ jobs:
             suite: jobs-storage
           - name: services
             suite: services
-          - name: live-spread
-            suite: live
-            workload: spread
-          - name: live-hot
-            suite: live
-            workload: hot-table
           - name: upgrade
             suite: upgrade
     env:
-      LOOM_CLOUD_PROJECT_ID: ${{ vars.LOOM_CLOUD_PROJECT_ID }}
+      KELLO_CLOUD_PROJECT_ID: ${{ vars.KELLO_CLOUD_PROJECT_ID }}
       LOOM_CLOUD_SUITE: ${{ matrix.suite }}
       LOOM_CLOUD_SETUP_AUTH: "1"
-      LOOM_CLOUD_LIVE_WORKLOAD: ${{ matrix.workload || 'spread' }}
-      LOOM_CLOUD_LIVE_SECONDS: "600"
-      LOOM_CLOUD_LIVE_WARMUP_SECONDS: "30"
       ACCEPTANCE_BRANCH: loom-acceptance-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.name }}
     steps:
       - name: Require provider credentials
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          if [ -z "$NEON_API_KEY" ] || [ -z "$LOOM_CLOUD_PROJECT_ID" ]; then
+          if [ -z "$NEON_API_KEY" ] || [ -z "$KELLO_CLOUD_PROJECT_ID" ]; then
             echo 'Required Neon API key or project ID is absent; acceptance failed.' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
@@ -73,8 +101,8 @@ jobs:
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          bunx neon@6.1.0 branches create --project-id "$LOOM_CLOUD_PROJECT_ID" --name "$ACCEPTANCE_BRANCH" --expires-at "$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)" --no-secrets > /dev/null
-          branch_id=$(bunx neon@6.1.0 branches list --project-id "$LOOM_CLOUD_PROJECT_ID" --output json | jq -er --arg name "$ACCEPTANCE_BRANCH" '[.[] | select(.name == $name and .default == false and .protected == false)] | if length == 1 then .[0].id else error("Expected one isolated acceptance branch") end')
+          bunx neon@6.1.0 branches create --project-id "$KELLO_CLOUD_PROJECT_ID" --name "$ACCEPTANCE_BRANCH" --expires-at "$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)" --no-secrets > /dev/null
+          branch_id=$(bunx neon@6.1.0 branches list --project-id "$KELLO_CLOUD_PROJECT_ID" --output json | jq -er --arg name "$ACCEPTANCE_BRANCH" '[.[] | select(.name == $name and .default == false and .protected == false)] | if length == 1 then .[0].id else error("Expected one isolated acceptance branch") end')
           echo "LOOM_CLOUD_BRANCH_ID=$branch_id" >> "$GITHUB_ENV"
       - name: Verify selected example against Neon
         env:
@@ -92,22 +120,53 @@ jobs:
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          branch_ids=$(bunx neon@6.1.0 branches list --project-id "$LOOM_CLOUD_PROJECT_ID" --output json | jq -r --arg name "$ACCEPTANCE_BRANCH" '.[] | select(.name == $name and .default == false and .protected == false) | .id')
+          branch_ids=$(bunx neon@6.1.0 branches list --project-id "$KELLO_CLOUD_PROJECT_ID" --output json | jq -r --arg name "$ACCEPTANCE_BRANCH" '.[] | select(.name == $name and .default == false and .protected == false) | .id')
           for branch_id in $branch_ids; do
-            bunx neon@6.1.0 branches delete "$branch_id" --project-id "$LOOM_CLOUD_PROJECT_ID" > /dev/null
+            bunx neon@6.1.0 branches delete "$branch_id" --project-id "$KELLO_CLOUD_PROJECT_ID" > /dev/null
           done
-          remaining=$(bunx neon@6.1.0 branches list --project-id "$LOOM_CLOUD_PROJECT_ID" --output json | jq --arg name "$ACCEPTANCE_BRANCH" '[.[] | select(.name == $name)] | length')
+          remaining=$(bunx neon@6.1.0 branches list --project-id "$KELLO_CLOUD_PROJECT_ID" --output json | jq --arg name "$ACCEPTANCE_BRANCH" '[.[] | select(.name == $name)] | length')
           test "$remaining" = 0
       - name: Record acceptance scope
         if: always()
-        run: echo 'This matrix requires actual Neon Auth sign-up/sign-in and the native examples, target discovery and database-role isolation. The jobs-storage example requires real object bytes, provider events, scheduled processing and downloads. Missing configuration or receipts fails the job. The matrix also requires native transport/REST/storage checks, spread and hot-table load, and a populated historical upgrade.' >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'This matrix requires actual Neon Auth sign-up/sign-in and the native examples, target discovery and database-role isolation. The jobs-storage example requires real object bytes, provider events, scheduled processing and downloads. Missing configuration or receipts fails the job. The retired revision-engine live suites are not supported.' >> "$GITHUB_STEP_SUMMARY"
+
+  preview:
+    environment: neon-acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.2"
+      - name: Install and build
+        run: bun install --frozen-lockfile && bun run build
+      - name: Verify packaged CLI cloud preview edits and stop
+        working-directory: packages/e2e
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          KELLO_CLOUD_PROJECT_ID: ${{ vars.KELLO_CLOUD_PROJECT_ID }}
+          LOOM_CLOUD_DEV_COMPONENT_WATCH: "1"
+          LOOM_CLOUD_DEV_WATCH_RECEIPT: ${{ runner.temp }}/cloud-preview.json
+        run: |
+          test -n "$NEON_API_KEY" && test -n "$KELLO_CLOUD_PROJECT_ID"
+          bun test cloud/dev-component-watch.test.ts
+          jq -e '.passed == true and .cleanup == true' "$LOOM_CLOUD_DEV_WATCH_RECEIPT" > /dev/null
 
   required:
     if: always()
-    needs: database
+    needs: [database, realtime, preview]
     runs-on: ubuntu-24.04
     steps:
       - name: Reject failed or skipped provider acceptance
         env:
           RESULT: ${{ needs.database.result }}
-        run: test "$RESULT" = success
+          REALTIME_RESULT: ${{ needs.realtime.result }}
+          PREVIEW_RESULT: ${{ needs.preview.result }}
+        run: test "$RESULT" = success && test "$REALTIME_RESULT" = success && test "$PREVIEW_RESULT" = success

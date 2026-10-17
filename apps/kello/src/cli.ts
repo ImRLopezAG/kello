@@ -4,17 +4,14 @@ import { onboardingCommand } from "./commands/onboarding";
 import { OnboardingError } from "kello/tooling";
 import { neonLogin, neonProfiles } from "./commands/login";
 import { withNeonCredentials } from "kello/tooling";
-import { NeonCredentialError, ProjectResolutionError } from "kello/tooling";
+import { NeonCredentialError, ProjectResolutionError, RealtimeError } from "kello/tooling";
+import { realtimeEnableCommand, realtimeStatusCommand } from "./commands/realtime";
 import { parseArgs } from "node:util";
-import { basename, dirname, resolve } from "node:path";
-import { open, realpath } from "node:fs/promises";
-import { createFileOutput, writeStderrOutput } from "./tooling/diagnostics/output";
-import type { DiagnosticsOptions } from "./tooling/diagnostics/types";
+import { resolve } from "node:path";
 import { deployCommand } from "./commands/deploy";
 import { retireDatabaseCommand } from "./commands/retire";
 import { provisionCommand } from "./commands/provision";
-import { devCommand, devCommandWithOwnedOutput } from "./commands/dev";
-import { devQuarantineCommand } from "./commands/dev-quarantine";
+import { devCommand } from "./commands/dev";
 import { backfillApplyCommand } from "./commands/backfill";
 import { compatibilityCommand } from "./commands/compatibility";
 import {
@@ -43,11 +40,7 @@ const help = `Usage: kello <command> [--cwd <directory>] [--json]
   integrate [--apply]            Preview or add Kello files to an existing frontend
   init [directory] --name <name>  Create a project without overwriting files
   generate                      Generate public/internal references and manifest
-  dev [--development <file>]     Watch and serve the Neon development target in kello.config.ts
-      --diagnostics text        Write local-process diagnostics to stderr
-      --diagnostics jsonl --diagnostics-file <path>  Create a private event-only JSONL file
-      --telemetry otlp           Export metrics using KELLO_TELEMETRY_ENDPOINT and optional KELLO_TELEMETRY_BEARER_TOKEN
-  dev quarantine [--development <file>]  Revoke database grants and cancel jobs on the development branch
+  dev [--development <file>]     Watch sources and deploy each change to the linked Neon preview branch
   schema inspect                Inspect compiled storage metadata
   schema diff                   Plan changes from the committed migration baseline
   migrations generate --name <name>  Write release SQL and snapshot artifacts
@@ -60,6 +53,8 @@ const help = `Usage: kello <command> [--cwd <directory>] [--json]
   deploy [--release <file>] [--dry-run]  Deploy using kello.config.ts or an explicit release
   retire database --retirement <file>  Retire database authority for a saved release
   provision --branch <file> [--dry-run]  Plan, create or resume branch infrastructure
+  realtime status               Report Neon Realtime for the linked branch without changes
+  realtime enable --origin <origin> [--allow-protected]  Enable Realtime and wait for readiness
   doctor                        Validate configuration, schema, and registered functions
 
 Schema diff and migration generation accept --renames <project-relative JSON file>.
@@ -125,36 +120,12 @@ async function runCommand(args: readonly string[]): Promise<number> {
         retirement: { type: "string" },
         branch: { type: "string" },
         development: { type: "string" },
-        diagnostics: { type: "string" },
-        telemetry: { type: "string" },
-        "diagnostics-file": { type: "string" },
         "dry-run": { type: "boolean" },
+        origin: { type: "string", multiple: true },
+        "allow-protected": { type: "boolean" },
       },
     });
     const [first, second, ...extra] = parsed.positionals;
-    const diagnostics = parsed.values.diagnostics;
-    const diagnosticsFile = parsed.values["diagnostics-file"];
-    const telemetry = parsed.values.telemetry;
-    if (telemetry !== undefined && (first !== "dev" || second !== undefined || telemetry !== "otlp")) {
-      reportFailure(structured, first ?? command, "USAGE", "dev telemetry requires --telemetry otlp", 2);
-      return 2;
-    }
-    if (
-      (diagnostics !== undefined || diagnosticsFile !== undefined) &&
-      (first !== "dev" ||
-        second !== undefined ||
-        (diagnostics !== "text" && diagnostics !== "jsonl") ||
-        (diagnostics === "jsonl" ? !diagnosticsFile : diagnosticsFile !== undefined))
-    ) {
-      reportFailure(
-        structured,
-        first ?? command,
-        "USAGE",
-        "dev diagnostics require text or jsonl with --diagnostics-file",
-        2,
-      );
-      return 2;
-    }
     if (parsed.values.help || !first) {
       console.log(structured ? JSON.stringify({ ok: true, help }) : help);
       return 0;
@@ -230,6 +201,31 @@ async function runCommand(args: readonly string[]): Promise<number> {
       }
       command = "retire database";
       return await retireDatabaseCommand(root, parsed.values.retirement, structured);
+    }
+    if (first === "realtime" || parsed.values.origin !== undefined || parsed.values["allow-protected"] !== undefined) {
+      const allowed = second === "enable" ? ["cwd", "json", "origin", "allow-protected"] : ["cwd", "json"];
+      if (
+        first !== "realtime" ||
+        (second !== "status" && second !== "enable") ||
+        extra.length ||
+        Object.keys(parsed.values).some((name) => !allowed.includes(name))
+      ) {
+        reportFailure(
+          structured,
+          command,
+          "USAGE",
+          "Use kello realtime status, or kello realtime enable --origin <origin> [--allow-protected]",
+          2,
+        );
+        return 2;
+      }
+      command = `realtime ${second}`;
+      return second === "status"
+        ? await realtimeStatusCommand(root, structured)
+        : await realtimeEnableCommand(root, structured, {
+            allowedOrigins: parsed.values.origin ?? [],
+            allowProtected: parsed.values["allow-protected"] ?? false,
+          });
     }
     if (
       first === "backfill" ||
@@ -312,86 +308,17 @@ async function runCommand(args: readonly string[]): Promise<number> {
       return 2;
     }
     if (first === "dev" || parsed.values.development !== undefined) {
-      const quarantine = second === "quarantine";
       if (
         first !== "dev" ||
-        parsed.positionals.length !== (quarantine ? 2 : 1) ||
+        parsed.positionals.length !== 1 ||
         parsed.values.development === "" ||
-        Object.keys(parsed.values).some(
-          (name) => !["cwd", "json", "development", "diagnostics", "diagnostics-file", "telemetry"].includes(name),
-        )
+        Object.keys(parsed.values).some((name) => !["cwd", "json", "development"].includes(name))
       ) {
-        reportFailure(
-          structured,
-          command,
-          "USAGE",
-          "dev accepts --development, --cwd, --json, local diagnostics and --telemetry otlp",
-          2,
-        );
+        reportFailure(structured, command, "USAGE", "dev accepts --development, --cwd and --json", 2);
         return 2;
       }
-      if (quarantine) {
-        command = "dev quarantine";
-        return await devQuarantineCommand(root, parsed.values.development ?? "kello.config.ts", structured);
-      }
       const file = parsed.values.development ?? "kello.config.ts";
-      let telemetryOptions: DiagnosticsOptions["telemetry"];
-      if (telemetry === "otlp") {
-        try {
-          const { validateOtlpConfig } = await import("./tooling/diagnostics/config");
-          const endpoint = process.env.KELLO_TELEMETRY_ENDPOINT;
-          const bearerToken = process.env.KELLO_TELEMETRY_BEARER_TOKEN;
-          if (endpoint === undefined) throw new Error("TELEMETRY_CONFIG_INVALID");
-          const config = bearerToken === undefined ? { endpoint } : { endpoint, bearerToken };
-          validateOtlpConfig(config);
-          telemetryOptions = { protocol: "otlp-http-json", ...config };
-        } catch {
-          reportFailure(structured, command, "TELEMETRY_CONFIG_INVALID", "Telemetry configuration is invalid.", 2);
-          return 2;
-        }
-      }
-      const diagnosticsOptions: DiagnosticsOptions = telemetryOptions ? { telemetry: telemetryOptions } : {};
-      if (diagnostics === "text")
-        return await devCommand(root, file, structured, {
-          ...diagnosticsOptions,
-          output: { format: "text", write: (chunk, signal) => writeStderrOutput(process.stderr, chunk, signal) },
-        });
-      if (diagnostics === "jsonl" && diagnosticsFile) {
-        let handle: Awaited<ReturnType<typeof open>>;
-        let ownedOutputPath: string;
-        try {
-          const requestedPath = resolve(root, diagnosticsFile);
-          ownedOutputPath = resolve(await realpath(dirname(requestedPath)), basename(requestedPath));
-          handle = await open(ownedOutputPath, "wx", 0o600);
-        } catch {
-          reportFailure(structured, command, "DIAGNOSTICS_OUTPUT_UNAVAILABLE", "Diagnostics output is unavailable.", 2);
-          return 2;
-        }
-        const output = createFileOutput(handle);
-        try {
-          return await devCommandWithOwnedOutput(
-            root,
-            file,
-            structured,
-            { ...diagnosticsOptions, output: { format: "jsonl", write: output.write } },
-            ownedOutputPath,
-          );
-        } finally {
-          const closed = await output.close();
-          if (closed === "pending") {
-            const code = "DIAGNOSTICS_OUTPUT_CLOSE_PENDING";
-            const message = "Diagnostics output will close when its pending operation settles.";
-            console.error(
-              structured
-                ? JSON.stringify({ ok: true, command: "dev", event: "diagnostics-close-pending", code, message })
-                : `${code}: ${message}`,
-            );
-          }
-        }
-      }
-      return telemetryOptions
-        ? await devCommand(root, file, structured, { telemetry: telemetryOptions })
-        : await devCommand(root, file, structured);
+      return await devCommand(root, file, structured);
     }
     if (first === "provision" || parsed.values.branch !== undefined) {
       if (
@@ -563,6 +490,10 @@ async function runCommand(args: readonly string[]): Promise<number> {
     reportFailure(structured, command, "USAGE", "Unknown command or arguments; run kello --help", 2);
     return 2;
   } catch (cause) {
+    if (cause instanceof RealtimeError) {
+      reportFailure(structured, command, cause.code, cause.message, 5);
+      return 5;
+    }
     if (cause instanceof ProjectResolutionError || cause instanceof OnboardingError) {
       reportFailure(structured, command, cause.code, cause.message, 3);
       return 3;
@@ -601,12 +532,12 @@ async function runCommand(args: readonly string[]): Promise<number> {
       );
       return 5;
     }
-    if (command === "dev quarantine") {
+    if (command.startsWith("realtime ")) {
       reportFailure(
         structured,
         command,
-        "DEVELOPMENT_QUARANTINE_FAILED",
-        "Development quarantine failed. Check the declaration, target and metadata owner access; inspect database state before retrying.",
+        "REALTIME_FAILED",
+        "Realtime command failed. Check the linked target and provider access, then run kello realtime status.",
         5,
       );
       return 5;
@@ -616,7 +547,7 @@ async function runCommand(args: readonly string[]): Promise<number> {
         structured,
         command,
         "DEVELOPMENT_FAILED",
-        "Development failed. Check the declaration, environment and target access before restarting.",
+        "Development failed. Check the linked preview target, release declaration, environment and access before restarting.",
         5,
       );
       return 5;

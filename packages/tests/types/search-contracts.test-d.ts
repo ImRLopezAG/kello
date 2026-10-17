@@ -186,10 +186,9 @@ import { searchSchema, searchRelations } from "../fixtures/search-schema";
 import { sql } from "drizzle-orm";
 
 type Graph = typeof searchRelations;
-const graphScope: SearchScope<Graph["tasks"], Graph> = {
+const graphScope: SearchScope<Graph["tasks"]> = {
   name: "root",
   version: "1",
-  dependencies: ["members"],
   where: ({ table }) => sql`${table.done} = false`,
 };
 const legacyRoot: SearchScope<Graph["tasks"]> = {
@@ -205,9 +204,9 @@ const legacyJunction: SearchScope<Graph["taskLabels"]> = {
 const graphPolicy = {
   columns: ["title"],
   scope: graphScope,
-  through: { taskLabels: { name: "junction", version: "1", dependencies: ["teams"], where: () => sql`true` } },
+  through: { taskLabels: { name: "junction", version: "1", where: () => sql`true` } },
   relations: {
-    labels: { columns: ["name"], scope: { name: "child", version: "1", dependencies: [], where: () => sql`true` } },
+    labels: { columns: ["name"], scope: { name: "child", version: "1", where: () => sql`true` } },
   },
 } satisfies SearchPolicy<Graph, Graph["tasks"]>;
 const sourceValidators = createProjectContext(searchSchema, searchRelations).validators;
@@ -243,46 +242,9 @@ export type DeclaredNativeInputIsUnchanged = Assert<
 export type DeclaredNativeOutputIsUnchanged = Assert<
   Equal<Awaited<ReturnType<typeof declaredClient.list>>, StandardSchemaV1.InferOutput<typeof declaredPair.output>>
 >;
-sourceValidators.tables.tasks.search({
-  columns: ["title"],
-  scope: {
-    ...graphScope,
-    dependencies: [
-      // @ts-expect-error root declarations use graph keys
-      "membrs",
-    ],
-  },
-});
-sourceValidators.tables.tasks.search({
-  columns: ["title"],
-  scope: "public",
-  through: {
-    taskLabels: {
-      name: "junction",
-      version: "1",
-      where: () => sql`true`,
-      dependencies: [
-        // @ts-expect-error junction declarations use the same graph keys
-        "teamz",
-      ],
-    },
-  },
-});
-sourceValidators.tables.tasks.search({
-  columns: ["title"],
-  scope: "public",
-  relations: {
-    project: {
-      columns: ["name"],
-      scope: {
-        name: "child",
-        version: "1",
-        where: () => sql`true`,
-        dependencies: [
-          // @ts-expect-error child declarations use the same graph keys
-          "memberz",
-        ],
-      },
-    },
-  },
-});
+const retiredScope: SearchScope<Graph["tasks"]> = {
+  ...graphScope,
+  // @ts-expect-error revision dependency declarations are no longer supported
+  dependencies: ["members"],
+};
+void retiredScope;

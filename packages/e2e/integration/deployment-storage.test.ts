@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import pg from "pg";
 import { unzipSync } from "fflate";
-import { buildFunctionBundle } from "@neon/config-runtime/v1";
+import { buildNeonFunctionBundle } from "kello/tooling";
 import { generateProject, prepareNeonEntrypoints, bootstrapDatabase } from "kello/tooling";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
@@ -81,14 +81,7 @@ test.skipIf(!connectionString)(
       for (const name of ["service", "worker"] as const) {
         const source = entries[name];
         assert.match(await readFile(source, "utf8"), /storageBackend: createNeonStorageBackend/);
-        const archive = await buildFunctionBundle({
-          slug: name,
-          name,
-          source,
-          env: {},
-          runtime: "nodejs24",
-          bundler: "esbuild",
-        });
+        const archive = await buildNeonFunctionBundle(source);
         const directory = join(root, `packed-${name}`);
         for (const [filename, contents] of Object.entries(unzipSync(archive))) {
           const destination = join(directory, filename);

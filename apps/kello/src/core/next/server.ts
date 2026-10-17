@@ -1,3 +1,6 @@
+import { forwardNeonRpcRequest } from "../server/auth/neon-rpc";
+import { headers } from "next/headers";
+import { extractNeonAuthCookies } from "@neondatabase/auth/server";
 import { createNeonAuth } from "@neondatabase/auth/next/server";
 import type { NeonAuthConfig } from "@neondatabase/auth/server";
 import { withKelloServerSession } from "../client/server-session";
@@ -12,18 +15,22 @@ export function createKelloNeonNext<T extends SessionConnection>(
 ) {
   const auth = () => createNeonAuth(options.auth?.() ?? neonServerEnvironment().auth);
   return {
+    rpc(this: void, request: Request) {
+      return forwardNeonRpcRequest(request, options.url?.() ?? neonServerEnvironment().url);
+    },
     handler(this: void) {
       const handle: ReturnType<ReturnType<typeof createNeonAuth>["handler"]>["GET"] = (request, context) =>
         auth().handler().GET(request, context);
       // The SDK's methods all delegate to the same request-aware proxy.
       return { GET: handle, POST: handle, PUT: handle, PATCH: handle, DELETE: handle };
     },
-    withSession<R>(this: void, run: Parameters<typeof withKelloServerSession<T, R>>[2]) {
+    async withSession<R>(this: void, run: Parameters<typeof withKelloServerSession<T, R>>[2]) {
       return withKelloServerSession(
         createClient,
         {
           url: options.url?.() ?? neonServerEnvironment().url,
           getToken: () => neonServerToken(auth()),
+          sessionCookie: extractNeonAuthCookies(await headers()),
         },
         run,
       );

@@ -33,7 +33,6 @@ export { parseApplicationEnvironment } from "./application/environment";
 export type { ApplicationEnvironment, ApplicationEnvironmentOutput } from "./application/environment";
 export { createProjectProcedures, createProjectContext } from "./rpc/procedure";
 export type { ProcedureContext } from "./rpc/procedure";
-export { withLiveDependencies } from "./rpc/live-dependencies";
 export { defineRateLimits, isRateLimitDefinitions } from "./rate-limits/policy";
 export type { RateLimitDefinitions, RateLimitPolicy, RateLimitPolicyNames, RateLimitMode } from "./rate-limits/policy";
 export { RateLimits } from "./rate-limits/service";
@@ -48,13 +47,7 @@ export type {
   SearchDescriptor,
   FullTextPolicyCheck,
 } from "../search/types";
-export type {
-  SchemaSearchProjector,
-  SchemaLiveSearchProjector,
-  SearchWire,
-  InferSearchInputProjector,
-  SearchProjection,
-} from "../search/types";
+export type { SchemaSearchProjector, SearchWire, InferSearchInputProjector, SearchProjection } from "../search/types";
 export type { SearchPublicSelection } from "../search/public";
 export { serializeRpcValue, deserializeRpcValue, rpcProtocolVersion } from "./rpc/serialization";
 export { generateRpcOpenAPI } from "./rpc/openapi";
@@ -77,10 +70,6 @@ export type { DatabaseOptions, DatabaseSchema, DatabaseConnection } from "./data
 export { runFunctionTransaction, TransactionConflictError } from "./transactions";
 export type { TransactionOptions } from "./transactions";
 export type { RuntimeMetric } from "./observability";
-export { createRevisionReader } from "./realtime/revisions";
-export { listenForRevisions, revisionNotificationChannel } from "./realtime/notifications";
-export type { RevisionWakeups, RevisionNotificationOptions } from "./realtime/notifications";
-export type { RevisionReaderOptions, RevisionReader, TableRevisions } from "./realtime/revisions";
 export { mutationReplayWindowSeconds } from "./idempotency";
 export type { IdempotencyOptions } from "./idempotency";
 export type { InvocationIdentity, InvocationContext, JobInvocation } from "./auth/context";
@@ -88,8 +77,6 @@ export { createJwtVerifier, AuthenticationError } from "./auth/verify";
 export { authConfigValidator } from "./auth/config";
 export type { AuthConfigInput } from "./auth/config";
 export type { JwtIssuer, VerifiedSession } from "./auth/verify";
-export { createConnectionTickets } from "./auth/tickets";
-export type { ConnectionTicket, ConnectionTicketOptions } from "./auth/tickets";
 export type { JobLease, JobRecord, JobScheduleOptions, JobFailureCode } from "./jobs/contracts";
 export { jobLimits } from "./jobs/contracts";
 
@@ -114,8 +101,6 @@ export type { ProjectService } from "./effect/services";
 export type { Field } from "../schema/fields";
 export type { RouterClient } from "@orpc/server";
 
-export { createRevisionCoordinator } from "./realtime/coordinator";
-export type { RevisionCoordinatorOptions, RevisionEvaluation, RevisionSubscription } from "./realtime/coordinator";
 export { createRpcJobQueue } from "./jobs/rpc-queue";
 export type { InternalProcedureEntry } from "./jobs/rpc-queue";
 export { createRpcJobWorker } from "./jobs/rpc-worker";

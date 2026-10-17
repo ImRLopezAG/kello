@@ -14,7 +14,7 @@ Every procedure has a contract under `kello/contracts/`. A file owns its route p
 
 <Snippet code={contractsSource} />
 
-Zod and Valibot both work through Standard Schema. The contract determines client input and output types, and validates values at runtime. Declare subscriptions explicitly with `eventIterator(...)`; finite contracts stay finite.
+Zod and Valibot both work through Standard Schema. The contract determines client input and output types, and validates values at runtime. Declare live SQL with `.live()`; use `eventIterator(...)` for ordinary HTTP streaming. Finite contracts stay finite.
 
 ## Configure the application
 
@@ -71,6 +71,7 @@ export default os.tasks.router({
         and(
           eq(tasks.projectId, input.projectId),
           eq(tasks.ownerId, context.identity.subject),
+          eq(tasks.ownerIssuer, context.identity.issuer),
           input.after ? gt(tasks._id, input.after) : undefined,
         ),
       )
@@ -140,17 +141,17 @@ function TaskList({ projectId, after }: { projectId: string; after?: string }) {
 
 The generated connection owns renewal and disposal through the existing provider's login/logout lifecycle. `status` exposes connecting, live, stale, closed and error states. `refetch()` replaces the subscription; `confirm(receipt, timeoutMs)` waits for the current subscription's installed transaction progress. A timeout or disconnect means **unknown**, not a rolled-back mutation. Existing `runNeonMutation` receipts remain the opt-in write contract.
 
-This first version accepts flat scalar SELECTs and representable Valibot row-array outputs. Unsupported nested projections, custom decoders and unrepresentable output refinements fail closed. Input schemas retain normal Standard Schema validation. Live capability results are excluded from ordinary Query utilities and SSR dehydration; SSR does not issue a subscription. Ordinary procedures keep their existing transport and APIs; live issuance uses authenticated HTTP because ticket/WebSocket sessions do not carry this trusted login record.
+This first version accepts flat scalar SELECTs and representable Valibot row-array outputs. Unsupported nested projections, custom decoders and unrepresentable output refinements fail closed. Input schemas retain normal Standard Schema validation. Live capability results are excluded from ordinary Query utilities and SSR dehydration; SSR does not issue a subscription. Ordinary procedures and live issuance use authenticated HTTP. Neon’s SDK owns live delivery; no custom ticket/WebSocket transport remains.
 
 ## Transactions and operation intent
 
-The generated client forwards native oRPC option intent. Query, infinite, streamed and live options select read-only repeatable-read transactions. Mutation options and direct calls select serializable write transactions. Explicit iterator contracts always use read-only authority, including direct calls. Handlers run once per request; Kello does not automatically retry application code after transaction conflicts.
+The generated client forwards native oRPC option intent. Query, infinite and streamed options select read-only repeatable-read transactions. Declared live reads issue an authorized query through HTTP. Mutation options and direct calls select serializable write transactions. Explicit iterator contracts always use read-only authority, including direct calls. Handlers run once per request; Kello does not automatically retry application code after transaction conflicts.
 
-Client intent is untrusted and never grants permission. Authorization runs for every call, and PostgreSQL rejects writes in read-only transactions. JavaScript can still call external services; neither operation intent nor the database makes those effects safe to repeat. Streaming handlers and middleware must be safe to reevaluate.
+Client intent is untrusted and never grants permission. Authorization runs for every call, and PostgreSQL rejects writes in read-only transactions. JavaScript can still call external services; neither operation intent nor the database makes those effects safe to repeat. An ordinary stream runs for its request lifetime; it is not automatically reevaluated.
 
 For application handlers, the authorization callback receives `databasePolicy: "automatic"`, regardless of the client's selected options. Authorize from the verified identity, route and owned data; do not use transaction intent to relax access checks.
 
-Output validation and serialization finish before finite database writes commit. Declare native OpenAPI metadata on contracts and set `openapi: true` in `kello.config.ts` to expose the validated REST graph. A REST request does not carry TanStack option intent; use explicit streaming contracts for subscriptions and enforce authorization independently of HTTP method.
+Output validation and serialization finish before finite database writes commit. Declare native OpenAPI metadata on contracts and set `openapi: true` in `kello.config.ts` to expose the validated REST graph. A REST request does not carry TanStack option intent; use `.live()` for live SQL or explicit iterator contracts for ordinary streaming and enforce authorization independently of HTTP method.
 
 ## IDs and authorization
 
@@ -168,11 +169,11 @@ Explicit write idempotency keys identify one logical invocation. Authorization r
 
 ## Choose the client operation
 
-| Intent                           | Native client call                                            | Handler constraint                                        |
-| -------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| Read one finite result           | `rpc.tasks.greeting.queryOptions({ input: { name: "Ada" } })` | No database writes                                        |
-| Create a task                    | `rpc.tasks.create.mutationOptions()`                          | Authorize and write within the invocation                 |
-| Receive current and future tasks | `rpc.tasks.list.liveOptions()`                                | Explicit streaming output and repeatable authorized reads |
+| Intent                           | Native client call                                            | Handler constraint                                  |
+| -------------------------------- | ------------------------------------------------------------- | --------------------------------------------------- |
+| Read one finite result           | `rpc.tasks.greeting.queryOptions({ input: { name: "Ada" } })` | No database writes                                  |
+| Create a task                    | `rpc.tasks.create.mutationOptions()`                          | Authorize and write within the invocation           |
+| Receive current and future tasks | `api.tasks.list.useLiveQuery()`                               | Explicit live SELECT with SQL permission predicates |
 
 The same generated builders implement all three. You do not add a separate `query()` or `mutation()` wrapper on the server. The client option selects execution intent, while the contract and authorization policy remain the server's authority.
 

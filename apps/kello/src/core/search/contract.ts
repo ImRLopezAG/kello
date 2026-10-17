@@ -1,7 +1,6 @@
 import type { AnyRelations, TableRelationalConfig, SQL } from "drizzle-orm";
 import { One, Relation, is, relationToSQL } from "drizzle-orm";
 import { PgDialect, alias, PgTable } from "drizzle-orm/pg-core";
-import { eventIterator } from "@orpc/contract";
 import type { StandardSchemaV1, StandardJSONSchemaV1 } from "@standard-schema/spec";
 import { createHash } from "node:crypto";
 import type { SchemaDefinition } from "../schema/define-schema";
@@ -10,8 +9,6 @@ import type {
   SearchPolicy,
   FullTextPolicyCheck,
   SchemaSearchProjector,
-  SchemaLiveSearchProjector,
-  SearchWire,
   SearchBudgets,
 } from "./types";
 import type { SearchPublicNode, SearchPublicSelection, SearchCachedPage } from "./public";
@@ -31,7 +28,6 @@ interface ScopeFingerprint {
   readonly name: string;
   readonly version: string;
   readonly source: string;
-  readonly dependencies?: readonly string[];
 }
 interface PolicyFingerprint {
   readonly entity: string;
@@ -47,12 +43,6 @@ export type SearchTableFactories<Graph extends AnyRelations, Table extends Table
   readonly search: <const Policy extends SearchPolicy<Graph, Table>>(
     policy: Policy & FullTextPolicyCheck<Table, Policy>,
   ) => SearchDescriptor<SchemaSearchProjector<Graph, Table, Policy>>;
-  readonly liveSearch: <const Policy extends SearchPolicy<Graph, Table>>(
-    policy: Policy & FullTextPolicyCheck<Table, Policy>,
-  ) => SearchDescriptor<
-    SchemaLiveSearchProjector<Graph, Table, Policy>,
-    AsyncIterableIterator<SearchWire<SchemaLiveSearchProjector<Graph, Table, Policy>>>
-  >;
 };
 export type SearchValidators<Schema extends { readonly validators: object }, Graph extends AnyRelations> = {
   readonly [Name in keyof Schema["validators"]]: Schema["validators"][Name] &
@@ -95,7 +85,7 @@ const nodeSchema: v.GenericSchema<SearchPublicNode> = v.lazy(() =>
     order: v.optional(v.array(v.string())),
     text: v.optional(v.array(v.string())),
     fullText: v.optional(v.record(v.string(), v.object({ semantics: v.string() }))),
-    mode: v.optional(v.picklist(["finite", "live"])),
+    mode: v.optional(v.literal("finite")),
     budgets: v.optional(v.custom<SearchBudgets>((value) => v.is(budgetsSchema, value))),
     relations: v.record(v.string(), v.object({ many: v.boolean(), optional: v.boolean(), node: nodeSchema })),
   }),
@@ -107,11 +97,10 @@ export function searchPublicNode(schema: StandardSchemaV1 | undefined) {
 }
 const scopeSchema = v.union([
   v.literal("public"),
-  v.object({
+  v.strictObject({
     name: v.pipe(v.string(), v.minLength(1)),
     version: v.pipe(v.string(), v.minLength(1)),
     where: v.function(),
-    dependencies: v.optional(v.array(v.string())),
   }),
 ]);
 const policySchema = v.strictObject({
@@ -126,7 +115,7 @@ const policySchema = v.strictObject({
   relations: v.optional(v.record(v.string(), v.unknown())),
 });
 type ParsedPolicy = v.InferOutput<typeof policySchema>;
-function scope(value: v.InferOutput<typeof scopeSchema>, graph: AnyRelations): "public" | RuntimeSearchScope {
+function scope(value: v.InferOutput<typeof scopeSchema>): "public" | RuntimeSearchScope {
   if (value === "public") return value;
   const where = v.parse(
     v.custom<(context: { table: TableRelationalConfig["table"]; identity: InvocationIdentity | null }) => SQL>(
@@ -134,19 +123,15 @@ function scope(value: v.InferOutput<typeof scopeSchema>, graph: AnyRelations): "
     ),
     value.where,
   );
-  const dependencies = value.dependencies;
-  if (dependencies?.some((name) => !Object.hasOwn(graph, name))) throw new Error("Unknown search policy dependency");
-  const base = { name: value.name, version: value.version, where };
-  return Object.freeze(
-    dependencies === undefined ? base : { ...base, dependencies: Object.freeze([...new Set(dependencies)].sort()) },
-  );
+  return Object.freeze({ name: value.name, version: value.version, where });
 }
 /** Bind descriptor factories only after the project's native graph exists. */
 export function createSearchValidators<Schema extends SearchSchema, Graph extends AnyRelations>(
   schema: Schema,
   graph: Graph,
 ): SearchValidators<Schema, Graph> {
-  function descriptor(name: string, value: ParsedPolicy, mode: "finite" | "live") {
+  function descriptor(name: string, value: ParsedPolicy) {
+    const mode = "finite";
     const policy = v.parse(policySchema, value);
     const overrides = policy.budgets ?? {};
     const defaults = policy.fullText ? { ...defaultSearchBudgets, ...defaultFullTextBudgets } : defaultSearchBudgets;
@@ -211,7 +196,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
       json.input,
     );
     const output = make("output", (value) => acceptsSearchOutput(node.public, value), json.output);
-    return Object.freeze({ input, output: mode === "live" ? eventIterator(output) : output });
+    return Object.freeze({ input, output });
   }
   function fingerprintGraph() {
     const dialect = new PgDialect();
@@ -255,7 +240,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
         version: value.version,
         source: Function.prototype.toString.call(value.where),
       };
-      return value.dependencies === undefined ? result : { ...result, dependencies: value.dependencies };
+      return result;
     };
     return {
       entity: node.entity,
@@ -272,7 +257,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
     value: ParsedPolicy,
     depth: number,
     budgets: SearchBudgets,
-    mode: "finite" | "live",
+    mode: "finite",
   ): SearchRuntimeNode {
     if (depth > 4) throw new Error("Search relation depth exceeds four");
     const policy = v.parse(policySchema, value);
@@ -365,7 +350,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
     const through = Object.fromEntries(
       Object.entries(policy.through ?? {}).map(([name, value]) => {
         if (!graph[name]) throw new Error(`Unknown search junction: ${name}`);
-        return [name, scope(value, graph)];
+        return [name, scope(value)];
       }),
     );
     for (const [name, child] of Object.entries(policy.relations ?? {})) {
@@ -401,7 +386,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
     const node: CompiledRuntimeNode = {
       entity: name,
       public: Object.freeze(publicNode),
-      scope: scope(policy.scope, graph),
+      scope: scope(policy.scope),
       through: Object.freeze(through),
       relations: Object.freeze(runtime),
     };
@@ -412,8 +397,7 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
     name,
     Object.freeze({
       ...validators,
-      search: (policy: ParsedPolicy) => descriptor(name, policy, "finite"),
-      liveSearch: (policy: ParsedPolicy) => descriptor(name, policy, "live"),
+      search: (policy: ParsedPolicy) => descriptor(name, policy),
     }),
   ]);
   // SAFETY: factories retain each original table validator and are bound to its

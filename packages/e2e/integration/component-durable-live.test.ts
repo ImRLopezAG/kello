@@ -5,13 +5,6 @@ import * as v from "valibot";
 import type { RpcJobCall } from "../../../apps/kello/src/core/server/jobs/rpc-contracts";
 import { createRpcScheduler } from "../../../apps/kello/src/core/server/jobs/rpc-scheduler";
 import { compileJobMigrations } from "../../../apps/kello/src/core/server/jobs/rpc-migrations";
-import {
-  acceptSnapshotAttempt,
-  evaluateSnapshot,
-  registerSnapshotSegment,
-  runSnapshotAttempt,
-} from "../../../apps/kello/src/core/server/rpc/snapshot";
-import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
 const version = "a".repeat(64);
@@ -45,25 +38,6 @@ test("same authored durable target resolves by owning mount and never falls back
   await assert.rejects(removed.resolve(left), /not found/);
 });
 
-test("live snapshots retain the union of mount-qualified child revisions", async () => {
-  const pool = new pg.Pool({ connectionString: "postgresql://unused:unused@127.0.0.1:1/unused" });
-  const db = drizzle({ client: pool });
-  try {
-    const result = await evaluateSnapshot(async () => {
-      const candidate = await runSnapshotAttempt(db, undefined, false, async () => {
-        registerSnapshotSegment({ reader: async () => ({ "left/items": "1" }) });
-        registerSnapshotSegment({ reader: async () => ({ "app/items": "2" }) });
-        return "snapshot";
-      });
-      acceptSnapshotAttempt(candidate);
-      return candidate.value;
-    });
-    expect(result.revisions).toEqual({ "left/items": "1", "app/items": "2" });
-  } finally {
-    await pool.end();
-  }
-});
-
 test("durable callbacks carry the mount identity at compilation", async () => {
   const { compileProcedureCapabilities, defineProcedureStorage, procedureCron, procedureObjectCreated } =
     await import("../../../apps/kello/src/core/server/rpc/capabilities");
@@ -84,47 +58,6 @@ test("durable callbacks carry the mount identity at compilation", async () => {
   }
 });
 
-test("live polling ignores unrelated mounted dependencies and reauthorizes child changes", async () => {
-  const { createRevisionCoordinator } = await import("../../../apps/kello/src/core/server/realtime/coordinator");
-  let revisions = { "left:items": "1", "right:items": "1" };
-  let evaluations = 0;
-  let authorized = true;
-  const closed: string[] = [];
-  const coordinator = createRevisionCoordinator({ readRevisions: async () => revisions, intervalMs: 10 });
-  const subscribe = () =>
-    coordinator.subscribe(
-      { expiresAt: Math.floor(Date.now() / 1000) + 60 },
-      {
-        evaluate: async () => {
-          evaluations++;
-          if (!authorized) throw new Error("denied");
-          return { value: "result", revisions: { "left:items": revisions["left:items"] } };
-        },
-        publish: () => true,
-        close: (reason) => {
-          closed.push(reason);
-        },
-      },
-    );
-  try {
-    subscribe();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(evaluations).toBe(1);
-    revisions = { ...revisions, "right:items": "2" };
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(evaluations).toBe(1);
-    authorized = false;
-    revisions = { ...revisions, "left:items": "2" };
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(closed).toEqual(["QUERY_ERROR"]);
-    subscribe();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(closed).toEqual(["QUERY_ERROR", "QUERY_ERROR"]);
-  } finally {
-    await coordinator.stop();
-  }
-});
-
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "mounted schedules rollback with their parent and replay receipts remain isolated",
@@ -140,7 +73,6 @@ test.skipIf(!connectionString)(
     const { createDatabaseMiddleware } = await import("../../../apps/kello/src/core/server/rpc/database");
     const { bindRuntimeGraph } = await import("../../../apps/kello/src/core/server/rpc/runtime-graph");
     const { createEffectRuntime, Invocation } = await import("../../../apps/kello/src/core/server/effect/runtime");
-    const { createRevisionCoordinator } = await import("../../../apps/kello/src/core/server/realtime/coordinator");
     const { createRpcJobQueue } = await import("../../../apps/kello/src/core/server/jobs/rpc-queue");
     const { createTransactionalRpcScheduler } = await import("../../../apps/kello/src/core/server/jobs/rpc-service");
     const namespace = `loom_durable_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -151,7 +83,6 @@ test.skipIf(!connectionString)(
     const relations = defineRelations(schema.tables);
     const connection = await connectDatabase({ schema, relations, connectionString });
     const effects = createEffectRuntime(Layer.empty);
-    const coordinator = createRevisionCoordinator({ readRevisions: async () => ({}) });
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace: namespace, runtimeRole: role });
       const target = createProjectProcedures(schema)
@@ -208,7 +139,6 @@ test.skipIf(!connectionString)(
         ],
         application: { run: (work) => work(), runComponent: (_scope, work) => work() },
         effects,
-        coordinator,
         activate: async () => {},
         authorize: async () => {},
         database,
@@ -365,7 +295,6 @@ test.skipIf(!connectionString)(
       }
     } finally {
       await effects.stop();
-      await coordinator.stop();
       await connection.close();
       await admin.query(`DROP SCHEMA IF EXISTS "${namespace}" CASCADE`);
       await admin.query(`DROP OWNED BY "${role}"`);
@@ -481,132 +410,6 @@ test.skipIf(!connectionString)(
         await runtime.stop();
       }
     } finally {
-      await admin.query(`DROP SCHEMA IF EXISTS "${namespace}" CASCADE`);
-      await admin.query(`DROP OWNED BY "${role}"`);
-      await admin.query(`DROP ROLE IF EXISTS "${role}"`);
-      await admin.end();
-    }
-  },
-);
-
-test.skipIf(!connectionString)(
-  "assembled child live subscription reauthorizes when only root membership changes",
-  async () => {
-    if (!connectionString) throw new Error("Missing database URL");
-    const { call, Procedure } = await import("@orpc/server");
-    const { eventIterator } = await import("kello/contract");
-
-    const { Context } = await import("effect");
-    const { defineRelations, sql } = await import("drizzle-orm");
-    const { bootstrapDatabase } = await import("kello/tooling");
-    const { defineSchema } = await import("../../../apps/kello/src/core/schema/define-schema");
-    const { createRpcRuntime } = await import("../../../apps/kello/src/core/server/rpc-runtime");
-    const { createProjectProcedures } = await import("../../../apps/kello/src/core/server/rpc/procedure");
-    const { createDatabaseMiddleware } = await import("../../../apps/kello/src/core/server/rpc/database");
-    const { createLiveContext } = await import("../../../apps/kello/src/core/server/rpc/live-context");
-    const { Invocation } = await import("../../../apps/kello/src/core/server/effect/runtime");
-    const { defineApplication } = await import("../../../apps/kello/src/core/server/application/definition");
-    const { defineComponent } = await import("../../../apps/kello/src/core/server/components/definition");
-    const { defineRpcAuth } = await import("../../../apps/kello/src/core/server/auth/rpc-definition");
-    const namespace = `loom_live_${crypto.randomUUID().replaceAll("-", "")}`;
-    const appNamespace = `${namespace}_app`;
-    const childNamespace = `${namespace}_child`;
-    const role = `${namespace}_role`;
-    const admin = new pg.Client({ connectionString });
-    await admin.connect();
-    try {
-      await bootstrapDatabase({ connectionString, metadataNamespace: namespace, runtimeRole: role });
-      await admin.query(`CREATE SCHEMA "${appNamespace}"`);
-      await admin.query(`CREATE TABLE "${appNamespace}".membership (allowed boolean NOT NULL)`);
-      await admin.query(`INSERT INTO "${appNamespace}".membership VALUES (true)`);
-      await admin.query(`CREATE SCHEMA "${childNamespace}"`);
-      await admin.query(`CREATE TABLE "${childNamespace}".items (value integer NOT NULL)`);
-      await admin.query(`INSERT INTO "${childNamespace}".items VALUES (7)`);
-      await admin.query(
-        `INSERT INTO "${namespace}".table_revisions(namespace,table_name,revision) VALUES($1,'membership',1),($2,'items',1)`,
-        [appNamespace, childNamespace],
-      );
-      const schema = defineSchema((s) => ({ membership: { allowed: s.boolean().notNull() } }), {
-        namespace: appNamespace,
-      });
-      const childSchema = defineSchema((s) => ({ items: { value: s.integer().notNull() } }), {
-        namespace: childNamespace,
-      });
-      const application = defineApplication({ rpc: ({ os }) => ({ os }) });
-      application.use(defineComponent({ name: "child" }));
-      const live = createProjectProcedures(childSchema)
-        .procedure.use(createDatabaseMiddleware(defineRelations(childSchema.tables), "read", childSchema))
-        .output(eventIterator(v.number()))
-        .handler(({ context }) =>
-          createLiveContext(context)(async ({ db }) => {
-            const found = await db.execute<{ value: number }>(
-              sql`SELECT value FROM ${sql.identifier(childNamespace)}.items`,
-            );
-            return found.rows[0]!.value;
-          }),
-        );
-      let denied = 0;
-      const runtime = await createRpcRuntime({
-        schema,
-        relations: defineRelations(schema.tables),
-        application,
-        connectionString,
-        metadataNamespace: namespace,
-        version,
-        deployment: "live",
-        assertActive: async () => {},
-        config: { realtime: { pollIntervalMs: 100 } },
-        auth: defineRpcAuth({
-          authorize: async ({ db }) => {
-            assert(db);
-            const membership = await db.execute<{ allowed: boolean }>(
-              sql`SELECT allowed FROM ${sql.identifier(appNamespace)}.membership`,
-            );
-            if (!membership.rows[0]?.allowed) {
-              denied++;
-              throw new Error("revoked");
-            }
-          },
-        }),
-        scopes: [
-          { name: "", dependencies: { child: "child" }, schema },
-          { name: "child", dependencies: {}, schema: childSchema },
-        ],
-        exposures: [{ scope: "child", prefix: "child" }],
-        procedures: [{ scope: "child", path: ["live"], visibility: "exported", procedure: live }],
-      });
-      try {
-        const router = runtime.router.child;
-        assert(router && !(router instanceof Procedure) && "live" in router && router.live instanceof Procedure);
-        const invocation = { identity: null, requestId: "live", signal: AbortSignal.timeout(5000) };
-        const context = {
-          ...invocation,
-          expiresAt: Math.floor(Date.now() / 1000) + 60,
-          "effect/context": Context.make(Invocation, invocation),
-        };
-        // SAFETY: this fixture registers the native eventIterator(number) contract above.
-        const stream = (await call(router.live, undefined, { context, path: ["live"] })) as AsyncIteratorObject<number>;
-        expect(await stream.next()).toMatchObject({ done: false, value: 7 });
-        await admin.query(`UPDATE "${appNamespace}".membership SET allowed=false`);
-        await admin.query(`UPDATE "${namespace}".table_revisions SET revision=revision+1 WHERE namespace=$1`, [
-          appNamespace,
-        ]);
-        await assert.rejects(Promise.resolve(stream.next()));
-        expect(denied).toBe(1);
-        expect(
-          (
-            await admin.query(
-              `SELECT revision::text AS revision FROM "${namespace}".table_revisions WHERE namespace=$1`,
-              [childNamespace],
-            )
-          ).rows[0].revision,
-        ).toBe("1");
-      } finally {
-        await runtime.stop();
-      }
-    } finally {
-      await admin.query(`DROP SCHEMA IF EXISTS "${appNamespace}" CASCADE`);
-      await admin.query(`DROP SCHEMA IF EXISTS "${childNamespace}" CASCADE`);
       await admin.query(`DROP SCHEMA IF EXISTS "${namespace}" CASCADE`);
       await admin.query(`DROP OWNED BY "${role}"`);
       await admin.query(`DROP ROLE IF EXISTS "${role}"`);

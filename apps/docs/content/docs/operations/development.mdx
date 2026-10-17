@@ -1,88 +1,27 @@
 ---
 title: Development
-description: Publish source changes only after schema synchronization and runtime checks succeed.
+description: Watch author files and deploy releases to a linked Neon preview branch.
 ---
 
-## Select a development target
+## Select a preview target
 
-Run `kello login` and link an unprotected, nondefault PostgreSQL 18 branch with `kello link --project-id <id> --branch <branch-id>`. Normal linked projects need no `kello.config.ts`: Kello discovers the database owner and prepares its restricted runtime login. Explicit configurations must keep development separate from their preview and production targets.
+Run `kello login`, then `kello link --project-id <id> --branch <branch-id>` for an unprotected, nondefault PostgreSQL 18 branch. `kello dev` requires the saved link and the preview deployment target to identify the same project and branch. Production targets are refused.
 
-Optional operational overrides belong in `kello.config.ts`:
+Normal linked projects discover deployment credentials and settings. Explicit overrides belong in `kello.config.ts`: `deployment.environment` must be `"preview"`, and `provider.targets.preview` selects that branch. Optional `development` settings select `databaseName`, `migrationRole`, `runtimeRole` and `debounceMs` (75 milliseconds by default). They do not start a local database or server.
 
-```ts
-development: {
-  databaseName: "neondb",
-  migrationRole: "neondb_owner",
-  runtimeRole: "loom_runtime",
-},
-```
+Generate migration artifacts with `kello migrations generate --name <name>` before deploying schema changes. Development uses the ordinary release pipeline and its migration admission rules. Keep applied migration history intact.
 
-The official Neon login supplies provider access; CI can use `NEON_API_KEY`. Kello resolves runtime credentials through Neon and stores its development activation secret in owner-only Postgres metadata, keeping it stable across generations and restarts. Custom credential-source names and preexisting unmanaged roles require explicit overrides. Application secrets remain separate from these framework-owned credentials.
+## Watch and deploy
 
-An explicit `--development <file>` declaration remains available for advanced orchestration, but normal development needs no extra script or declaration file.
+Run `kello dev --cwd <project>`. Each changed source version generates bindings and deploys through the existing Neon release pipeline to the same preview branch. Updates run serially; newer saves cancel superseded work and coalesce into one successor. Publication events that do not change the source version do not redeploy.
 
-## Watch and serve
+The command prints the remote service URL when the release succeeds. A failed build or deployment leaves the last successful remote release active; save a corrected edit to retry. Target or declaration failure during initial setup exits before watching. `--development <file>` selects a contained release declaration, using the same format as `kello deploy`.
 
-Run `kello dev --cwd <project>`. The watcher generates a candidate, checks safe schema synchronization and verified runtime startup, then publishes its API and listener together.
+`--json` emits `watching`, `ready` and `stopped` lifecycle events. Update failures report `DEVELOPMENT_UPDATE_FAILED` on stderr. SIGINT and SIGTERM stop watching, cancel pending work, and await an already-started release's cleanup. The shared preview branch and its last release remain available after exit.
 
-Invalid source, unsafe changes or failed startup preserve the prior serving generation. If no generation has started, the watcher remains alive so a corrected edit can recover. Additive DDL already committed before a startup failure remains in the database. Declaration or credential changes require a restart.
+Application handlers, jobs and cron schedules execute in Neon. You can run a frontend, code generation and file watching locally. Ordinary RPC and user-authored async iterators use HTTP; declared `.live()` queries use Neon Realtime.
 
-Old requests drain through their generation, and old sockets close so clients can reconnect. SIGINT and SIGTERM stop admission and drain owned work. Use [release migrations](/operations/migrations) for changes that development synchronization refuses.
-
-## Local diagnostics
-
-Diagnostics are opt-in on `kello dev`. The runtime, jobs and HTTP/WebSocket listener run in that CLI process; one session observes them across generation replacements. It cannot see credential/link helper children, separately launched applications, other CLI invocations or remote isolates. These measurements describe local observations, not fleet health, provider acceptance or an end-user SLA.
-
-```sh
-kello dev --cwd ./project --diagnostics text
-kello dev --cwd ./project --diagnostics jsonl --diagnostics-file ./diagnostics.jsonl
-```
-
-Text lines go to stderr; stdout lifecycle output is unchanged. JSONL requires `--diagnostics-file`, and that option requires JSONL. `--json` independently controls lifecycle messages. These options are unavailable on `dev quarantine` and other commands; invalid combinations return `USAGE`, exit 2, before development starts.
-
-The file path resolves against `--cwd`. Kello creates it exclusively with mode `0600`: existing files and symlinks fail with `DIAGNOSTICS_OUTPUT_UNAVAILABLE`, exit 2. Parent directories must already exist. The file contains only event records, with no lifecycle messages or project console output. Kello closes its owned handle on exit; already submitted I/O may settle later, with `DIAGNOSTICS_OUTPUT_CLOSE_PENDING` reported on stderr when closure remains pending. There is no append, overwrite, rotation or automatic upload. You own retention and deletion; operational timing data can still be sensitive.
-
-Each line is a `DiagnosticsRecord` from `kello/tooling`, with `schemaVersion: 1`, `scope: "local-process"`, session-monotonic `sequence`, UTC ISO `timestamp`, `source` and `event`. For example:
-
-```json
-{
-  "schemaVersion": 1,
-  "scope": "local-process",
-  "sequence": 1,
-  "timestamp": "2026-10-07T00:00:00.000Z",
-  "source": "runtime",
-  "event": { "type": "rpc.procedure", "mode": "finite", "status": "success", "durationMs": 7 }
-}
-```
-
-Sources are `runtime`, `deployment` and `diagnostics`. Only approved primitive event fields are copied; unknown variants and malformed fields are rejected, and extras are stripped. Records exclude identities, function/job/table names, arguments, SQL, credentials, paths, endpoint URLs and raw errors.
-
-RPC durations overlap with nested revision reads and pool acquisition; do not sum them. A live RPC success ends at initial iterator construction and excludes stream lifetime and later iteration errors. Pool counts are samples at acquisition completion, and acquisition duration includes connection establishment as well as waiting. Job age and due lag sample successful claims, not every pending job. Realtime state has no pool/generation identity. Release acknowledgements describe receipt writes only, and a separate deployment process is outside this session. See [operating limits](/operations/limits) for the broader acceptance boundary.
-
-Output is best effort: ingress holds 1,024 records, output holds 256, lines are limited to 2 KiB, and each drain processes at most 64 records before yielding. Overflow drops newest records. `diagnostics.loss` reports cumulative `accepted`, `invalid`, `dropped`, `outputFailures` and `exportFailures` counters at most once per second when loss changes. Accepted means admitted, not delivered; dropped can include both sink loss and refused metric accumulation. Loss records can themselves be lost. A writer failure disables local output while enabled metrics continue.
-
-SIGINT/SIGTERM drain development first, then stop diagnostics. Diagnostics cleanup has its own 2-second budget, which does not bound development/database shutdown. Stop forbids new writer calls immediately, aborts the writer signal and discards queued local output; it does not emit a final loss line or revoke already submitted OS writes. Abrupt process loss can lose data. Omit the flags on the next launch to opt out; existing files remain yours to delete.
-
-## Export metrics explicitly
-
-`--telemetry otlp` enables OTLP/HTTP JSON metrics independently of local output. Environment variables alone never enable it:
-
-```sh
-KELLO_TELEMETRY_ENDPOINT=http://127.0.0.1:4318/v1/metrics \
-  kello dev --cwd ./project --telemetry otlp
-```
-
-Supply the complete metrics URL, including a nonempty path. HTTPS is supported; HTTP is allowed only for literal `127.0.0.1` or `[::1]`, not `localhost` or alternate numeric spellings. Userinfo, query strings and fragments are rejected. Kello preserves the path and does not follow redirects. Invalid configuration returns fixed `TELEMETRY_CONFIG_INVALID`, exit 2, before project/provider startup, without echoing values.
-
-For authentication, set `KELLO_TELEMETRY_BEARER_TOKEN` through your shell or secret manager. It is sent only as an Authorization header to the configured endpoint and is not exposed in records or errors. There is no token flag or credential fallback. Generic `OTEL_*` variables, including endpoints, headers and resource attributes, are ignored. Configure collector authentication, access and retention yourself.
-
-The private registry exports cumulative counters and millisecond histograms: RPC/read/acquisition counts and durations, additional transaction attempts, job claims/age/due lag, terminal lease cleanup/loss, receipt acknowledgements and diagnostics loss. The fixed baseline is 68 instrument/attribute series (54 counters, 14 histograms); ceilings are 128 series and 128 KiB per request. Labels use finite modes, statuses, kinds, recovered flags, stages and reasons. Realtime state, pool counts, table counts and attempt numbers stay local. There are no logs, traces or ambient global metrics.
-
-The resource contains only `service.name="kello-dev"`, package `service.version`, `deployment.environment.name="development"` and a random per-session `service.instance.id`. These identities separate cumulative sessions; they do not cap collector-wide cardinality or identify a project/fleet.
-
-Attempts run every 10 seconds, with one request in flight, no catch-up queue and no per-batch retry. Requests have a 1-second deadline including serialization and response consumption; responses are limited to 16 KiB. Redirects, invalid/rejected responses and error-bearing partial success increment export failures without printing response contents. Admitted measurements remain in the next cumulative snapshot after failure; dropped observations are unrecoverable. Loss reasons are `invalid`, `ingress_queue`, `output_queue`, `output` and `export`. After valid startup, sink/export failures do not change application exit behavior.
-
-Stop can attempt a final cumulative export within the same 2-second diagnostics cleanup budget. There is no disk spool or delivery guarantee; local collection does not establish hosted retention or provider acceptance. Remove `--telemetry otlp` to opt out. Without either diagnostics or telemetry flags, Kello starts no diagnostics session, sink or export timer. Opt-out needs no migration or provider-resource cleanup.
+The alpha removes local server/runtime/synchronization APIs, local port and connection limits, local activation/storage declarations, `kello dev quarantine`, and dev's `--diagnostics`, `--diagnostics-file` and `--telemetry` attachment flags. Release clone/preserve quarantine remains part of deployment.
 
 ## Programmatic diagnostics
 
@@ -121,39 +60,15 @@ Writers receive `(chunk: string, signal: AbortSignal)` and return `void` or `Pro
 
 Returned promises must allow standard settlement observers to attach. Promise subclasses, constructor getters and reentrancy are supported when observation remains possible. Deliberately sabotaged constructor/species/then behavior that prevents observation is unsupported; a later unhandled rejection remains the caller's risk. The adapter does not mutate promises or install global exception/rejection handlers.
 
-## Jobs, crons and storage
+## Jobs, storage and components
 
-Published generations poll durable jobs; the default interval is 1000 milliseconds. Local crons evaluate UTC schedules without replaying missed minutes. Replacement stops old background loops before starting the new generation's loops.
+Preview releases execute cloud jobs and crons and use branch-bound storage. Configure provider resources through the deployment workflow; development does not emulate them.
 
-Storage-enabled projects also need the branch's private buckets and credentials configured through the project settings. Startup verifies bucket metadata and target binding. It does not provision those resources or emulate provider-attested object events.
+Import component setup and mount it with `app.use(component)`. Generate migration artifacts for schema changes before saving/deploying the release. Removing a mount does not authorize dropping its persisted data. Review destructive changes through the migration workflow.
 
-## Quarantine copied work
+Without a running watcher, editing source does not publish a release. Use `kello generate` to refresh bindings and `kello deploy` to publish. A local frontend connects to the remote preview service.
 
-Stop development before running `kello dev quarantine --cwd <project>`. This revokes active Kello grants and cancels pending/running jobs in the selected development metadata namespace, including locally created work. It preserves application data and completed jobs.
-
-Quarantine is database-only. Stop relevant workers and disable unwanted provider triggers separately; it cannot undo external effects already performed. Restarting development establishes its own branch-bound activation grant.
-
-## Mount and remove components
-
-Import a component setup and call `app.use(component)` explicitly. While `kello dev` is running, a supported additive schema change is synchronized before the candidate starts serving. The watcher then publishes the generated bindings with the new runtime. A setup file that is merely present on disk is not an implicit mount.
-
-Removing a mount removes its runtime capabilities from the next generation; it does not authorize dropping its persisted tables. Review the resulting schema change and use the migration workflow for destructive cleanup. Preserve migration history even when the component source is gone.
-
-Without a running watcher, editing source alone does not update the database, running server, or generated client. Run `kello generate` to refresh bindings, and use the migration/deployment workflow to publish a release. Frontend development servers do not replace `kello dev`.
-
-## What changes when you save?
-
-| Edit                                | Watcher behavior                     | What you should see                                                |
-| ----------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
-| Add a contract and matching handler | Builds and publishes a candidate     | New generated client method after successful publication           |
-| Add a supported nullable field      | Synchronizes safe DDL before serving | New typed field and database column                                |
-| Introduce a syntax or startup error | Rejects the candidate                | Previous generation keeps serving; diagnostic identifies the error |
-| Remove a persisted component        | Does not authorize dropping its data | Review required for any destructive cleanup                        |
-| Change declaration or credentials   | Requires restart                     | Restart against the intended branch                                |
-
-To distinguish a stale frontend from a rejected backend candidate, inspect the backend terminal first, then regenerate/restart the frontend if its module graph still has old bindings. Do not delete migration history to clear a development error.
-
-## References and next steps
+## References
 
 - [Neon branching](https://neon.com/docs/introduction/branching)
 - [Migration review workflow](/operations/migrations)

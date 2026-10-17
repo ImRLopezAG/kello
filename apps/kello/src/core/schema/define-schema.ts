@@ -13,6 +13,12 @@ export interface SchemaDefinition {
   readonly metadata: SchemaMetadata;
   readonly fingerprint: string;
 }
+// Recognize only the framework's identity-preserving ID action during browser generation.
+const idBrandActions = new WeakSet<object>();
+export function isIdBrandAction(action: v.GenericPipeItem): boolean {
+  return idBrandActions.has(action);
+}
+
 const compiledSchemas = new WeakSet<object>();
 const schemaBindings = new WeakMap<SchemaDefinition, (namespace: string) => SchemaDefinition>();
 
@@ -36,14 +42,12 @@ export function defineSchema<const Entities extends Record<string, EntityDeclara
   const compiled = compile(entities, options);
   function id<const Name extends Extract<keyof Entities, string>>(table: Name) {
     if (!Object.hasOwn(entities, table)) throw new Error("Unknown ID table");
-    return v.pipe(
-      v.string(),
-      v.uuid(),
-      v.transform((value): Id<Name> => {
-        // SAFETY: UUID syntax is checked above; table branding is static and does not assert row existence.
-        return value as Id<Name>;
-      }),
-    );
+    const brand = v.transform((value: string): Id<Name> => {
+      // SAFETY: UUID syntax is checked above; table branding is static and does not assert row existence.
+      return value as Id<Name>;
+    });
+    idBrandActions.add(brand);
+    return v.pipe(v.string(), v.uuid(), brand);
   }
   const schema = Object.freeze({ ...compiled, validators: derive(entities, compiled.metadata), id });
   compiledSchemas.add(schema);

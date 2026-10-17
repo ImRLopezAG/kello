@@ -16,23 +16,21 @@ function owned(identity: InvocationIdentity | null) {
   );
 }
 
-const list = os.files.list.handler(({ context }) =>
-  context.live(({ db, identity, tables: { files } }) =>
-    db
-      .select({
-        _id: files._id,
-        intentId: files.intentId,
-        bucket: files.bucket,
-        size: files.size,
-        contentType: files.contentType,
-        sha256: files.sha256,
-        summary: files.summary,
-      })
-      .from(files)
-      .where(owned(identity))
-      .orderBy(files._createdAt, files._id)
-      .limit(100),
-  ),
+const list = os.files.list.live(({ context: { db, identity } }) =>
+  db
+    .select({
+      _id: files._id,
+      intentId: sql<string>`${files.intentId}`.as("intentId"),
+      bucket: files.bucket,
+      size: files.size,
+      contentType: sql<string>`${files.contentType}`.as("contentType"),
+      sha256: files.sha256,
+      summary: files.summary,
+    })
+    .from(files)
+    .where(owned(identity))
+    .orderBy(files._createdAt, files._id)
+    .limit(100),
 );
 
 const status = os.files.status.handler(

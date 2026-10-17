@@ -1,7 +1,9 @@
 import greeting from "./components/greeting/setup";
+import { createNeonLoginResolver } from "kello/neon";
 import { defineApplication } from "kello/server";
 import { z } from "zod";
 const app = defineApplication({
+  liveQueries: ({ realtime }) => ({ ...realtime, resolveLogin: createNeonLoginResolver() }),
   env: { APP_ORIGINS: z.string().default("http://localhost:3000"), GREETING_PREFIX: z.string().default("Hello") },
   rpc: ({ os }) => ({
     os,

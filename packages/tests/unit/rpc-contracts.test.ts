@@ -42,19 +42,19 @@ describe("native project procedures", () => {
     const observed: unknown[] = [];
     const metrics = channel("kello.runtime.metric");
     const collect: Parameters<typeof metrics.subscribe>[0] = (value) => {
-      if (v.parse(v.object({ type: v.string() }), value).type !== "realtime.listener") return;
-      const metric = v.parse(v.object({ type: v.literal("realtime.listener"), status: v.literal("idle") }), value);
+      if (v.parse(v.object({ type: v.string() }), value).type !== "job.lease.reaped") return;
+      const metric = v.parse(v.object({ type: v.literal("job.lease.reaped"), count: v.literal(0) }), value);
       observed.push(metric);
     };
     metrics.subscribe(collect);
     try {
       const item = procedure.effect(function* () {
         const publish = yield* Diagnostics;
-        publish({ type: "realtime.listener", status: "idle" });
+        publish({ type: "job.lease.reaped", count: 0 });
         return "published";
       });
       expect(await call(item, undefined, { context })).toBe("published");
-      expect(observed).toEqual([{ type: "realtime.listener", status: "idle" }]);
+      expect(observed).toEqual([{ type: "job.lease.reaped", count: 0 }]);
     } finally {
       metrics.unsubscribe(collect);
     }

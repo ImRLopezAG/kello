@@ -1,33 +1,32 @@
 ---
 title: Operating limits
-description: Verified behavior, measured workloads and remaining provider limits.
+description: Supported alpha behavior and the limits of recorded acceptance.
 ---
 
-## Recorded verification baseline
+## Cloud-only backend
 
-These results describe the recorded acceptance runs, not a fresh verification of every subsequent revision. Check the source revision and suite when deciding whether a result covers your change.
+Application handlers, jobs and cron schedules execute in Neon Functions. Local tooling edits source, generates bindings, builds deployment archives and watches a linked preview target. There is no local backend server or PostgreSQL fallback.
 
-The native oRPC runtime has PostgreSQL 18 integration coverage, browser coverage and packed consumer checks. Real Neon acceptance has exercised Auth, Functions, Object Storage events and durable processing. The repository's `docs/architecture/orpc-execution.md` records which runtime each receipt tested and which changes still require hosted verification.
+Ordinary RPC and user-authored iterators use HTTP. Declared `.live()` functions issue authorized SELECTs over HTTP and receive updates through the official Neon SDK. The removed polling/LISTEN coordinator, snapshot engine and custom application WebSocket transport have no supported mode.
 
-The recorded final native acceptance passed three spread and three hot-table runs: 100 subscriptions across two Functions and ten committed writes per second for ten minutes after warmup. Notification-mode live-update p95 was 269–378 ms, 68–79% below the matched polling baseline. All finite-RPC, typecheck, bundle and resource gates passed. The repository's `docs/architecture/orpc-acceptance.md` records distributions and measurement limits, including baseline runs taken several hours earlier. There is no production performance SLA.
+`rpc.maxResultBytes` in `kello.config.ts` limits each serialized RPC result or iterator event. It defaults to 1 MiB and accepts integer values from 1 KiB to 10 MiB. Transactional results are validated before commit, so an oversized write result rolls back its database changes. This limit is independent of Neon live-query delivery.
 
-Local tests cover process interruption, reconnect, lease recovery and a non-reading TCP client. Hosted tests also exercise capacity refusal and listener recovery. Account-wide WebSocket quotas, provider eviction guarantees and billed workload cost remain unmeasured.
+## Live-query limits
 
-## Runtime bounds
+The current wrapper permits 100 owned subscriptions per client and 32 pending confirmation waiters per subscription. These are admission caps, not a throughput or whole-graph memory guarantee. Supported queries use explicit flat scalar projections and validated output schemas; unsupported mapping and refinements fail closed. Nested relational search, automatic counts and encrypted finite-search cursors are not converted to live queries.
 
-Realtime defaults to polling every 1,000 milliseconds. Notification mode adds one direct database listener per active runtime, shared by its subscriptions; polling remains the recovery path. Reevaluations run with concurrency four. The default runtime limit is 100 subscriptions, configurable from 1 to 1,000; this is an admission limit, not a throughput guarantee.
+Row permissions must be present in SQL. Transaction-local identity settings and RLS do not transfer to the Realtime proxy. Issuance and renewal require verified credentials, trusted login generation and sufficient remaining expiry. Dispose the connection on logout. Timeout, disconnection or disposal leaves write confirmation unknown.
 
-Socket sessions bound messages and buffered output to 1 MiB by default, with at most 64 concurrent calls and 200 inbound messages per second. Oversized traffic closes with `CAPACITY_EXCEEDED`; a full output buffer closes with `RESYNC_REQUIRED`. Neon maps reserved server close codes to application codes: 1009 becomes 4009 and 1013 becomes 4013. Clients should retain the reason when reporting these failures.
+Earlier revision-engine latency/load measurements describe a removed implementation and do not establish a Neon performance SLA. Actual-provider evidence covers selected commit/retry/replay, authorization, renewal and delivery-order cases; it does not prove every projection, provider quota, reconnect duration or long-running retention bound. Current cloud-only deployment and browser acceptance must be checked at the tested revision.
 
-## Retiring a runtime
+## Preserved data and jobs
 
-Database retirement checks activation identity, ingress retirement, pending jobs, and live client sessions before retiring database authority. It retains historical artifacts. This does not stop every provider process or drain external action side effects across instances.
+Migration 29 retires framework revision triggers/function/table and connection tickets through the ordinary migration path. Applied versions 1–28 remain immutable. User tables, unrelated triggers and cloud job data remain. There is no old-deployment drain gate for this breaking alpha.
 
-## Package availability
+Database retirement retains its activation, job and client-session checks and historical artifacts. A database retirement receipt does not prove that every remote process or external effect has stopped.
 
-Packages remain private in this workspace. Public registry identity, licensing and release publication must be settled before a public installation guide can promise a supported release.
+## Package status
 
-## References and next steps
+Kello is an experimental MIT-licensed alpha. Install the published alpha tag deliberately; final package, exact-revision CI and release checks remain separate from individual source or native test results.
 
-- [Contributor test setup](https://github.com/ImRLopezAG/kello/blob/main/CONTRIBUTING.md)
-- [Neon Functions documentation](https://neon.com/docs/compute/functions/overview)
+Deployment tooling needs Vite+ in the application's devDependencies. The uploaded function bundle does not need the authoring toolchain. `pg` remains for Neon SQL and migrations, `libpg-query` for migration analysis, and `fflate` for ZIP archives. Removing direct esbuild/NFT dependencies does not establish their absence from the retained official Neon CLI's transitive graph.

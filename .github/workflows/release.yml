@@ -32,17 +32,27 @@ jobs:
           node-version: "24"
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: "1.4.2"
       - name: Require successful main CI for this exact commit
+        id: ci
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           release_commit="$(git rev-parse HEAD)"
-          passed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$release_commit" --branch main --event push --limit 1 --json status,conclusion --jq '.[0] | .status == "completed" and .conclusion == "success"')"
-          if [ "$passed" != true ]; then
+          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$release_commit" --branch main --event push --limit 1 --json databaseId,status,conclusion --jq '.[0] | select(.status == "completed" and .conclusion == "success") | .databaseId')"
+          if ! [[ "$run_id" =~ ^[0-9]+$ ]]; then
             echo '::error::Publishing requires successful main push CI for this exact commit.'
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "commit=$release_commit" >> "$GITHUB_OUTPUT"
+      - name: Require Neon acceptance for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_commit="$(git rev-parse HEAD)"
+          passed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cloud-acceptance.yml --commit "$release_commit" --event workflow_dispatch --limit 1 --json status,conclusion --jq '.[0] | .status == "completed" and .conclusion == "success"')"
+          if [ "$passed" != true ]; then
+            echo '::error::Publishing requires successful Neon backend acceptance for this exact commit.'
             exit 1
           fi
       - name: Require a reviewed alpha version and package identity
@@ -62,15 +72,33 @@ jobs:
           assert.equal(pkg.publishConfig.access, 'public');
           assert.equal(readFileSync('LICENSE', 'utf8'), readFileSync('apps/kello/LICENSE', 'utf8'));
           JS
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Build package
-        run: bun run --cwd apps/kello build
+      - name: Download verified CI package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ steps.ci.outputs.run_id }}
+        run: gh run download "$CI_RUN_ID" --repo "$GITHUB_REPOSITORY" --name kello-package --dir "$RUNNER_TEMP/kello-release"
+      - name: Verify CI package artifact
+        env:
+          RELEASE_COMMIT: ${{ steps.ci.outputs.commit }}
+          ARTIFACT_DIR: ${{ runner.temp }}/kello-release
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { readFileSync } from 'node:fs';
+          const pkg = JSON.parse(readFileSync('apps/kello/package.json', 'utf8'));
+          const dir = process.env.ARTIFACT_DIR;
+          const manifest = JSON.parse(readFileSync(`${dir}/manifest.json`, 'utf8'));
+          assert.equal(manifest.commit, process.env.RELEASE_COMMIT, 'CI artifact commit mismatch');
+          assert.equal(manifest.name, pkg.name, 'CI artifact package mismatch');
+          assert.equal(manifest.version, pkg.version, 'CI artifact version mismatch');
+          const sha256 = createHash('sha256').update(readFileSync(`${dir}/kello.tgz`)).digest('hex');
+          assert.equal(manifest.sha256, sha256, 'CI tarball checksum mismatch');
+          JS
       - name: Update npm for trusted publishing
         run: npm install --global npm@11
       - name: Publish using npm trusted publishing
-        working-directory: apps/kello
         env:
           NODE_AUTH_TOKEN: ""
           NPM_TOKEN: ""
-        run: npm publish --ignore-scripts --access public --tag alpha
+        run: npm publish "$RUNNER_TEMP/kello-release/kello.tgz" --ignore-scripts --access public --tag alpha

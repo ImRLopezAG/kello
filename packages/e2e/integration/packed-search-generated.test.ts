@@ -89,7 +89,6 @@ import { Effect } from "effect";
 export default os.tasks.router({
   list: os.tasks.list.handler(({ context, input }) => context.search.tasks.paginate(input)),
   effectList: os.tasks.effectList.effect(function* ({ input }) { const search = yield* Search; return yield* Effect.promise(() => search.tasks.paginate(input)); }),
-  watch: os.tasks.watch.handler(({ context, input }) => context.search.tasks.watch(input)),
   ordinary: os.tasks.ordinary.handler(() => "native"),
 });`,
     );
@@ -288,7 +287,7 @@ client.tasks.list(nested);
 async function fields() { const result = await client.tasks.list({ columns: { title: true } }); result.rows[0]!.done; }
 rpc.tasks.list.queryKey({ input: forbidden });
 rpc.tasks.list.infiniteKey({ input: () => forbidden, initialPageParam: null });
-rpc.tasks.watch.liveKey({ input: forbidden });
+client.tasks.watch();
 client.store.items.list({ columns: { title: true, projectId: true } });
 client.staff;
 client.store.internal;

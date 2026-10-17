@@ -1,6 +1,6 @@
 import { initializeProject } from "kello/tooling";
 import assert from "node:assert/strict";
-import { buildFunctionBundle } from "@neon/config-runtime/v1";
+import { buildNeonFunctionBundle } from "kello/tooling";
 import { unzipSync } from "fflate";
 import { expect, test } from "bun:test";
 import {
@@ -113,14 +113,7 @@ test("generated service and worker entries capture runtime configuration and exp
       ["worker", deployed.worker],
     ]) {
       assert.ok(slug && source);
-      const archive = await buildFunctionBundle({
-        slug,
-        name: slug,
-        source,
-        env: {},
-        runtime: "nodejs24",
-        bundler: "esbuild",
-      });
+      const archive = await buildNeonFunctionBundle(source);
       const packed = await mkdtemp(join(tmpdir(), "loom-packed-entry-"));
       try {
         const files = unzipSync(archive);
@@ -215,7 +208,7 @@ void createWorker(connection);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 30000); // Two Vite+ bundles, native imports and a real TypeScript compiler invocation.
 
 test("generation captures explicit authorization and refuses invalid auth modules without activation", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-auth-import-"));

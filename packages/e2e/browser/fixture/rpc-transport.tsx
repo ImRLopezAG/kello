@@ -3,7 +3,7 @@ import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createORPCClient } from "@orpc/client";
 import type { Client } from "@orpc/client";
-import { createRpcTransport } from "kello/client";
+import { createRpcHttpTransport } from "kello/client";
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useMutationState } from "@tanstack/react-query";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
@@ -11,7 +11,7 @@ type Router = {
   write: Client<Record<never, never>, number, number, Error>;
   read: Client<Record<never, never>, undefined, AsyncIteratorObject<{ count: number }, void, void>, Error>;
 };
-const transport = createRpcTransport({
+const transport = createRpcHttpTransport({
   url: location.origin,
   version: "a".repeat(64),
   getToken: async () => "test-token",

@@ -1,13 +1,12 @@
 import { expect, test } from "bun:test";
 import * as v from "valibot";
 import { os } from "@orpc/server";
-import { RPCHandler } from "@orpc/server/websocket";
-import type { ServerWebSocket } from "bun";
+import { RPCHandler } from "@orpc/server/fetch";
 import { chromium } from "playwright";
 import { browserBundle } from "./bundle";
 
 test("native optimistic state survives refetch until the mutation settles", async () => {
-  const bundle = await browserBundle("rpc-client.tsx");
+  const bundle = await browserBundle("rpc-transport.tsx");
   expect(bundle).not.toContain("DATABASE_URL");
   let calls = 0;
   let stopped = 0;
@@ -33,30 +32,23 @@ test("native optimistic state survives refetch until the mutation settles", asyn
     }),
   };
   const handler = new RPCHandler(router);
-  const sockets = new Set<ServerWebSocket<undefined>>();
-  const server = Bun.serve<undefined>({
+  const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
-    fetch(request, runtime) {
+    async fetch(request) {
       const path = new URL(request.url).pathname;
-      if (path === "/ws" && runtime.upgrade(request, { data: undefined })) return;
+      if (path.startsWith("/api/kello/rpc/")) {
+        expect(request.headers.get("authorization")).toBe("Bearer test-token");
+        expect(request.headers.get("x-loom-version")).toBe("a".repeat(64));
+        return (
+          (await handler.handle(request, { prefix: "/api/kello/rpc" })).response ?? new Response(null, { status: 404 })
+        );
+      }
       if (path === "/client.js") return new Response(bundle, { headers: { "content-type": "text/javascript" } });
       return new Response(
         '<html><body><div id="root"></div><script type="module" src="/client.js"></script></body></html>',
         { headers: { "content-type": "text/html" } },
       );
-    },
-    websocket: {
-      open(socket) {
-        sockets.add(socket);
-      },
-      async message(socket, message) {
-        await handler.message(socket, message);
-      },
-      async close(socket) {
-        sockets.delete(socket);
-        await handler.close(socket);
-      },
     },
   });
   const browser = await chromium.launch({ headless: true });
