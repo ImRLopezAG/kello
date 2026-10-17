@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createRealNeonApi } from "@neon/config-runtime/v1";
 import type { NeonApi } from "@neon/config-runtime/v1";
-import { applyNeonFunctions, defineConfig, readNeonFunctionReceipt } from "kello/tooling";
+import { defineConfig, readNeonFunctionReceipt } from "kello/tooling";
+import { applyNeonFunctions } from "../../../apps/kello/src/tooling/deploy/neon/apply";
+import { createDevelopmentCoordinator } from "../../../apps/kello/src/tooling/dev/coordinator";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "loom-function-apply-"));
@@ -267,7 +269,7 @@ test("concurrent apply is locked and cancellation retains a late mutation acknow
     const controller = new AbortController();
     const rejected = assert.rejects(
       applyNeonFunctions(f.root, { ...f.options, signal: controller.signal }, f.provider),
-      /Function deployment incomplete/,
+      (cause) => cause === controller.signal.reason,
     );
     await entered.promise;
     await assert.rejects(applyNeonFunctions(f.root, f.options, f.provider), /locked/);
@@ -285,3 +287,51 @@ test("concurrent apply is locked and cancellation retains a late mutation acknow
     await f.cleanup();
   }
 });
+
+for (const mode of ["polling timer", "pending read", "superseded", "cleanup failure"] as const)
+  test(`development cancellation drains actual function apply (${mode})`, async () => {
+    const f = await fixture();
+    const polling = Promise.withResolvers<void>();
+    const cleanupFailure = new Error("distinct cleanup failure");
+    f.state.failWorker = false;
+    f.state.pending = true;
+    f.provider.listBranchFunctions = async () => {
+      if (f.state.calls.length && f.state.pending) {
+        polling.resolve();
+        if (mode === "pending read") return new Promise(() => {});
+      }
+      return [...f.remote.values()];
+    };
+    const coordinator = createDevelopmentCoordinator(
+      async (revision) => {
+        await applyNeonFunctions(f.root, { ...f.options, signal: revision.signal }, f.provider).finally(() => {
+          if (mode === "cleanup failure") return Promise.reject(cleanupFailure);
+        });
+      },
+      { debounceMs: 0 },
+    );
+    try {
+      coordinator.invalidate();
+      await polling.promise;
+      // Let the pending observation finish so apply reaches its real polling timer.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (mode === "superseded") {
+        f.state.pending = false;
+        const service = f.remote.get("loomservice");
+        assert.ok(service?.currentDeployment);
+        service.currentDeployment.status = "completed";
+        coordinator.invalidate();
+        await coordinator.flush();
+        expect(coordinator.failure).toBeNull();
+        expect((await readNeonFunctionReceipt(f.root, f.options.entries.hash)).functions.map((fn) => fn.state)).toEqual(
+          ["completed", "completed"],
+        );
+      }
+      if (mode === "cleanup failure")
+        await assert.rejects(coordinator.stop(), (cause) => cause instanceof Error && cause.cause === cleanupFailure);
+      else await coordinator.stop();
+    } finally {
+      await coordinator.stop().catch(() => {});
+      await f.cleanup();
+    }
+  });

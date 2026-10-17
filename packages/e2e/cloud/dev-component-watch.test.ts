@@ -14,9 +14,9 @@ import { createCloudIssuer } from "../fixtures/cloud-issuer";
 
 const readySchema = v.object({ event: v.literal("ready"), version: v.string(), url: v.string() });
 
-/** Real Neon database and packaged CLI; saves, never manual generation/synchronization, drive every update. */
+/** Real Neon preview and packaged CLI. Schema edits use release migration artifacts; saves publish releases. */
 test.skipIf(process.env.LOOM_CLOUD_DEV_COMPONENT_WATCH !== "1")(
-  "running kello dev discovers a newly mounted component and synchronizes its schema, client and functions",
+  "running kello dev discovers a newly mounted component and deploys its schema, client and functions to one preview branch",
   async () => {
     const projectId = v.parse(v.string(), process.env.LOOM_CLOUD_PROJECT_ID);
     const api = createKelloNeonApi();
@@ -117,8 +117,6 @@ if(!row) throw new Error("Insert failed"); return row;
       const runtimeRole = `runtime_${suffix}`;
       const namespace = `watch_${suffix}`;
       const metadata = `loom_watch_${suffix}`;
-      // Neon resolves this isolated runtime role's URI through its actual control plane.
-      await admin.query(`CREATE ROLE "${runtimeRole}" LOGIN NOINHERIT PASSWORD '${crypto.randomUUID()}'`);
       stage = "prepare packed consumer";
       console.info("[dev-watch] prepare packed consumer");
       await prepareCloudComponents(root);
@@ -142,43 +140,68 @@ if(!row) throw new Error("Insert failed"); return row;
       );
       const issuer = await createCloudIssuer(root, projectId, branchId);
       const token = await issuer.token("dev-watch-owner", "loom-acceptance", "15m");
+      const address = new URL(uri);
+      const tooling: typeof import("kello/tooling") = await import(
+        join(root, "node_modules/kello/dist/tooling/index.js")
+      );
       await write(
         "kello.config.ts",
-        `import {defineConfig} from "kello/tooling"; export default defineConfig(${JSON.stringify({ project: "dev-watch", database: { namespace, metadataNamespace: metadata }, provider: { projectId, targets: { development: { branchId } } }, auth: { audience: "loom-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] } })});`,
+        `import {defineConfig} from "kello/tooling"; export default defineConfig(${JSON.stringify({
+          project: "dev-watch",
+          database: { namespace, metadataNamespace: metadata },
+          provider: { projectId, targets: { preview: { branchId } } },
+          auth: { audience: "loom-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] },
+          development: {
+            databaseName: decodeURIComponent(address.pathname.slice(1)),
+            migrationRole: decodeURIComponent(address.username),
+            runtimeRole,
+            debounceMs: 100,
+          },
+          deployment: {
+            environment: "preview",
+            deployment: "dev-watch",
+            databaseName: decodeURIComponent(address.pathname.slice(1)),
+            migrationRole: decodeURIComponent(address.username),
+            runtimeRole,
+            quarantine: "preserve",
+          },
+        })});`,
       );
-      const address = new URL(uri);
-      await write(
-        "kello.dev.json",
-        JSON.stringify({
-          format: 1,
-          databaseName: decodeURIComponent(address.pathname.slice(1)),
-          migrationRole: decodeURIComponent(address.username),
-          runtimeRole,
-          deployment: "dev-watch",
-          activationTokenEnv: "LOOM_WATCH_ACTIVATION",
-          port: 0,
-          debounceMs: 100,
-          jobPollMs: 1000,
-        }),
-      );
+      await tooling.generateRelease(root, "initial");
+      await tooling.applyMigrations({
+        root,
+        connectionString: uri,
+        runtimeRole,
+        namespace,
+        metadataNamespace: metadata,
+        migrations: "kello/_generated/migrations",
+      });
+      const password = crypto.randomUUID();
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD '${password}'`);
+      address.username = runtimeRole;
+      address.password = password;
       const env: NodeJS.ProcessEnv = {
         ...process.env,
-        LOOM_WATCH_ACTIVATION: crypto.randomUUID().replaceAll("-", "").repeat(2),
+        LOOM_DATABASE_URL: address.href,
+        LOOM_DIRECT_DATABASE_URL: address.href,
+        LOOM_ACTIVATION_TOKEN: crypto.randomUUID().replaceAll("-", "").repeat(2),
       };
-      delete env.NEON_API_KEY;
+      await run([
+        process.execPath,
+        join(root, "node_modules/kello/dist/cli.js"),
+        "link",
+        "--project-id",
+        projectId,
+        "--branch",
+        branchId,
+        "--cwd",
+        root,
+        "--json",
+      ]);
       stage = "initial CLI startup";
       console.info("[dev-watch] initial CLI startup");
       child = Bun.spawn(
-        [
-          process.execPath,
-          join(root, "node_modules/kello/dist/cli.js"),
-          "dev",
-          "--development",
-          "kello.dev.json",
-          "--cwd",
-          root,
-          "--json",
-        ],
+        [process.execPath, join(root, "node_modules/kello/dist/cli.js"), "dev", "--cwd", root, "--json"],
         { cwd: root, env, stdin: "ignore", stdout: "pipe", stderr: "pipe" },
       );
       const running = child;
@@ -241,6 +264,7 @@ api.client.notes.records.add({title:"absent"});`,
       );
       await write("kello/components/notes/functions/records.ts", functions("v1:"));
       await write("kello/app.config.ts", app(true));
+      await tooling.generateRelease(root, "mount_notes");
       const mounted = await nextReady(initial.version);
       const scopes = await admin.query<{ namespace: string }>(
         `SELECT namespace FROM "${metadata}".component_namespaces WHERE mount_path='notes' AND state='mounted'`,
@@ -289,6 +313,7 @@ const wrong:Promise<{title:number}>=api.client.notes.records.add({title:"typed"}
       stage = "schema edit synchronization";
       console.info("[dev-watch] schema edit synchronization");
       await write("kello/components/notes/schema.ts", schema(",description:s.text()"));
+      await tooling.generateRelease(root, "note_description");
       const expanded = await nextReady(mounted.version);
       assert.equal(
         (
@@ -328,9 +353,12 @@ const wrong:Promise<{title:number}>=api.client.notes.records.add({title:"typed"}
         ).rows[0].n,
         0,
       );
-      await assert.rejects(fetch(updated.url));
-      checks.push("stopped-dev-does-not-migrate-or-generate-and-listener-closes");
-      assert(!`${stdout}${stderr}`.includes(env.LOOM_WATCH_ACTIVATION!));
+      const remote = new URL(updated.url);
+      assert.equal(remote.protocol, "https:");
+      assert(!["localhost", "127.0.0.1", "[::1]"].includes(remote.hostname));
+      await invoke(updated.url, "v2:accepted");
+      checks.push("stopped-dev-keeps-preview-serving-without-migrating-or-generating");
+      assert(!`${stdout}${stderr}`.includes(env.LOOM_ACTIVATION_TOKEN!));
       assert(!`${stdout}${stderr}`.includes(token));
       passed = true;
     } catch (cause) {

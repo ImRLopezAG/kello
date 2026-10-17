@@ -24,11 +24,12 @@ async function fixture(source: string) {
   }
 }
 
-const nativeServer = String.raw`
+const nativeServer = `
 import assert from "node:assert/strict";
 import { open } from "node:fs/promises";
 import { createProjectProcedures, defineSchema } from "kello/server";
-import { startDiagnostics, startDevelopmentServer } from "kello/tooling";
+import { startDiagnostics } from "kello/tooling";
+import { startHttpHandlerServer } from "${fileURLToPath(new URL("../fixtures/http-handler-server.ts", import.meta.url))}";
 import { RPCLink } from "@orpc/client/fetch";
 
 const file = await open(process.argv[2], "wx", 0o600);
@@ -68,12 +69,12 @@ try {
       written++;
     },
   } });
-  server = await startDevelopmentServer(runtime(0), { port: 0 });
+  server = await startHttpHandlerServer(runtime(0));
   // Parent publishes its canary while this child's subscriber is active.
-  process.stdout.write("ready\n");
+  process.stdout.write("ready\\n");
   for await (const chunk of process.stdin) break;
   for (let generation = 0; generation < 3; generation++) {
-    if (generation > 0) assert.deepEqual(await server.replace(runtime(generation)), { retired: true });
+    if (generation > 0) { await server.stop(); server = await startHttpHandlerServer(runtime(generation)); }
     const link = new RPCLink({
       origin: server.url.origin,
       url: "/api/kello/rpc",
@@ -101,7 +102,7 @@ try {
 }
 `;
 
-test("built diagnostics observe only child-native HTTP RPC once across development generations", async () => {
+test("built diagnostics observe only child-native HTTP RPC once across HTTP instances", async () => {
   const { root, script } = await fixture(nativeServer);
   const artifact = join(root, "diagnostics.jsonl");
   const child = Bun.spawn([process.execPath, script, artifact], {

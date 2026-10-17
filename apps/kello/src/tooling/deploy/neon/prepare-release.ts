@@ -112,6 +112,12 @@ export async function withNeonReleasePreparation<T>(
   const { schedules, buckets, storage } = releaseResources(project, slugs.worker);
   const api = provider ?? createKelloNeonApi();
   const selectedTarget = await inspectDeploymentTarget(project.config, databaseOptions.environment, api);
+  const expected = databaseOptions.expectedTarget;
+  if (
+    expected &&
+    (["projectId", "branchId", "endpointId"] as const).some((key) => selectedTarget[key] !== expected[key])
+  )
+    throw new Error("Deployment target changed from the selected preview target");
   const searchProcedures = [...project.procedures, ...project.componentScopes.flatMap((scope) => scope.procedures)];
   const realtimeEnvironment = await resolveRealtimeEnvironment(
     searchProcedures.some((entry) => liveQueryRows(entry.definition) !== undefined),

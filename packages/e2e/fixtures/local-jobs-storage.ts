@@ -1,7 +1,8 @@
+import { startHttpHandlerServer } from "./http-handler-server";
 import { startTestNeonAuth } from "./neon-auth";
 import { buildAcceptanceFrontend } from "./build-example";
 import { fileURLToPath } from "node:url";
-import { applyMigrations, generateProject, loadProject, startDevelopmentServer } from "kello/tooling";
+import { applyMigrations, generateProject, loadProject } from "kello/tooling";
 import { createJwtVerifier, createRpcRuntime, defineRpcAuth } from "kello/server";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import pg from "pg";
@@ -27,7 +28,7 @@ export async function startLocalUploads(options: { connectionString: string; por
   const runtimeRole = `${database}_runtime`;
   const admin = new pg.Client({ connectionString: options.connectionString });
   await admin.connect();
-  let backend: Awaited<ReturnType<typeof startDevelopmentServer>> | undefined;
+  let backend: Awaited<ReturnType<typeof startHttpHandlerServer>> | undefined;
   let frontend: ReturnType<typeof Bun.serve> | undefined;
   let runtime: Awaited<ReturnType<typeof createRpcRuntime>> | undefined;
   let storage: ReturnType<typeof createLocalStorage> | undefined;
@@ -144,7 +145,7 @@ export async function startLocalUploads(options: { connectionString: string; por
         if (stopped) throw new Error("Local example stopped");
       },
     });
-    backend = await startDevelopmentServer({ ...runtime, auth: { ...runtime.auth, verify } }, { port: 0 });
+    backend = await startHttpHandlerServer({ ...runtime, auth: { ...runtime.auth, verify } });
     auth = await startTestNeonAuth({
       origins: [frontend.url.origin],
       backendUrl: backend.url.origin,

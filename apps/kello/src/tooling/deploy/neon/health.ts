@@ -7,7 +7,7 @@ import type { KelloConfig } from "../../config/define-config";
 import { readNeonFunctionReceipt } from "./receipt";
 import { inspectDeploymentTarget } from "./target";
 import type { DeploymentEnvironment, DeploymentProvider } from "./target";
-import { readWithSignal } from "./observe";
+import { readWithSignal, rethrowSignalCancellation } from "./observe";
 
 export type DeploymentHealthProvider = DeploymentProvider & Pick<NeonApi, "listBranchFunctions">;
 type HealthStage =
@@ -209,7 +209,8 @@ export async function inspectNeonFunctionHealth(
         Object.freeze({ role, functionId, deploymentId, databaseDrainProtocol: protocols.get(role) ?? 0 }),
       ),
     });
-  } catch {
+  } catch (cause) {
+    rethrowSignalCancellation(cause, input.signal);
     throw new NeonFunctionHealthError(stage, signal?.aborted ?? false, status, identityMismatch);
   }
 }

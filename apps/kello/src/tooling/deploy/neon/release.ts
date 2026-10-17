@@ -107,6 +107,7 @@ export async function deployNeonRelease(
           procedure: entry.definition,
         })),
         migrations: project.jobMigrations,
+        signal,
       };
       await withProcedureUpgrade(client, { ...upgrade, dryRun: true }, async () => {});
       await handoffNeonIngress(

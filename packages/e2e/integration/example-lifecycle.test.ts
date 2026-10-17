@@ -10,9 +10,7 @@ import {
   planRelease,
   prepareProject,
   projectRuntimeGraph,
-  synchronizeDevelopment,
 } from "kello/tooling";
-import type { DevelopmentDatabaseProvider } from "kello/tooling";
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -34,15 +32,7 @@ test("tasks example loads its schema, relations, authorization and registered fu
   ]);
   assert.deepEqual(
     project.procedures.map((entry) => entry.path.join(":")),
-    [
-      "projects:create",
-      "projects:list",
-      "tasks:create",
-      "tasks:list",
-      "tasks:search",
-      "tasks:setDone",
-      "tasks:watchSearch",
-    ],
+    ["projects:create", "projects:list", "tasks:create", "tasks:list", "tasks:search", "tasks:setDone"],
   );
 });
 
@@ -190,7 +180,7 @@ test.skipIf(!connectionString)(
 );
 
 test.skipIf(!connectionString)(
-  "tasks schema evolution preserves development data and replays into a fresh database",
+  "tasks release schema evolution preserves data and replays into a fresh database",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const root = await mkdtemp(join(tmpdir(), "loom-tasks-evolution-"));
@@ -249,32 +239,6 @@ test.skipIf(!connectionString)(
       await development.query("INSERT INTO app.tasks (project_id, title) VALUES ($1, 'Preserve this task')", [
         projectId,
       ]);
-      // Only provider discovery is a local fixture; synchronization, DDL and release replay use actual PostgreSQL.
-      const provider: DevelopmentDatabaseProvider = {
-        getProject: async () => ({ id: "local-example", name: "tasks", regionId: "local", pgVersion: 18 }),
-        listBranches: async () => [
-          { id: "br-local-development", name: "development", protected: false, isDefault: false },
-        ],
-        listEndpoints: async () => [
-          {
-            id: address.hostname.split(".")[0]!,
-            branchId: "br-local-development",
-            type: "read_write",
-            autoscalingLimitMinCu: 0.25,
-            autoscalingLimitMaxCu: 1,
-            suspendTimeout: 300,
-          },
-        ],
-        getConnectionUri: async () => ({ uri: address.href }),
-      };
-      const sync = {
-        root,
-        databaseName: developmentDatabase,
-        migrationRole: decodeURIComponent(address.username),
-        runtimeRole,
-      };
-      const baseline = await prepareProject(root);
-      await synchronizeDevelopment({ ...sync, sourceVersion: baseline.version }, provider);
       const schemaPath = join(root, "kello/schema.ts");
       const schema = await readFile(schemaPath, "utf8");
       const expanded = schema.replace("done: s.boolean()", "description: s.text(), done: s.boolean()");
@@ -282,15 +246,13 @@ test.skipIf(!connectionString)(
       await writeFile(schemaPath, expanded);
       const beforeSync = await planRelease(root);
       assert(beforeSync.statements.some((statement) => statement.includes('ADD COLUMN "description"')));
-      const candidate = await prepareProject(root);
-      assert((await synchronizeDevelopment({ ...sync, sourceVersion: candidate.version }, provider)).applied);
+      const artifact = await generateRelease(root, "task_description");
+      assert.equal(artifact.plan.hash, beforeSync.hash);
+      const evolved = await applyMigrations({ ...migrationOptions, connectionString: address.href, runtimeRole });
+      assert.deepEqual(evolved.applied, [artifact.plan.hash]);
       assert.deepEqual((await development.query("SELECT title, description FROM app.tasks")).rows, [
         { title: "Preserve this task", description: null },
       ]);
-      const afterSync = await planRelease(root);
-      assert.equal(afterSync.hash, beforeSync.hash, "development DDL must not replace the committed release baseline");
-      const artifact = await generateRelease(root, "task_description");
-      assert.equal(artifact.plan.hash, beforeSync.hash);
       const replay = await applyMigrations({
         ...migrationOptions,
         connectionString: releaseAddress.href,
@@ -317,7 +279,7 @@ test.skipIf(!connectionString)(
             `SELECT hash FROM "${project.config.database.metadataNamespace}".migration_history ORDER BY ordinal`,
           )
         ).rows.map((row) => row.hash),
-        initial.applied,
+        [...initial.applied, artifact.plan.hash],
       );
     } finally {
       await development.end();

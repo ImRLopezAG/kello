@@ -1,15 +1,15 @@
+import { startHttpHandlerServer } from "../fixtures/http-handler-server";
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
 import { expect, test } from "bun:test";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
-import { RPCLink as WebSocketLink } from "@orpc/client/websocket";
 import { oc, eventIterator } from "kello/contract";
 import type { RouterClient } from "@orpc/server";
 import { defineRelations, sql } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";
-import { bootstrapDatabase, startDevelopmentServer } from "kello/tooling";
+import { bootstrapDatabase } from "kello/tooling";
 import { createRpcHttpApp, createNeonRpcService, createNeonRpcWorker } from "kello/neon";
 import type { RpcRuntimeOptions } from "kello/server";
 import {
@@ -309,49 +309,6 @@ test.skipIf(!connectionString)(
           await stopping;
           expect((await service.fetch(new Request("https://kello.test/api/kello/rpc/read"))).status).toBe(503);
         }
-        const developmentRuntime = await createRpcRuntime(runtimeOptions);
-        const development = await startDevelopmentServer(developmentRuntime, { port: 0 });
-        let socket: WebSocket | undefined;
-        try {
-          const local = createORPCClient<RouterClient<{ read: typeof read }>>(
-            new RPCLink({
-              origin: development.url.origin,
-              url: "/api/kello/rpc",
-              headers: { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version },
-            }),
-          );
-          expect(await local.read()).toBe(6);
-          const ticket = await developmentRuntime.tickets.issue(
-            {
-              identity: { issuer: "https://issuer.test", subject: "reader" },
-              expiresAt: Math.floor(Date.now() / 1000) + 60,
-            },
-            "https://kello.test",
-          );
-          const socketUrl = new URL("/api/kello/socket", development.url);
-          socketUrl.protocol = "ws:";
-          // SAFETY: this Bun-only test uses Bun's headers overload, absent from lib.dom.
-          const BunWebSocket = WebSocket as typeof WebSocket &
-            (new (url: URL, options: Bun.WebSocketOptions) => WebSocket);
-          socket = new BunWebSocket(socketUrl, {
-            protocols: ["kello.orpc.2", `kello.version.${version}`, `kello.ticket.${ticket.ticket}`],
-            headers: { origin: "https://kello.test" },
-          });
-          const opened = Promise.withResolvers<void>();
-          socket.onopen = () => opened.resolve();
-          socket.onerror = () => opened.reject(new Error("Development socket failed"));
-          await opened.promise;
-          const connected = socket;
-          const websocket = createORPCClient<RouterClient<{ read: typeof read }>>(
-            new WebSocketLink({ connect: () => connected }),
-          );
-          expect(await websocket.read()).toBe(6);
-          expect(await development.replace(await createRpcRuntime(runtimeOptions))).toEqual({ retired: true });
-          expect(await local.read()).toBe(6);
-        } finally {
-          socket?.close();
-          await development.stop();
-        }
         await assert.rejects(
           createRpcRuntime({ ...runtimeOptions, config: { ...runtimeOptions.config, openapi: true } }),
           /explicit output schema required/,
@@ -365,7 +322,7 @@ test.skipIf(!connectionString)(
           ],
         } satisfies RpcRuntimeOptions<typeof relations>;
         const restService = await createNeonRpcService(restOptions);
-        const restDevelopment = await startDevelopmentServer(await createRpcRuntime(restOptions), { port: 0 });
+        const restDevelopment = await startHttpHandlerServer(await createRpcRuntime(restOptions));
         try {
           const headers = { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version };
           for (const fetchRest of [

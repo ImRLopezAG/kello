@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { rethrowSignalCancellation } from "./observe";
 import type pg from "pg";
 import type { NeonActivationOptions } from "kello/neon";
 import * as v from "valibot";
@@ -114,8 +115,13 @@ export async function prepareGrant(
     signal?.throwIfAborted();
     await client.query("COMMIT");
     return receipt;
-  } catch {
-    await client.query("ROLLBACK").catch(() => {});
+  } catch (cause) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      throw new Error("Activation grant preparation failed");
+    }
+    rethrowSignalCancellation(cause, signal);
     throw new Error("Activation grant preparation failed");
   }
 }
@@ -151,6 +157,7 @@ export async function activateGrant(
         protocol: "loom-legacy-1",
         procedures: [],
         migrations: [],
+        signal,
       },
       () => activateGrant(client, binding, tokenHash, signal),
     );
@@ -165,7 +172,8 @@ export async function activateGrant(
     );
     if (result.rowCount !== 1) throw new Error("Grant missing or changed");
     return Object.freeze({ binding, state: "active" });
-  } catch {
+  } catch (cause) {
+    rethrowSignalCancellation(cause, signal);
     throw new Error("Deployment database activation failed");
   }
 }

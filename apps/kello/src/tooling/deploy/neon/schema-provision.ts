@@ -7,7 +7,7 @@ import type { NeonApi } from "@neon/config-runtime/v1";
 import { createKelloNeonApi } from "../../neon/api";
 import { loadProjectConfig } from "../../project/load";
 import { resolveProjectPath } from "../../config/paths";
-import { resolveDevelopmentCredentials } from "../../dev/connection";
+import { resolveBranchCredentials } from "./credentials";
 import { withMigrationConnection } from "../../migrations/connection";
 import { captureSchemaBaseline, establishSchemaBaselines } from "../../migrations/branch-baseline";
 import { readMigrations } from "../../migrations/history";
@@ -100,7 +100,7 @@ export async function provisionSchemaBranch(
       endpointId: endpoint.id,
       postgresVersion: 18 as const,
     };
-    const credentials = await resolveDevelopmentCredentials(api, sourceTarget, database.name, database.ownerName);
+    const credentials = await resolveBranchCredentials(api, sourceTarget, database.name, database.ownerName);
     return await withMigrationConnection(credentials.connectionString, async (sourceClient) => {
       const identity = await sourceClient.query<{ id: string }>("SELECT current_setting('neon.branch_id', true) AS id");
       if (identity.rows[0]?.id !== source.id) throw new Error("Schema source database identity differs");
@@ -158,7 +158,7 @@ export async function provisionSchemaBranch(
         branchName: options.branchName,
         endpointId: receipt.endpointId,
       };
-      const targetCredentials = await resolveDevelopmentCredentials(api, target, database.name, database.ownerName);
+      const targetCredentials = await resolveBranchCredentials(api, target, database.name, database.ownerName);
       await withMigrationConnection(targetCredentials.connectionString, async (targetClient) => {
         const observed = await targetClient.query<{ id: string }>(
           "SELECT current_setting('neon.branch_id', true) AS id",

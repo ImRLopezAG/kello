@@ -1,13 +1,8 @@
+import { startHttpHandlerServer } from "./http-handler-server";
 import { startTestNeonAuth } from "./neon-auth";
 import { buildAcceptanceFrontend } from "./build-example";
 import { fileURLToPath } from "node:url";
-import {
-  projectRuntimeGraph,
-  applyMigrations,
-  generateProject,
-  loadProject,
-  startDevelopmentServer,
-} from "kello/tooling";
+import { projectRuntimeGraph, applyMigrations, generateProject, loadProject } from "kello/tooling";
 import { createJwtVerifier, createRpcRuntime, defineRpcAuth } from "kello/server";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import pg from "pg";
@@ -24,7 +19,7 @@ export async function startLocalTasks(options: {
   root?: string;
   tooling?: Pick<
     typeof import("kello/tooling"),
-    "projectRuntimeGraph" | "applyMigrations" | "generateProject" | "loadProject" | "startDevelopmentServer"
+    "projectRuntimeGraph" | "applyMigrations" | "generateProject" | "loadProject"
   >;
   core?: Pick<typeof import("kello/server"), "createJwtVerifier" | "createRpcRuntime" | "defineRpcAuth">;
 }) {
@@ -33,7 +28,6 @@ export async function startLocalTasks(options: {
     applyMigrations,
     generateProject,
     loadProject,
-    startDevelopmentServer,
   };
   const core = options.core ?? { createJwtVerifier, createRpcRuntime, defineRpcAuth };
   const root = options.root ?? exampleRoot;
@@ -49,7 +43,7 @@ export async function startLocalTasks(options: {
   const runtimeRole = `${database}_runtime`;
   const admin = new pg.Client({ connectionString: options.connectionString });
   await admin.connect();
-  let backend: Awaited<ReturnType<typeof startDevelopmentServer>> | undefined;
+  let backend: Awaited<ReturnType<typeof startHttpHandlerServer>> | undefined;
   let frontend: ReturnType<typeof Bun.serve> | undefined;
   let stopped = false;
   let stopping: Promise<void> | undefined;
@@ -147,7 +141,7 @@ export async function startLocalTasks(options: {
         if (stopped) throw new Error("Local example stopped");
       },
     });
-    backend = await tooling.startDevelopmentServer({ ...runtime, auth: { ...runtime.auth, verify } }, { port: 0 });
+    backend = await startHttpHandlerServer({ ...runtime, auth: { ...runtime.auth, verify } });
     auth = await startTestNeonAuth({
       origins: [frontend.url.origin],
       backendUrl: backend.url.origin,

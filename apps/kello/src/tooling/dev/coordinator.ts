@@ -27,6 +27,9 @@ export function createDevelopmentCoordinator(
   let running: Promise<void> | undefined;
   let controller: AbortController | undefined;
   let failure: DevelopmentFailure | null = null;
+  // First non-cancellation failure from a stopped or superseded revision; stop() reports it.
+  let drained: Error | undefined;
+  const stale = new WeakSet<object>();
   const waiters = new Set<() => void>();
 
   function notifyIdle() {
@@ -44,16 +47,27 @@ export function createDevelopmentCoordinator(
         number: revisionNumber,
         signal: cancellation.signal,
         assertCurrent() {
-          if (stopped || revisionNumber !== number || cancellation.signal.aborted)
-            throw new Error("Development revision is no longer current");
+          if (stopped || revisionNumber !== number || cancellation.signal.aborted) {
+            const error = new Error("Development revision is no longer current");
+            stale.add(error);
+            throw error;
+          }
         },
       };
       try {
         await update(revision);
         if (revisionNumber === number && !stopped) failure = null;
       } catch (cause) {
+        const { reason } = cancellation.signal;
+        // Cancellation surfaces as the abort reason, a timer AbortError wrapping it, or assertCurrent's error.
+        const cancelled =
+          cancellation.signal.aborted &&
+          (cause === reason ||
+            (cause instanceof Error && cause.name === "AbortError" && cause.cause === reason) ||
+            (cause instanceof Error && stale.has(cause)));
         if (revisionNumber === number && !stopped && !cancellation.signal.aborted)
           failure = { revision: revisionNumber, error: new Error("Development update failed", { cause }) };
+        else if (!cancelled) drained ??= new Error("Development update cleanup failed", { cause });
       } finally {
         controller = undefined;
       }
@@ -104,6 +118,7 @@ export function createDevelopmentCoordinator(
       controller?.abort();
       notifyIdle();
       await settled();
+      if (drained) throw drained;
     },
   };
 }

@@ -17,6 +17,12 @@ import { deployNeonRelease } from "./release";
 import { releaseDatabaseOptionsValidator } from "./release-database";
 import { resolveManagedDeploymentCredentials } from "./managed-credentials";
 import { publishDeployedClient } from "./publish-client";
+import type { ExpectedDeploymentTarget } from "./connection";
+
+/** Authority and generated version pinned by development; the release must still resolve to them before any write. */
+export interface ExpectedProjectRelease extends ExpectedDeploymentTarget {
+  readonly version: string;
+}
 
 const environmentName = v.pipe(v.string(), v.regex(/^[A-Z][A-Z0-9_]*$/));
 const declarationValidator = v.strictObject({
@@ -94,8 +100,38 @@ export async function readProjectRelease(root: string, file: string, signal?: Ab
 }
 
 /** Reads a reviewable release declaration; only environment variable names belong in the file. */
-export async function deployProjectRelease(root: string, file: string, provider?: NeonApi, signal?: AbortSignal) {
+export async function deployProjectRelease(
+  root: string,
+  file: string,
+  provider?: NeonApi,
+  signal?: AbortSignal,
+  expected?: ExpectedProjectRelease,
+) {
   const { project, declaration } = await readProjectRelease(root, file, signal);
+  if (
+    expected &&
+    (declaration.environment !== "preview" ||
+      declaration.version !== expected.version ||
+      declaration.databaseName !== expected.databaseName ||
+      declaration.migrationRole !== expected.migrationRole ||
+      declaration.runtimeRole !== expected.runtimeRole ||
+      declaration.deployment !== expected.deployment ||
+      project.config.database.namespace !== expected.namespace ||
+      project.config.database.metadataNamespace !== expected.metadataNamespace)
+  )
+    throw new Error("Release differs from the selected preview target");
+  // Credential preparation and the release connection recheck the pinned provider target under their locks.
+  const expectedTarget = expected && {
+    projectId: expected.projectId,
+    branchId: expected.branchId,
+    endpointId: expected.endpointId,
+    databaseName: expected.databaseName,
+    migrationRole: expected.migrationRole,
+    runtimeRole: expected.runtimeRole,
+    namespace: expected.namespace,
+    metadataNamespace: expected.metadataNamespace,
+    deployment: expected.deployment,
+  };
   const { format: _format, activationTokenEnv, variables: sources, ...options } = declaration;
   const environment = { ...process.env };
   const runtimeName = project.config.database.runtimeUrlEnv;
@@ -115,6 +151,7 @@ export async function deployProjectRelease(root: string, file: string, provider?
         runtimeRole: options.runtimeRole,
         deployment: options.deployment,
         version: options.version,
+        ...(expectedTarget && { expectedTarget }),
       },
       provider,
       signal,
@@ -137,7 +174,7 @@ export async function deployProjectRelease(root: string, file: string, provider?
     environment,
     componentEnvironmentDeclarations(project.components),
   );
-  const input = { ...options, activationToken, variables };
+  const input = { ...options, activationToken, variables, ...(expectedTarget && { expectedTarget }) };
   const receipt = await deployNeonRelease(project.root, signal ? { ...input, signal } : input, provider);
   await publishDeployedClient(
     project.root,
@@ -148,6 +185,7 @@ export async function deployProjectRelease(root: string, file: string, provider?
       serviceSlug: options.slugs.service,
     },
     provider,
+    signal,
   );
   return receipt;
 }

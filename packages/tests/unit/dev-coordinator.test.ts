@@ -97,3 +97,77 @@ test("stop aborts active work, drains cleanup, and cancels debounced edits", asy
   expect(() => coordinator.invalidate()).toThrow("stopped");
   await coordinator.stop();
 });
+
+const source = await import("../../../apps/kello/src/tooling/dev/coordinator");
+
+for (const [name, rejection] of [
+  ["an error", new Error("cleanup-canary")],
+  ["undefined", undefined],
+  ["zero", 0],
+] as const)
+  test(`stop retains a non-cancellation cleanup rejection (${name}) from the draining revision`, async () => {
+    const entered = deferred();
+    const cleanup = deferred();
+    const coordinator = source.createDevelopmentCoordinator(
+      async () => {
+        entered.release();
+        await cleanup.promise;
+        throw rejection;
+      },
+      { debounceMs: 0 },
+    );
+    coordinator.invalidate();
+    await entered.promise;
+    const stopping = coordinator.stop();
+    cleanup.release();
+    await expect(stopping).rejects.toMatchObject({ cause: rejection });
+  });
+
+test("expected cancellation of a draining revision stops cleanly", async () => {
+  const { setTimeout: sleep } = await import("node:timers/promises");
+  for (const cancel of ["reason", "timer", "stale"] as const) {
+    const entered = deferred();
+    const coordinator = source.createDevelopmentCoordinator(
+      async (revision) => {
+        entered.release();
+        if (cancel === "timer") await sleep(60_000, undefined, { signal: revision.signal });
+        await new Promise<void>((resolve) =>
+          revision.signal.addEventListener("abort", () => resolve(), { once: true }),
+        );
+        if (cancel === "reason") revision.signal.throwIfAborted();
+        revision.assertCurrent();
+      },
+      { debounceMs: 0 },
+    );
+    coordinator.invalidate();
+    await entered.promise;
+    await expect(coordinator.stop()).resolves.toBeUndefined();
+    expect(coordinator.failure).toBeNull();
+  }
+});
+
+test("a superseded revision's cleanup failure survives a successful successor and preserves the primary", async () => {
+  const entered = deferred();
+  const cleanup = deferred();
+  const coordinator = source.createDevelopmentCoordinator(
+    async (revision) => {
+      if (revision.number === 1) {
+        entered.release();
+        await cleanup.promise;
+        throw new Error("first-cleanup");
+      }
+      if (revision.number === 2) throw new Error("second-cleanup");
+    },
+    { debounceMs: 0 },
+  );
+  coordinator.invalidate();
+  await entered.promise;
+  coordinator.invalidate();
+  cleanup.release();
+  await coordinator.flush();
+  expect(coordinator.failure?.revision).toBe(2);
+  coordinator.invalidate();
+  await coordinator.flush();
+  expect(coordinator.failure).toBeNull();
+  await expect(coordinator.stop()).rejects.toMatchObject({ cause: { message: "first-cleanup" } });
+});

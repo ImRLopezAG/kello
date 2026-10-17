@@ -9,7 +9,7 @@ import * as v from "valibot";
 import { planNeonFunctions } from "./plan";
 import type { NeonFunctionPlanOptions } from "./plan";
 import { neonInjectedVariables } from "./environment";
-import { readWithSignal } from "./observe";
+import { readWithSignal, rethrowSignalCancellation } from "./observe";
 import { neonFunctionPolicy } from "./policy";
 import { inspectDeploymentTarget } from "./target";
 import { loadFunctionReceipt, receiptDirectory, withFunctionApplyLock, writeFunctionReceipt } from "./receipt";
@@ -308,7 +308,8 @@ export async function applyNeonFunctions(root: string, input: NeonFunctionApplyO
         }
       }
       await assertTarget();
-    } catch {
+    } catch (cause) {
+      rethrowSignalCancellation(cause, signal);
       throw new Error("Function deployment incomplete; inspect the saved function receipt before resuming");
     }
     return Object.freeze({ path: join(directory, "functions.json"), receipt: structuredClone(progress) });
