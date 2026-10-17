@@ -13,6 +13,14 @@ test("cloud runtime preserves ordinary HTTP and cloud job configuration", () => 
   expect(Object.hasOwn(parsed, "realtime")).toBe(false);
 });
 
+test("RPC result limits remain bounded independently of the removed live engine", () => {
+  expect(v.parse(runtimeConfigValidator, {}).rpc.maxResultBytes).toBe(1_048_576);
+  expect(v.parse(runtimeConfigValidator, { rpc: { maxResultBytes: 1024 } }).rpc.maxResultBytes).toBe(1024);
+  for (const maxResultBytes of [1023, 10_485_761, Infinity, 1024.5]) {
+    expect(v.safeParse(runtimeConfigValidator, { rpc: { maxResultBytes } }).success).toBe(false);
+  }
+});
+
 import { createSearchContext } from "../../../apps/kello/src/core/search/executor";
 import { createSearchValidators } from "../../../apps/kello/src/core/search/contract";
 import { searchSchema, searchRelations } from "../fixtures/search-schema";

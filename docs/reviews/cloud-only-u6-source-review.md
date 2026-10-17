@@ -91,3 +91,11 @@ Actual focused tests: 3 passed, 0 failed on Bun1.4.3; e2e typing, targeted lint 
 ### Verdict
 
 Scoped source delta ready to commit. Full U6 remains open pending exact-revision Linux CI and protected Neon acceptance configuration/execution.
+
+## PR9 five-failure correction review
+
+Sequential main-thread correctness, security, API and test-value inspection of the ten changed source/test/docs paths against `d3341bdb`; no independent Astra review is claimed. Checked every changed hunk, result validation before transaction commit, both root/component runtime bindings, caller-cancellation rethrow and the complete packed Node consumer. No unresolved scoped finding remains. Reuse/quality/efficiency review found no worthwhile additional abstraction or behavior-preserving refactor; proof tests and security assertions are retained.
+
+RPC bounds use the existing validated range and wire serializer, with the previous1MiB default restored independently of the removed realtime engine. The native runtime test still demands one redacted failure, no committed oversized update, ordinary HTTP iterator delivery and awaited shutdown. The new configuration test first failed, then passed after the runtime config fix. Revision removal changes only obsolete fixture expectations; migration history, rollback, drift, ownership and grants remain exercised. Packed Node coverage removes only the retired search-watch branch, preserves all finite input/output/projection/privacy/cache checks, and explicitly rejects a watch declaration. Its count is now34, not a fabricated60. Caller cancellation is compared by exact reason identity while provider/HTTP failure redaction checks remain.
+
+Verification: 7 unit tests, 8 PG18.6 native tests and 2 packed/HTTPS tests passed. App/e2e typing and focused lint/format passed; owned PostgreSQL container and packed-consumer root cleanup completed. No provider, npm publication or new GitHub CI pass is claimed. Exact-head CI and protected Neon configuration remain release gates.

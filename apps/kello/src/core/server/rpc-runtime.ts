@@ -333,6 +333,7 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
         {
           connection: runtimeConnection,
           replay: idempotency,
+          maxResultBytes: config.rpc.maxResultBytes,
           scope,
           scheduler: scope ? createTransactionalRpcScheduler({ version, internal, queue, scope }) : scheduler,
           authorize: auth.authorize,
@@ -358,6 +359,7 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       database: {
         connection: runtimeConnection,
         replay: idempotency,
+        maxResultBytes: config.rpc.maxResultBytes,
         scheduler,
         authorize: auth.authorize,
         search,

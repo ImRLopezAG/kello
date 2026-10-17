@@ -9,6 +9,8 @@ Application handlers, jobs and cron schedules execute in Neon Functions. Local t
 
 Ordinary RPC and user-authored iterators use HTTP. Declared `.live()` functions issue authorized SELECTs over HTTP and receive updates through the official Neon SDK. The removed polling/LISTEN coordinator, snapshot engine and custom application WebSocket transport have no supported mode.
 
+`rpc.maxResultBytes` in `kello.config.ts` limits each serialized RPC result or iterator event. It defaults to 1 MiB and accepts integer values from 1 KiB to 10 MiB. Transactional results are validated before commit, so an oversized write result rolls back its database changes. This limit is independent of Neon live-query delivery.
+
 ## Live-query limits
 
 The current wrapper permits 100 owned subscriptions per client and 32 pending confirmation waiters per subscription. These are admission caps, not a throughput or whole-graph memory guarantee. Supported queries use explicit flat scalar projections and validated output schemas; unsupported mapping and refinements fail closed. Nested relational search, automatic counts and encrypted finite-search cursors are not converted to live queries.

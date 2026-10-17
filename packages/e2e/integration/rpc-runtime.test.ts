@@ -149,6 +149,7 @@ test.skipIf(!connectionString)(
         config: {
           auth: { origins: ["https://kello.test"] },
           jobs: { maxAttempts: 2, retryBaseMs: 7000, leaseMs: 5000 },
+          rpc: { maxResultBytes: 1024 },
         },
         version,
         procedures: [

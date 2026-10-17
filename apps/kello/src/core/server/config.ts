@@ -13,6 +13,12 @@ const milliseconds = (minimumSeconds: number, maximumSeconds: number) =>
 export const runtimeConfigValidator = v.strictObject({
   openapi: v.optional(v.boolean(), false),
   auth: v.optional(authConfigValidator, {}),
+  rpc: v.optional(
+    v.strictObject({
+      maxResultBytes: v.optional(bounded(1024, 10485760), 1048576),
+    }),
+    {},
+  ),
   jobs: v.optional(
     v.strictObject({
       maxAttempts: v.optional(bounded(1, jobLimits.maxAttempts), jobLimits.maxAttempts),

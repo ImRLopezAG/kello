@@ -417,7 +417,6 @@ test.skipIf(!connectionString)(
         for (const table of [
           "framework_migrations",
           "migration_history",
-          "table_revisions",
           "component_namespaces",
           ...scopes.map((scope) => ormHistoryTable(scope.namespace)),
         ])
