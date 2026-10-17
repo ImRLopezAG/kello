@@ -106,6 +106,50 @@ test("enable waits for readiness, persists the public URL, and is idempotent", a
   }
 });
 
+test("a fresh acceptance branch must enable Realtime before a live deployment", async () => {
+  const root = await project();
+  try {
+    let enabled = false;
+    let allowedOrigins: readonly string[] = [];
+    const target = { projectId: "project-test", branchId: "br-test" };
+    const provider: RealtimeProvider = {
+      hasCompute: async () => true,
+      get: async (projectId, branchId) => {
+        expect({ projectId, branchId }).toEqual(target);
+        return {
+          enabled,
+          pending: false,
+          invocationUrl: enabled ? "https://realtime.example.test/br-test" : undefined,
+          allowedOrigins,
+        };
+      },
+      enable: async (input) => {
+        expect(input).toEqual({ ...target, allowedOrigins: ["http://localhost:43210"], timeoutMs: 120_000 });
+        enabled = true;
+        allowedOrigins = input.allowedOrigins;
+      },
+      secret: async () => canary,
+    };
+    await assert.rejects(resolveRealtimeEnvironment(true, target, provider), /Realtime is not ready/);
+    const status = await enableRealtime(
+      root,
+      defineConfig({ provider: { projectId: target.projectId, targets: { preview: { branchId: target.branchId } } } }),
+      {
+        allowedOrigins: ["http://localhost:43210"],
+        timeoutMs: 120_000,
+        selection: { projectId: target.projectId, branch: target.branchId, databaseName: "neondb" },
+      },
+      discovery(),
+      provider,
+    );
+    expect(status.state).toBe("ready");
+    expect(await resolveRealtimeEnvironment(true, target, provider)).toEqual({ LOOM_REALTIME_SECRET: canary });
+    expect(await readFile(join(root, ".loom/project.json"), "utf8")).not.toContain(canary);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("an expired wait reports pending and persists nothing", async () => {
   const root = await project();
   try {

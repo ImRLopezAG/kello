@@ -12,6 +12,7 @@ import {
   createKelloNeonApi,
   applyMigrations,
   deployProjectRelease,
+  enableRealtime,
   inspectDeploymentTarget,
   defineConfig,
   generateProject,
@@ -81,7 +82,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
           runtimeRole,
           quarantine: "preserve",
         },
-      };
+      } satisfies Parameters<typeof defineConfig>[0];
       await writeFile(
         join(root, "kello.config.ts"),
         `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify(config)});`,
@@ -102,6 +103,13 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
       address.password = password;
       process.env.LOOM_DATABASE_URL = address.href;
       process.env.LOOM_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
+      stage = "enable example Realtime";
+      const realtime = await enableRealtime(root, defineConfig(config), {
+        allowedOrigins: [frontendUrl.origin],
+        timeoutMs: 120_000,
+        selection: { projectId, branch: branchId, databaseName: config.deployment.databaseName },
+      });
+      assert.equal(realtime.state, "ready", "Example Realtime must be ready before deployment");
       stage = "deploy Neon Auth configuration";
       const release = await deployProjectRelease(root, "kello.config.ts", provider, AbortSignal.timeout(240000));
       const functionStage = release.completed.find((entry) => entry.stage === "functions");
