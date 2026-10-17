@@ -14,7 +14,7 @@ const suite = v.parse(
   v.picklist(["tasks", "jobs-storage", "services", "upgrade", "components", "better-auth", "search"]),
   process.env.LOOM_CLOUD_SUITE,
 );
-const projectId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.LOOM_CLOUD_PROJECT_ID);
+const projectId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.KELLO_CLOUD_PROJECT_ID);
 const branchId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.LOOM_CLOUD_BRANCH_ID);
 assert(projectId && branchId, "Required cloud acceptance needs a project and branch");
 const target = await inspectDeploymentTarget(

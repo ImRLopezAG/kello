@@ -18,7 +18,7 @@ const readySchema = v.object({ event: v.literal("ready"), version: v.string(), u
 test.skipIf(process.env.LOOM_CLOUD_DEV_COMPONENT_WATCH !== "1")(
   "running kello dev discovers a newly mounted component and deploys its schema, client and functions to one preview branch",
   async () => {
-    const projectId = v.parse(v.string(), process.env.LOOM_CLOUD_PROJECT_ID);
+    const projectId = v.parse(v.string(), process.env.KELLO_CLOUD_PROJECT_ID);
     const api = createKelloNeonApi();
     const main = (await api.listBranches(projectId)).find((branch) => branch.isDefault);
     assert(main);

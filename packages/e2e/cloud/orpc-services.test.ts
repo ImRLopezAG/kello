@@ -24,7 +24,7 @@ import { createCloudIssuer } from "../fixtures/cloud-issuer";
 test.skipIf(process.env.LOOM_CLOUD_SERVICES !== "1")(
   "Neon REST invokes identity-bound Promise and Effect storage",
   async () => {
-    const projectId = process.env.LOOM_CLOUD_PROJECT_ID;
+    const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
     const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
     const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
     const runtimeRole = process.env.LOOM_CLOUD_RUNTIME_ROLE;

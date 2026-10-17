@@ -24,7 +24,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
   "Neon Auth signs in the actual example against Neon Functions",
   async () => {
     const example = v.parse(v.picklist(["tasks", "jobs-storage"]), process.env.LOOM_CLOUD_AUTH_EXAMPLE ?? "tasks");
-    const projectId = process.env.LOOM_CLOUD_PROJECT_ID;
+    const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
     const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
     const authUrl = process.env.VITE_NEON_AUTH_URL;
     const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;

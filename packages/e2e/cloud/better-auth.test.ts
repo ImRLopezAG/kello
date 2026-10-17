@@ -29,7 +29,7 @@ import { appPreferencesClient } from "../fixtures/app-auth-plugin-client";
 test.skipIf(process.env.LOOM_CLOUD_HOSTED_AUTH !== "1")(
   "native bearer sessions exchange JWTs for protected RPC on deployed Neon Functions",
   async () => {
-    const projectId = process.env.LOOM_CLOUD_PROJECT_ID;
+    const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
     const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
     const connectionString = process.env.LOOM_TEST_DATABASE_URL;
     assert(projectId && branchId && connectionString);

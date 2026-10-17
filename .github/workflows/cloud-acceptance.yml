@@ -67,7 +67,7 @@ jobs:
           - name: upgrade
             suite: upgrade
     env:
-      LOOM_CLOUD_PROJECT_ID: ${{ vars.LOOM_CLOUD_PROJECT_ID }}
+      KELLO_CLOUD_PROJECT_ID: ${{ vars.KELLO_CLOUD_PROJECT_ID }}
       LOOM_CLOUD_SUITE: ${{ matrix.suite }}
       LOOM_CLOUD_SETUP_AUTH: "1"
       ACCEPTANCE_BRANCH: loom-acceptance-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.name }}
@@ -76,7 +76,7 @@ jobs:
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          if [ -z "$NEON_API_KEY" ] || [ -z "$LOOM_CLOUD_PROJECT_ID" ]; then
+          if [ -z "$NEON_API_KEY" ] || [ -z "$KELLO_CLOUD_PROJECT_ID" ]; then
             echo 'Required Neon API key or project ID is absent; acceptance failed.' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
@@ -101,8 +101,8 @@ jobs:
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          bunx neon@6.1.0 branches create --project-id "$LOOM_CLOUD_PROJECT_ID" --name "$ACCEPTANCE_BRANCH" --expires-at "$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)" --no-secrets > /dev/null
-          branch_id=$(bunx neon@6.1.0 branches list --project-id "$LOOM_CLOUD_PROJECT_ID" --output json | jq -er --arg name "$ACCEPTANCE_BRANCH" '[.[] | select(.name == $name and .default == false and .protected == false)] | if length == 1 then .[0].id else error("Expected one isolated acceptance branch") end')
+          bunx neon@6.1.0 branches create --project-id "$KELLO_CLOUD_PROJECT_ID" --name "$ACCEPTANCE_BRANCH" --expires-at "$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)" --no-secrets > /dev/null
+          branch_id=$(bunx neon@6.1.0 branches list --project-id "$KELLO_CLOUD_PROJECT_ID" --output json | jq -er --arg name "$ACCEPTANCE_BRANCH" '[.[] | select(.name == $name and .default == false and .protected == false)] | if length == 1 then .[0].id else error("Expected one isolated acceptance branch") end')
           echo "LOOM_CLOUD_BRANCH_ID=$branch_id" >> "$GITHUB_ENV"
       - name: Verify selected example against Neon
         env:
@@ -120,11 +120,11 @@ jobs:
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          branch_ids=$(bunx neon@6.1.0 branches list --project-id "$LOOM_CLOUD_PROJECT_ID" --output json | jq -r --arg name "$ACCEPTANCE_BRANCH" '.[] | select(.name == $name and .default == false and .protected == false) | .id')
+          branch_ids=$(bunx neon@6.1.0 branches list --project-id "$KELLO_CLOUD_PROJECT_ID" --output json | jq -r --arg name "$ACCEPTANCE_BRANCH" '.[] | select(.name == $name and .default == false and .protected == false) | .id')
           for branch_id in $branch_ids; do
-            bunx neon@6.1.0 branches delete "$branch_id" --project-id "$LOOM_CLOUD_PROJECT_ID" > /dev/null
+            bunx neon@6.1.0 branches delete "$branch_id" --project-id "$KELLO_CLOUD_PROJECT_ID" > /dev/null
           done
-          remaining=$(bunx neon@6.1.0 branches list --project-id "$LOOM_CLOUD_PROJECT_ID" --output json | jq --arg name "$ACCEPTANCE_BRANCH" '[.[] | select(.name == $name)] | length')
+          remaining=$(bunx neon@6.1.0 branches list --project-id "$KELLO_CLOUD_PROJECT_ID" --output json | jq --arg name "$ACCEPTANCE_BRANCH" '[.[] | select(.name == $name)] | length')
           test "$remaining" = 0
       - name: Record acceptance scope
         if: always()
@@ -151,11 +151,11 @@ jobs:
         working-directory: packages/e2e
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-          LOOM_CLOUD_PROJECT_ID: ${{ vars.LOOM_CLOUD_PROJECT_ID }}
+          KELLO_CLOUD_PROJECT_ID: ${{ vars.KELLO_CLOUD_PROJECT_ID }}
           LOOM_CLOUD_DEV_COMPONENT_WATCH: "1"
           LOOM_CLOUD_DEV_WATCH_RECEIPT: ${{ runner.temp }}/cloud-preview.json
         run: |
-          test -n "$NEON_API_KEY" && test -n "$LOOM_CLOUD_PROJECT_ID"
+          test -n "$NEON_API_KEY" && test -n "$KELLO_CLOUD_PROJECT_ID"
           bun test cloud/dev-component-watch.test.ts
           jq -e '.passed == true and .cleanup == true' "$LOOM_CLOUD_DEV_WATCH_RECEIPT" > /dev/null
 

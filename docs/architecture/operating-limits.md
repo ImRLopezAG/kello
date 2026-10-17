@@ -74,14 +74,14 @@ bunx neon@6.0.0 branches create \
   --cu 0.25 --suspend-timeout 300 \
   --expires-at <future-ISO-8601-timestamp> --no-secrets --output json
 
-LOOM_CLOUD_PROJECT_ID=<project-id> LOOM_CLOUD_BRANCH_ID=<created-branch-id> \
+KELLO_CLOUD_PROJECT_ID=<project-id> LOOM_CLOUD_BRANCH_ID=<created-branch-id> \
   bun run --cwd packages/e2e test:cloud
 
 bunx neon@6.0.0 branches delete <created-branch-id> --project-id <project-id>
 bunx neon@6.0.0 branches list --project-id <project-id> --output json
 ```
 
-The suite skips when `LOOM_CLOUD_PROJECT_ID` is absent. When it is present, an explicit branch ID is required. Default, protected, unrelated and ambiguously resolved branches are refused. The suite creates uniquely named metadata and runtime roles and removes them in `finally`; the caller owns branch deletion and must verify its absence even when the test fails. CLI diagnostics and credentials are not printed. Database failures report the operation stage and a validated SQLSTATE when available.
+The suite skips when `KELLO_CLOUD_PROJECT_ID` is absent. When it is present, an explicit branch ID is required. Default, protected, unrelated and ambiguously resolved branches are refused. The suite creates uniquely named metadata and runtime roles and removes them in `finally`; the caller owns branch deletion and must verify its absence even when the test fails. CLI diagnostics and credentials are not printed. Database failures report the operation stage and a validated SQLSTATE when available.
 
 ## Acceptance boundary
 

@@ -52,7 +52,7 @@
       "dependsOn": ["^build"],
       "cache": false,
       "passThroughEnv": [
-        "LOOM_CLOUD_PROJECT_ID",
+        "KELLO_CLOUD_PROJECT_ID",
         "LOOM_CLOUD_BRANCH_ID",
         "LOOM_CLOUD_EXAMPLE",
         "LOOM_CLOUD_CAPACITY",
