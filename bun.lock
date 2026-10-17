@@ -280,6 +280,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@neondatabase/auth": "0.6.0-beta",
+        "@orpc/client": "2.0.0-beta.43",
         "@orpc/server": "2.0.0-beta.43",
         "@orpc/tanstack-query": "2.0.0-beta.43",
         "@tanstack/react-query": "5.104.3",

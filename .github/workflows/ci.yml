@@ -82,6 +82,21 @@ jobs:
           PGPASSWORD=loom-ci-only psql -h 127.0.0.1 -p 56432 -U postgres -d kello_test -c 'SELECT 1'
       - name: PostgreSQL integration and packed Bun/Node consumers
         run: bun run test:integration
+      - name: Typecheck package and integration consumers
+        run: |
+          bun run --cwd apps/kello typecheck
+          bun run --cwd packages/tests typecheck
+          bun run --cwd packages/e2e typecheck
+      - name: Build generated docs and example consumers
+        env:
+          # Static consumer checks need a URL, without contacting a deployed service.
+          NEXT_PUBLIC_KELLO_SERVICE_URL: https://kello.invalid
+          VITE_KELLO_SERVICE_URL: https://kello.invalid
+        run: bun run build
+      - name: Formatting and lint checks
+        run: |
+          bunx --no-install vp fmt --check apps/kello/src packages/tests packages/e2e scripts .github/workflows CONTRIBUTING.md package.json
+          bun run lint
       - name: Pack verified package
         working-directory: apps/kello
         run: |
@@ -104,4 +119,4 @@ jobs:
           retention-days: 14
           overwrite: true
       - name: Report validation scope
-        run: echo 'Integration tests only, including PostgreSQL, Collector and packed Bun/Node consumers. Required package builds run through Turbo. Browser and Neon acceptance run separately.' >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'PostgreSQL, Collector and packed Bun/Node integration tests plus type, formatting and lint checks. Real Neon acceptance is enforced locally by the pre-commit hook.' >> "$GITHUB_STEP_SUMMARY"

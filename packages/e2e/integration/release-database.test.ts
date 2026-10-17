@@ -382,4 +382,6 @@ test.skipIf(!connectionString)(
       await rm(root, { recursive: true, force: true });
     }
   },
+  // Full migration/recovery cycles need an explicit budget on shared CI runners.
+  60_000,
 );

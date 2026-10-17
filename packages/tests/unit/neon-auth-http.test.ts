@@ -3,6 +3,30 @@ import { createNeonAuthMount } from "../../../apps/kello/src/core/adapters/neon/
 import { neonAuth, neonAuthHosting } from "../../../apps/kello/src/core/adapters/neon/auth";
 import { createAuthHttpApp } from "../../../apps/kello/src/core/adapters/neon/auth-http";
 
+test("auth preflight admits the installed Neon SDK client-info header but rejects unknown headers", async () => {
+  const handle = vi.fn(async () => new Response(null));
+  const app = createAuthHttpApp({ origins: ["https://app.test"], mounts: [{ prefix: "/api/auth", handle }] });
+  const preflight = (requested: string, origin = "https://app.test") =>
+    app.fetch(
+      new Request("https://kello.test/api/auth/sign-up/email", {
+        method: "OPTIONS",
+        headers: {
+          origin,
+          "access-control-request-method": "POST",
+          "access-control-request-headers": requested,
+        },
+      }),
+    );
+  const response = await preflight("content-type,x-neon-client-info");
+  expect(response.status).toBe(204);
+  expect(response.headers.get("access-control-allow-headers")).toContain("x-neon-client-info");
+  expect(response.headers.get("access-control-allow-origin")).toBe("https://app.test");
+  expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+  expect((await preflight("content-type,x-untrusted-header")).status).toBe(403);
+  expect((await preflight("x-neon-client-info", "https://evil.test")).status).toBe(403);
+  expect(handle).not.toHaveBeenCalled();
+});
+
 test("managed SDK proxy preserves redirect and cancellation while excluding forged forwarding headers", async () => {
   const abort = new AbortController();
   const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {

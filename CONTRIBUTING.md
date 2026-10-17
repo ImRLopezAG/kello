@@ -26,13 +26,41 @@ Tests create and clean up their own schemas, databases and roles. Missing databa
 
 ## CI and release gates
 
-The CI workflow runs a frozen Bun install, builds, TypeScript 7, unit tests, formatting/Oxlint, PostgreSQL 18 integration tests, packed Bun/Node 24 consumers and browser tests. It moves generated build outputs aside and restores them through Turbo before consumer tests. Pull requests receive no provider or publication credentials; checkout credentials are not persisted.
+### Required local pre-commit gate
 
-The manual **Neon backend acceptance** workflow runs only from the default branch and uses the `neon-acceptance` environment. Configure its `KELLO_CLOUD_PROJECT_ID` variable and `NEON_API_KEY` secret, and restrict environment deployment to the default branch with maintainer approval. Missing configuration fails required acceptance. Six serial profiles cover native tasks, jobs/storage, services, spread/hot-table live load and populated historical upgrades. Each creates an expiring disposable child branch, requires a fresh success receipt and verifies branch deletion after success or failure.
+`bun install` installs the versioned `.githooks/pre-commit` hook through the workspace
+`prepare` script. Existing checkouts can run `bun run hooks:install`. The installer
+refuses to overwrite a different hooks configuration.
 
-Actual Neon runs have exercised native Auth sign-up/sign-in, tasks, live subscriptions, signed Object Storage bytes, provider events, durable jobs, safe schema expansion and historical upgrades. The [acceptance record](docs/architecture/orpc-acceptance.md) links functional and performance receipts with their tested runtime versions. GitHub-hosted Neon execution remains unverified. To run locally, supply `LOOM_CLOUD_SUITE` (`tasks`, `jobs-storage`, `services`, `live` or `upgrade`), `KELLO_CLOUD_PROJECT_ID`, `LOOM_CLOUD_BRANCH_ID` and `NEON_API_KEY`, then run `bun run test:cloud` with Playwright Chromium installed. The branch must be unprotected and named `loom-acceptance-*`.
+Before committing, stage your source changes, authenticate with the Neon CLI (or supply `NEON_API_KEY`), and set
+`KELLO_CLOUD_PROJECT_ID=late-moon-69483649` and `LOOM_CLOUD_BRANCH_ID` privately in
+your shell. The branch must be an explicitly selected disposable, unprotected
+`loom-acceptance-*` child. Install Playwright Chromium beforehand. The hook builds
+Kello, runs hosted tasks/Auth/RPC acceptance, then the real SDK, generated live
+browser, Function/job/storage and cloud preview fixtures. Other example profiles
+remain available locally through `LOOM_CLOUD_SUITE` and `bun run test:cloud`;
+use a separate disposable branch for each profile. These use disposable
+Neon resources and can take several minutes. The Realtime fixtures use their
+existing admitted disposable branch with UUID-isolated resources; coordinate
+access with other contributors. The hook stops at the first failure.
 
-The **Publish alpha** workflow runs when a matching `v<package-version>` tag is pushed, with manual dispatch also available. It uses npm trusted publishing (GitHub OIDC), with `main` and `v*` release tags allowed through the `npm` environment. It requires successful main push CI for the exact commit and a reviewed alpha version before publishing. The initial release candidate is `0.1.0-alpha.0`; its first authenticated publication establishes package ownership before the npm trusted-publisher binding can be configured. See [npm publishing](docs/architecture/npm-publishing.md). No local publication is part of development verification.
+Missing credentials, failed tests, unstaged tracked changes, untracked source, or
+tracked changes during verification block the commit. There is no cached pass. Without an API key, the existing Neon tooling uses
+the authenticated CLI profile. `bun run test:precommit` tests the gate with command doubles;
+it does not establish actual Neon acceptance. Git hooks are local controls and
+can be bypassed through Git configuration; contributors must keep them installed.
+
+CI runs PostgreSQL/PgBouncer, Collector and packed Bun/Node integration tests,
+plus typechecking, formatting and lint checks. It builds required package
+prerequisites and retains the verified package artifact. It does not run Neon
+provider acceptance or require Neon secrets. Provider acceptance runs locally
+before commit; the GitHub Neon acceptance workflow has been removed.
+
+The **Publish alpha** workflow checks successful main push CI for the exact
+release commit, tag/version/license/package identity and the CI tarball checksum.
+It publishes that artifact to npm's `alpha` tag through trusted GitHub OIDC.
+CD does not run tests, deploy acceptance resources or rebuild the package.
+See [npm publishing](docs/architecture/npm-publishing.md).
 
 ## Documentation
 
