@@ -16,6 +16,7 @@ import {
   deployProjectRelease,
   generateProject,
   inspectDeploymentTarget,
+  NeonFunctionHealthError,
   readNeonFunctionReceipt,
 } from "kello/tooling";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
@@ -228,7 +229,16 @@ export default os.probe.router({
                   : "UnknownError",
           }),
         );
-      throw new Error(`Hosted service acceptance failed during ${stage}; owned branch retained`);
+      const health =
+        cause instanceof NeonFunctionHealthError
+          ? JSON.stringify({
+              healthStage: cause.stage,
+              aborted: cause.aborted,
+              status: cause.status,
+              identityMismatch: cause.identityMismatch,
+            })
+          : "unclassified";
+      throw new Error(`Hosted service acceptance failed during ${stage}; health: ${health}; owned branch retained`);
     } finally {
       delete process.env.LOOM_ACCEPTANCE_NUMBER;
       await admin.end();
