@@ -56,14 +56,6 @@
       "types": "./dist/core/react/neon.d.ts",
       "import": "./dist/core/react/neon.js"
     },
-    "./next/server": {
-      "types": "./dist/core/next/server.d.ts",
-      "import": "./dist/core/next/server.js"
-    },
-    "./start/server": {
-      "types": "./dist/core/start/server.d.ts",
-      "import": "./dist/core/start/server.js"
-    },
     "./better-auth": {
       "types": "./dist/core/better-auth/index.d.ts",
       "import": "./dist/core/better-auth/index.js"
@@ -112,7 +104,6 @@
     "@neon/config-runtime": "1.10.1",
     "@neon/realtime-drizzle": "0.1.0",
     "@tanstack/react-query": "5.104.3",
-    "@tanstack/react-start": "1.168.60",
     "@types/bun": "1.4.2",
     "@types/node": "24.19.0",
     "@types/pg": "8.23.1",
@@ -120,7 +111,6 @@
     "better-auth": "1.7.7",
     "drizzle-kit": "1.0.0-rc.4",
     "drizzle-orm": "1.0.0-rc.4",
-    "next": "16.3.8",
     "react": "19.3.0",
     "typescript": "7.0.2",
     "vite-plus": "1.0.0",
@@ -130,10 +120,8 @@
     "@better-auth/core": "1.7.7",
     "@better-auth/drizzle-adapter": "1.7.7",
     "@tanstack/react-query": "^5.104.0",
-    "@tanstack/react-start": "^1.168.60",
     "better-auth": "1.7.7",
     "drizzle-orm": "1.0.0-rc.4",
-    "next": "^16.3.8",
     "react": "^19.3.0",
     "vite-plus": "^1.0.0"
   },
@@ -142,12 +130,6 @@
       "optional": true
     },
     "@tanstack/react-query": {
-      "optional": true
-    },
-    "next": {
-      "optional": true
-    },
-    "@tanstack/react-start": {
       "optional": true
     },
     "better-auth": {

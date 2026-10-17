@@ -1,4 +1,3 @@
-import { forwardNeonRpcRequest } from "../../../apps/kello/src/core/server/auth/neon-rpc";
 import { expect, expectTypeOf, test, vi } from "vite-plus/test";
 import * as v from "valibot";
 import { implement, os, RPCSerializer } from "@orpc/server";
@@ -437,40 +436,22 @@ test("example-style managed live HTTP binds the fresh provider cookie session to
       return Response.json(record);
     }
     const request = input instanceof Request ? new Request(input, init) : new Request(String(input), init);
-    if (url.origin === "https://frontend.test") {
-      expect(init?.credentials).toBe("include");
-      // The browser cookie belongs ONLY to the frontend. It cannot accompany
-      // a direct cross-host browser fetch to api.test, regardless of credentials.
-      const browserHeaders = new Headers(request.headers);
-      browserHeaders.set("origin", "https://frontend.test");
-      browserHeaders.set("cookie", cookie);
-      const incoming = new Request(request, { headers: browserHeaders });
-      return forwardNeonRpcRequest(incoming, "https://api.test");
-    }
     expect(url.origin).toBe("https://api.test");
-    return app.fetch(request);
+    expect(init?.credentials).toBe("include");
+    // Cookies belong to the Neon Function hosting auth, never the frontend.
+    const browserHeaders = new Headers(request.headers);
+    browserHeaders.set("origin", "https://frontend.test");
+    browserHeaders.set("cookie", cookie);
+    return app.fetch(new Request(request, { headers: browserHeaders }));
   });
   const transport = createRpcHttpTransport({
-    url: "https://frontend.test",
+    url: "https://api.test",
     version,
     credentials: "include",
     getToken: async () => token,
   });
   const rpc = createORPCClient<RouterClient<typeof router>>(transport.link);
   try {
-    const remote = createRpcHttpTransport({
-      url: "https://api.test",
-      version,
-      credentials: "include",
-      getToken: async () => token,
-    });
-    try {
-      // credentials:include cannot move the frontend's HttpOnly cookie to a different host.
-      const direct = createORPCClient<RouterClient<typeof router>>(remote.link);
-      await expect(direct.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    } finally {
-      remote.dispose();
-    }
     const issued = await rpc.list();
     expect(issued.authorization).toEqual(expect.any(String));
     expect(issued.scope).toEqual({ database: "neondb", deployment: "example" });
@@ -506,15 +487,6 @@ test("example-style managed live HTTP binds the fresh provider cookie session to
     await expect(rpc.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     expect(await rpc.ordinary()).toBe("ordinary-ok");
     const count = fetcher.mock.calls.length;
-    const hostile = await forwardNeonRpcRequest(
-      new Request("https://frontend.test/api/kello/session", {
-        method: "POST",
-        headers: { origin: "https://evil.test", cookie: "__Secure-neon-auth.session_token=opaque-provider-cookie" },
-      }),
-      "https://api.test",
-    );
-    expect(hostile.status).toBe(403);
-    expect(fetcher.mock.calls).toHaveLength(count);
     const refused = await app.fetch(
       new Request("https://api.test/api/kello/session", {
         method: "POST",

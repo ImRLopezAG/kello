@@ -42,8 +42,8 @@ for (const framework of ["next", "start"] as const)
             env: {
               ...globalThis.process.env,
               NODE_ENV: "production",
-              NEXT_PUBLIC_LOOM_SERVICE_URL: auth.origin,
-              VITE_LOOM_SERVICE_URL: auth.origin,
+              NEXT_PUBLIC_KELLO_SERVICE_URL: auth.origin,
+              VITE_KELLO_SERVICE_URL: auth.origin,
             },
             stdout: "pipe",
             stderr: "pipe",
@@ -60,8 +60,8 @@ for (const framework of ["next", "start"] as const)
               env: {
                 ...globalThis.process.env,
                 NODE_ENV: "production",
-                NEXT_PUBLIC_LOOM_SERVICE_URL: auth.origin,
-                VITE_LOOM_SERVICE_URL: auth.origin,
+                NEXT_PUBLIC_KELLO_SERVICE_URL: auth.origin,
+                VITE_KELLO_SERVICE_URL: auth.origin,
                 NODE_EXTRA_CA_CERTS: auth.caFile,
                 PORT: String(port),
                 HOST: "127.0.0.1",
@@ -95,16 +95,13 @@ for (const framework of ["next", "start"] as const)
             [alice, bob].map(async (token) => {
               const response = await fetch(pageUrl, { headers: { authorization: `Bearer ${token}` } });
               expect(response.status).toBe(200);
-              if (route === "/") expect(response.headers.get("cache-control")).toContain("no-store");
               return response.text();
             }),
           );
-          if (route === "/") expect(a).toContain("alice");
-          else expect(a).not.toContain("Signed in as alice");
+          expect(a).not.toContain("Signed in as alice");
           expect(a).not.toContain(bob);
           expect(a).not.toContain(alice);
-          if (route === "/") expect(b).toContain("bob");
-          else expect(b).not.toContain("Signed in as bob");
+          expect(b).not.toContain("Signed in as bob");
           expect(b).not.toContain("Signed in as alice");
           browser = await chromium.launch({ headless: true });
           const aliceContext = await browser.newContext({ ignoreHTTPSErrors: true });
@@ -148,8 +145,7 @@ for (const framework of ["next", "start"] as const)
           await second.getByText("Shared across SSR and live", { exact: true }).waitFor();
           expect(await other.getByText("Shared across SSR and live", { exact: true }).count()).toBe(0);
           const html = await (await fetch(pageUrl, { headers: { authorization: `Bearer ${alice}` } })).text();
-          if (route === "/") expect(html).toContain("Shared across SSR and live");
-          else expect(html).not.toContain("Shared across SSR and live");
+          expect(html).not.toContain("Shared across SSR and live");
           expect(html).not.toContain(alice);
           const bobHtml = await (await fetch(pageUrl, { headers: { authorization: `Bearer ${bob}` } })).text();
           expect(bobHtml).not.toContain("Shared across SSR and live");

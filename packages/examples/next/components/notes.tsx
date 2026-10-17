@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { KelloProvider, useKello, auth, serviceUrl } from "../lib/kello";
-import type { KelloHydration } from "kello/client";
 import type { Notes } from "../lib/kello";
 import { z } from "zod";
 export function NoteList({ notes }: { notes: Notes }) {
@@ -14,12 +13,11 @@ export function NoteList({ notes }: { notes: Notes }) {
     </ul>
   );
 }
-export function NotesPanel({ initialNotes = [], hydration }: { initialNotes?: Notes; hydration?: KelloHydration }) {
+export function NotesPanel() {
   return (
     <KelloProvider
       url={serviceUrl}
-      {...(hydration ? { hydration } : {})}
-      ssrFallback={<NoteList notes={initialNotes} />}
+      ssrFallback={<p role="status">Loading application…</p>}
       loadingFallback={<p role="status">Loading session…</p>}
       fallback={<SignIn />}
     >

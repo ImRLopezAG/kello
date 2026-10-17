@@ -32,11 +32,7 @@ Pass the resulting `hydration` only to the matching browser provider. It contain
 
 Do not issue a Neon subscription in a server loader. Prefetch a finite endpoint when you need server HTML. On the client, subscribe once to the declared live query. Live capabilities and rows stay outside ordinary Query hydration; a finite SSR result does not certify live transaction progress.
 
-The examples render finite SSR notes as fallback content and start one live subscription in the browser. They do not run an additional finite notes hook there. The root routes demonstrate this optional path; `/client` disables the private UI's SSR entirely.
-
-## Framework adapters are optional
-
-`kello/next/server` and `kello/start/server` also export managed-Neon frontend proxy adapters for applications that explicitly choose that topology. They are not prerequisites for Kello authentication. The current framework examples use Kello-hosted auth plus a small request-token adapter instead.
+The Next and Start examples render public shells and connect directly to the deployed Neon Function from the browser. Their frontend servers host no authentication, session or RPC endpoints. Optional private prefetch in a different application is a client of that backend, never a required auth or RPC host.
 
 Never serialize a provider token, private signing secret, or provider SDK instance into route data. Authorization still runs on the Kello server after hydration; cached data does not grant authority.
 
