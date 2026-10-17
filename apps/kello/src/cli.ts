@@ -4,7 +4,8 @@ import { onboardingCommand } from "./commands/onboarding";
 import { OnboardingError } from "kello/tooling";
 import { neonLogin, neonProfiles } from "./commands/login";
 import { withNeonCredentials } from "kello/tooling";
-import { NeonCredentialError, ProjectResolutionError } from "kello/tooling";
+import { NeonCredentialError, ProjectResolutionError, RealtimeError } from "kello/tooling";
+import { realtimeEnableCommand, realtimeStatusCommand } from "./commands/realtime";
 import { parseArgs } from "node:util";
 import { basename, dirname, resolve } from "node:path";
 import { open, realpath } from "node:fs/promises";
@@ -60,6 +61,8 @@ const help = `Usage: kello <command> [--cwd <directory>] [--json]
   deploy [--release <file>] [--dry-run]  Deploy using kello.config.ts or an explicit release
   retire database --retirement <file>  Retire database authority for a saved release
   provision --branch <file> [--dry-run]  Plan, create or resume branch infrastructure
+  realtime status               Report Neon Realtime for the linked branch without changes
+  realtime enable --origin <origin> [--allow-protected]  Enable Realtime and wait for readiness
   doctor                        Validate configuration, schema, and registered functions
 
 Schema diff and migration generation accept --renames <project-relative JSON file>.
@@ -129,6 +132,8 @@ async function runCommand(args: readonly string[]): Promise<number> {
         telemetry: { type: "string" },
         "diagnostics-file": { type: "string" },
         "dry-run": { type: "boolean" },
+        origin: { type: "string", multiple: true },
+        "allow-protected": { type: "boolean" },
       },
     });
     const [first, second, ...extra] = parsed.positionals;
@@ -230,6 +235,31 @@ async function runCommand(args: readonly string[]): Promise<number> {
       }
       command = "retire database";
       return await retireDatabaseCommand(root, parsed.values.retirement, structured);
+    }
+    if (first === "realtime" || parsed.values.origin !== undefined || parsed.values["allow-protected"] !== undefined) {
+      const allowed = second === "enable" ? ["cwd", "json", "origin", "allow-protected"] : ["cwd", "json"];
+      if (
+        first !== "realtime" ||
+        (second !== "status" && second !== "enable") ||
+        extra.length ||
+        Object.keys(parsed.values).some((name) => !allowed.includes(name))
+      ) {
+        reportFailure(
+          structured,
+          command,
+          "USAGE",
+          "Use kello realtime status, or kello realtime enable --origin <origin> [--allow-protected]",
+          2,
+        );
+        return 2;
+      }
+      command = `realtime ${second}`;
+      return second === "status"
+        ? await realtimeStatusCommand(root, structured)
+        : await realtimeEnableCommand(root, structured, {
+            allowedOrigins: parsed.values.origin ?? [],
+            allowProtected: parsed.values["allow-protected"] ?? false,
+          });
     }
     if (
       first === "backfill" ||
@@ -563,6 +593,10 @@ async function runCommand(args: readonly string[]): Promise<number> {
     reportFailure(structured, command, "USAGE", "Unknown command or arguments; run kello --help", 2);
     return 2;
   } catch (cause) {
+    if (cause instanceof RealtimeError) {
+      reportFailure(structured, command, cause.code, cause.message, 5);
+      return 5;
+    }
     if (cause instanceof ProjectResolutionError || cause instanceof OnboardingError) {
       reportFailure(structured, command, cause.code, cause.message, 3);
       return 3;
@@ -597,6 +631,16 @@ async function runCommand(args: readonly string[]): Promise<number> {
         command,
         "PROVISIONING_FAILED",
         "Branch provisioning failed. Check the declaration, provider access and saved receipt; retain the same identity for retry.",
+        5,
+      );
+      return 5;
+    }
+    if (command.startsWith("realtime ")) {
+      reportFailure(
+        structured,
+        command,
+        "REALTIME_FAILED",
+        "Realtime command failed. Check the linked target and provider access, then run kello realtime status.",
         5,
       );
       return 5;

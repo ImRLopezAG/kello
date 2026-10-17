@@ -77,7 +77,7 @@ ${project.builderNames.map((key, index) => `const builder${index} = rpc[${JSON.s
     ["config.js", `export const configuration = Object.freeze(${JSON.stringify(project.publicConfiguration)});\n`],
     [
       "config.d.ts",
-      "export declare const configuration: Readonly<{ serviceUrl?: string; authUrl?: string; dataApiUrl?: string }>;\n",
+      "export declare const configuration: Readonly<{ serviceUrl?: string; authUrl?: string; dataApiUrl?: string; realtimeUrl?: string }>;\n",
     ],
     ["contract-registry.ts", registry],
     ["registration.d.ts", registration],
@@ -176,7 +176,7 @@ ${live.length ? 'import type { OrdinaryLiveRouter, createNeonLiveClient } from "
 export type PublicContract = Omit<typeof contract, "internal"> & PublicComponents;
 type NativeClient = RouterContractClient<PublicContract, RpcCallContext>;
 export type Client = SearchRouterClient<NativeClient>;
-export declare const configuration: Readonly<{ serviceUrl?: string; authUrl?: string; dataApiUrl?: string }>;
+export declare const configuration: Readonly<{ serviceUrl?: string; authUrl?: string; dataApiUrl?: string; realtimeUrl?: string }>;
 export declare const version: ${JSON.stringify(project.version)};
 export declare function createServerClient(options: Omit<RpcTransportOptions, "version" | "url"> & { readonly url?: string }): ReturnType<typeof createRpcTransport> & { readonly client: Client; readonly rpc: SearchRouterUtils<${live.length ? "OrdinaryLiveRouter<NativeClient>" : "NativeClient"}> };
 export declare function createClient(options: Omit<RpcTransportOptions, "version" | "url"> & { readonly url?: string${live.length ? "; readonly realtimeUrl: string" : ""} }): ReturnType<typeof createRpcTransport> & { readonly client: Client; readonly rpc: SearchRouterUtils<${live.length ? "OrdinaryLiveRouter<NativeClient>" : "NativeClient"}>${live.length ? "; readonly live: ReturnType<typeof createNeonLiveClient>" : ""} };

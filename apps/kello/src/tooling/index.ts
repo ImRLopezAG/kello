@@ -179,3 +179,7 @@ export type {
   DiagnosticsRuntimeEvent,
   DiagnosticsDeploymentEvent,
 } from "./diagnostics";
+export { enableRealtime, readRealtimeStatus } from "./config/resolve";
+export type { RealtimeEnableOptions, RealtimeStatus } from "./config/resolve";
+export { createRealtimeProvider, RealtimeError } from "./neon/api";
+export type { RealtimeBranchState, RealtimeEnableInput, RealtimeProvider } from "./neon/api";
