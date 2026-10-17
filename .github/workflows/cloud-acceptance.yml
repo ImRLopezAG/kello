@@ -29,8 +29,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: "1.4.2"
-      - name: Install and build
-        run: bun install --frozen-lockfile && bun run build
+      - name: Install and build Kello
+        # Frontends are built by their acceptance fixture after deployment supplies the service URL.
+        run: bun install --frozen-lockfile && bun run --cwd apps/kello build
       - name: Install Chromium
         working-directory: packages/e2e
         run: bunx --no-install playwright install --with-deps chromium
@@ -97,8 +98,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: "1.4.2"
-      - name: Install and build
-        run: bun install --frozen-lockfile && bun run build
+      - name: Install and build Kello
+        # Frontends are built by their acceptance fixture after deployment supplies the service URL.
+        run: bun install --frozen-lockfile && bun run --cwd apps/kello build
       - name: Install Chromium for browser acceptance
         working-directory: packages/e2e
         run: bunx --no-install playwright install --with-deps chromium
@@ -151,8 +153,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: "1.4.2"
-      - name: Install and build
-        run: bun install --frozen-lockfile && bun run build
+      - name: Install and build Kello
+        # Frontends are built by their acceptance fixture after deployment supplies the service URL.
+        run: bun install --frozen-lockfile && bun run --cwd apps/kello build
       - name: Verify packaged CLI cloud preview edits and stop
         working-directory: packages/e2e
         env:
