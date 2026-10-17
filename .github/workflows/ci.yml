@@ -87,6 +87,12 @@ jobs:
           bun run --cwd apps/kello typecheck
           bun run --cwd packages/tests typecheck
           bun run --cwd packages/e2e typecheck
+      - name: Build generated docs and example consumers
+        env:
+          # Static consumer checks need a URL, without contacting a deployed service.
+          NEXT_PUBLIC_KELLO_SERVICE_URL: https://kello.invalid
+          VITE_KELLO_SERVICE_URL: https://kello.invalid
+        run: bun run build
       - name: Formatting and lint checks
         run: |
           bunx --no-install vp fmt --check apps/kello/src packages/tests packages/e2e scripts .github/workflows CONTRIBUTING.md package.json
