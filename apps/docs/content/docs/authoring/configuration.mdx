@@ -55,11 +55,11 @@ Default migration history is `<backend>/_generated/migrations`; default backend 
 
 ## Three kinds of environment values
 
-| Kind                       | Examples                                                | Consumer                     |
-| -------------------------- | ------------------------------------------------------- | ---------------------------- |
-| Provider credentials       | Neon login profile, `NEON_API_KEY`                      | CLI only                     |
-| Backend configuration      | database connections, SDK keys, auth signing secret     | Kello runtime and deployment |
-| Public connection settings | `NEXT_PUBLIC_LOOM_SERVICE_URL`, `VITE_LOOM_SERVICE_URL` | Browser bundle               |
+| Kind                       | Examples                                                  | Consumer                     |
+| -------------------------- | --------------------------------------------------------- | ---------------------------- |
+| Provider credentials       | Neon login profile, `NEON_API_KEY`                        | CLI only                     |
+| Backend configuration      | database connections, SDK keys, auth signing secret       | Kello runtime and deployment |
+| Public connection settings | `NEXT_PUBLIC_KELLO_SERVICE_URL`, `VITE_KELLO_SERVICE_URL` | Browser bundle               |
 
 Client frameworks bake public variables into their build. Changing the deployment URL requires rebuilding that frontend. A public URL is not a credential; never place private values behind a public prefix.
 

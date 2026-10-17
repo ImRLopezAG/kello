@@ -18,14 +18,19 @@ const manifestSchema = v.object({
   devDependencies: v.record(v.string(), v.string()),
 });
 
-test("CSR and SSR examples build as independent consumers of one packed Kello artifact", async () => {
+test("Frontend examples build as independent consumers of one packed Kello artifact", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-packed-frameworks-"));
   const archive = join(root, "kello.tgz");
   const privateMarker = `server-secret-${crypto.randomUUID()}`;
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, {
       cwd,
-      env: { ...process.env, NEON_AUTH_COOKIE_SECRET: privateMarker },
+      env: {
+        ...process.env,
+        NEXT_PUBLIC_KELLO_SERVICE_URL: "https://function.example.test",
+        VITE_KELLO_SERVICE_URL: "https://function.example.test",
+        NEON_AUTH_COOKIE_SECRET: privateMarker,
+      },
       stdout: "pipe",
       stderr: "pipe",
       timeout: 120000,
