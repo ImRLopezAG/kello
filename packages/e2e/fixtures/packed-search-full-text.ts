@@ -336,7 +336,7 @@ for (const name of ["list"]) {
 const openapi = await generateRpcOpenAPI({ tasks });
 const json = JSON.stringify(openapi);
 assert.doesNotMatch(json, forbidden);
-// Pinned @orpc/openapi 2.0.0-beta.43: generate uses dotted operation IDs
+// Pinned @orpc/openapi 2.0.0-beta.46: generate uses dotted operation IDs
 // and pathToHttpPath; POST + compact defaults attach input to requestBody.
 // buildRequest/toBodyContent retain schemas or hoist $defs into components.
 // Follow only references reached from each operation's JSON request input.

@@ -1,3 +1,4 @@
+import { fromDrizzleSnapshot } from "../../../apps/kello/src/tooling/migrations/snapshot";
 import assert from "node:assert/strict";
 import { isDeepStrictEqual } from "node:util";
 import { expect, test } from "bun:test";
@@ -66,10 +67,10 @@ function fixture(
 
 // Pre-U1 adapter: native generator output, structural identity and append-only lineage.
 async function historicalSnapshot(schema: ReturnType<typeof fixture>, before: MigrationSnapshot) {
-  const snapshot = await generateDrizzleJson(
-    { ...schema.tables, __loomNamespace: pgSchema(schema.namespace) },
-    before.id,
-    [schema.namespace],
+  const snapshot = fromDrizzleSnapshot(
+    await generateDrizzleJson({ ...schema.tables, __loomNamespace: pgSchema(schema.namespace) }, before.id, [
+      schema.namespace,
+    ]),
   );
   return { ...snapshot, id: snapshotHash(snapshot), prevIds: [before.id] };
 }

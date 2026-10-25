@@ -12,22 +12,22 @@
   "scripts": {
     "generate": "kello generate",
     "build": "bun run generate",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "bun check --no-script -p tsconfig.json",
     "dev": "kello dev",
     "deploy": "kello deploy"
   },
   "dependencies": {
-    "@orpc/server": "2.0.0-beta.43",
-    "drizzle-orm": "1.0.0-rc.4",
-    "effect": "4.0.5",
+    "@orpc/server": "2.0.0-beta.46",
+    "drizzle-orm": "1.0.0-rc.5",
+    "effect": "4.0.6",
     "kello": "workspace:*",
     "valibot": "1.5.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
     "@kello/ts-config": "workspace:*",
-    "@orpc/tanstack-query": "2.0.0-beta.43",
-    "@types/bun": "1.4.2",
+    "@orpc/tanstack-query": "2.0.0-beta.46",
+    "@types/bun": "1.4.4",
     "@types/pg": "8.23.1",
     "typescript": "7.0.2"
   }

@@ -423,9 +423,9 @@ test("packed public full-text consumer executes under independently pinned Node 
         dependencies: {
           kello: "file:./kello.tgz",
           "drizzle-orm": "1.0.0-rc.4",
-          "@orpc/client": "2.0.0-beta.43",
-          "@orpc/server": "2.0.0-beta.43",
-          "@orpc/tanstack-query": "2.0.0-beta.43",
+          "@orpc/client": "2.0.0-beta.46",
+          "@orpc/server": "2.0.0-beta.46",
+          "@orpc/tanstack-query": "2.0.0-beta.46",
           "@tanstack/react-query": "5.104.3",
           react: "19.3.0",
           "react-dom": "19.3.0",

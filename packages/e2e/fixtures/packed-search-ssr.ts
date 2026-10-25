@@ -15,7 +15,7 @@ import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { RPCJsonSerializer } from "@orpc/client";
 const serializer = new RPCJsonSerializer();
-function decodeHydration(state, prefix) { const value = serializer.deserialize(JSON.parse(state)); assert(value.queries.every(query => query.queryKey[0] === prefix && query.queryHash === hashKey(query.queryKey))); return value; }
+function decodeHydration(state, prefix) { const value = serializer.deserializeJson(JSON.parse(state)); assert(value.queries.every(query => query.queryKey[0] === prefix && query.queryHash === hashKey(query.queryKey))); return value; }
 import { createServerClient, version } from "./app/kello/_generated/api";
 import { searchSchema, searchRelations } from "./app/kello/fixture";
 const { validators } = createProjectContext(searchSchema, searchRelations);

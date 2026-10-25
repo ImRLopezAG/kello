@@ -36,9 +36,9 @@ test("packed generated search infers selected results through native options", a
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
-          "@orpc/client": "2.0.0-beta.43",
-          "@orpc/server": "2.0.0-beta.43",
-          "@orpc/tanstack-query": "2.0.0-beta.43",
+          "@orpc/client": "2.0.0-beta.46",
+          "@orpc/server": "2.0.0-beta.46",
+          "@orpc/tanstack-query": "2.0.0-beta.46",
           "@tanstack/react-query": "5.104.3",
           "drizzle-orm": "1.0.0-rc.4",
           valibot: "1.5.0",

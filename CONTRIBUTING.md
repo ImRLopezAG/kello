@@ -4,7 +4,7 @@ Kello is under active development. Start with a focused issue or pull request th
 
 ## Development
 
-Use Bun 1.4.2 and Node 24.
+Use Bun 1.4.4 and Node 24.
 
 ```sh
 bun install --frozen-lockfile

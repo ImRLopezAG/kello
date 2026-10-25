@@ -33,7 +33,7 @@ test("packed generated search-shaped contracts expose the native dependent-outpu
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
-          "@orpc/tanstack-query": "2.0.0-beta.43",
+          "@orpc/tanstack-query": "2.0.0-beta.46",
           "@tanstack/react-query": "5.104.3",
           "drizzle-orm": "1.0.0-rc.4",
           valibot: "1.5.0",

@@ -2,7 +2,7 @@ import * as v from "valibot";
 import { verifyCloudUploadWorkflow } from "../fixtures/cloud-upload-workflow";
 import assert from "node:assert/strict";
 import { test } from "bun:test";
-import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -16,6 +16,7 @@ import {
   inspectDeploymentTarget,
   defineConfig,
   generateProject,
+  generateRelease,
   loadProjectConfig,
   readNeonFunctionReceipt,
 } from "kello/tooling";
@@ -80,9 +81,21 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
         "Use the runtime role from the owned acceptance branch",
       );
       const { config: exampleConfig } = await loadProjectConfig(source);
+      // Each hook run exercises schema expansion independently of retained deployments.
+      const namespace = example === "tasks" ? `accept_${runtimeRole.slice(8)}` : exampleConfig.database.namespace;
+      const metadataNamespace = example === "tasks" ? `loom_${namespace}` : exampleConfig.database.metadataNamespace;
+      if (example === "tasks") {
+        const schemaPath = join(root, "kello/schema.ts");
+        const original = await readFile(schemaPath, "utf8");
+        const scoped = original.replace('{ namespace: "app" }', `{ namespace: "${namespace}" }`);
+        assert.notEqual(scoped, original, "Tasks fixture must declare its isolated namespace");
+        await writeFile(schemaPath, scoped);
+        // Only the disposable copy is regenerated; committed example migrations stay unchanged.
+        await rm(join(root, "kello/migrations"), { recursive: true, force: true });
+      }
       const config = {
         project: example,
-        database: { ...exampleConfig.database, migrations: "kello/migrations" },
+        database: { ...exampleConfig.database, namespace, metadataNamespace, migrations: "kello/migrations" },
         provider: { projectId, targets: { preview: { branchId } } },
         auth: {
           origins: [frontendUrl.origin],
@@ -105,6 +118,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
         join(root, "kello.config.ts"),
         `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify(config)});`,
       );
+      if (example === "tasks") await generateRelease(root, "acceptance-initial");
       let generated = await generateProject(root);
       stage = "restricted runtime";
       await applyMigrations({
@@ -263,6 +277,9 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
           JSON.stringify(
             {
               example,
+              namespace,
+              metadataNamespace,
+              runtimeRole,
               projectId,
               branchId,
               region: process.env.LOOM_CLOUD_REGION,

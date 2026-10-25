@@ -82,7 +82,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
         dependencies: {
           kello: "file:./kello.tgz",
           valibot: "1.5.0",
-          "@orpc/client": "2.0.0-beta.43",
+          "@orpc/client": "2.0.0-beta.46",
           "drizzle-orm": "1.0.0-rc.4",
         },
         devDependencies: { "@types/node": "24.13.6" },

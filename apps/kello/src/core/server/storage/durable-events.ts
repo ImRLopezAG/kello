@@ -103,7 +103,7 @@ export function createDurableStorageEventDispatcher(options: DurableStorageEvent
       await lockRuntimeActivation(transaction, metadataNamespace);
       await active(signal, transaction);
       await assertIngress?.(signal, transaction);
-      const found = await transaction.execute(
+      const found = await transaction.execute<v.InferOutput<typeof intentRow>>(
         sql`SELECT ${columns} FROM ${uploads} WHERE ${scope} AND id = ${id}::uuid`,
       );
       const upload = v.parse(intentRow, found.rows[0]);
@@ -111,7 +111,7 @@ export function createDurableStorageEventDispatcher(options: DurableStorageEvent
       await transaction.execute(sql`INSERT INTO ${receipts} (deployment, project_id, branch_id, invocation_id, trigger_id, trigger_name, bucket, object_key, intent_id, fingerprint)
         VALUES (${deployment}, ${projectId}, ${branchId}, ${delivery.invocationId}, ${delivery.triggerId}, ${delivery.triggerName}, ${delivery.bucket}, ${delivery.key}, ${id}::uuid, ${fingerprint})
         ON CONFLICT (deployment, project_id, branch_id, invocation_id) DO NOTHING`);
-      const recorded = await transaction.execute(
+      const recorded = await transaction.execute<v.InferOutput<typeof receiptRow>>(
         sql`SELECT fingerprint, state, job_id FROM ${receipts} WHERE ${scope} AND invocation_id = ${delivery.invocationId}`,
       );
       const receipt = v.parse(receiptRow, recorded.rows[0]);
@@ -133,11 +133,11 @@ export function createDurableStorageEventDispatcher(options: DurableStorageEvent
       await active(signal, transaction);
       await assertIngress?.(signal, transaction);
       // Lock order is always intent then receipt, including different invocations for the same object.
-      const locked = await transaction.execute(
+      const locked = await transaction.execute<v.InferOutput<typeof intentRow>>(
         sql`SELECT ${columns} FROM ${uploads} WHERE ${scope} AND id = ${id}::uuid FOR UPDATE`,
       );
       const current = v.parse(intentRow, locked.rows[0]);
-      const saved = await transaction.execute(
+      const saved = await transaction.execute<v.InferOutput<typeof receiptRow>>(
         sql`SELECT fingerprint, state, job_id FROM ${receipts} WHERE ${scope} AND invocation_id = ${delivery.invocationId} FOR UPDATE`,
       );
       const currentReceipt = v.parse(receiptRow, saved.rows[0]);
@@ -182,7 +182,7 @@ export function createDurableStorageEventDispatcher(options: DurableStorageEvent
         await lockRuntimeActivation(transaction, metadataNamespace);
         await assertIngress?.(signal, transaction);
         await active(signal, transaction);
-        const claimed = await transaction.execute(sql`
+        const claimed = await transaction.execute<v.InferOutput<typeof deliveryValidator>>(sql`
           WITH due AS (
             SELECT invocation_id FROM ${receipts} WHERE ${scope} AND state='pending'
               AND bucket IN (${sql.join(

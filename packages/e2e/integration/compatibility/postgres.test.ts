@@ -58,9 +58,11 @@ test.skipIf(!connectionString)("PostgreSQL 18 native IDs, constraints, migration
       name: text().notNull(),
     });
     const renamed = await generateDrizzleJson({ schema, projects, tasks: renamedTasks }, snapshot.id, [namespace]);
-    const renameSql = await generateMigration(snapshot, renamed, [
-      { type: "rename", kind: "column", from: [namespace, "tasks", "title"], to: [namespace, "tasks", "name"] },
-    ]);
+    const renameSql = await generateMigration(snapshot, renamed, {
+      hints: [
+        { type: "rename", kind: "column", from: [namespace, "tasks", "title"], to: [namespace, "tasks", "name"] },
+      ],
+    });
     for (const statement of renameSql) await pool.query(statement);
     const rows = await db.select().from(renamedTasks);
     expect(rows[0]?.name).toBe("Verify relations");

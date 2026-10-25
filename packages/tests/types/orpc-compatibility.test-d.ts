@@ -1,6 +1,6 @@
-import "@orpc/experimental-effect/extensions/effect";
+import "@orpc/effect/extensions/effect";
 import { os, createRouterClient } from "@orpc/server";
-import type { WithEffectContext } from "@orpc/experimental-effect";
+import type { WithEffectContext } from "@orpc/effect";
 import { Context } from "effect";
 import * as v from "valibot";
 

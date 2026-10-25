@@ -132,9 +132,13 @@ test.skipIf(!connectionString)(
         );
         expect(outside.rows[0]?.identity).toBeNull();
         expect(outside.rows[0]?.legacy_identity).toBeNull();
-        expect((await connection.db.execute(sql`SELECT * FROM ${table}`)).rows).toEqual([]);
+        expect((await connection.db.execute<{ id: string; tenant: string }>(sql`SELECT * FROM ${table}`)).rows).toEqual(
+          [],
+        );
         await assert.rejects(
-          connection.db.execute(sql`CREATE TABLE ${sql.identifier(metadataNamespace)}.forbidden (id integer)`),
+          connection.db.execute<{ id: string; tenant: string }>(
+            sql`CREATE TABLE ${sql.identifier(metadataNamespace)}.forbidden (id integer)`,
+          ),
         );
         expect(await call(read, "a", { context: contextFor(alice) })).toMatchObject({ titles: ["Alice"] });
         expect(await call(who, undefined, { context: contextFor(bob) })).toBe("bob");

@@ -121,7 +121,7 @@ export function createStorageIntents(options: StorageIntentsOptions) {
     database = db,
     operation: "upload" | "read" = "upload",
   ) {
-    const result = await database.execute(
+    const result = await database.execute<v.InferOutput<typeof rowValidator>>(
       sql`SELECT ${columns} FROM ${table} WHERE ${operation === "read" ? readScope : scope} AND owner_hash = ${owner.hash} AND id = ${id}::uuid`,
     );
     const parsed = v.safeParse(rowValidator, result.rows[0]);
@@ -159,7 +159,7 @@ export function createStorageIntents(options: StorageIntentsOptions) {
         VALUES (${deployment}, ${projectId}, ${branchId}, ${ownerScope}, ${owner.hash}, ${JSON.stringify(owner.identity)}::jsonb, ${requestHash}, ${fingerprint}, ${JSON.stringify(upload)}::jsonb)
         ON CONFLICT (deployment, project_id, branch_id, owner_hash, request_hash) DO NOTHING`);
         // Separate read observes the winner after a concurrent INSERT conflict wait.
-        const result = await tx.execute(
+        const result = await tx.execute<v.InferOutput<typeof rowValidator>>(
           sql`SELECT ${columns} FROM ${table} WHERE ${scope} AND owner_hash = ${owner.hash} AND request_hash = ${requestHash}`,
         );
         const row = v.parse(rowValidator, result.rows[0]);
@@ -189,7 +189,7 @@ export function createStorageIntents(options: StorageIntentsOptions) {
       const completed = await transaction(signal, async (tx) => {
         await access(owner, id, "upload", signal, tx);
         // Cleanup takes this same row lock before deleting any object for the intent.
-        const result = await tx.execute(sql`SELECT ${columns} FROM ${table}
+        const result = await tx.execute<v.InferOutput<typeof rowValidator>>(sql`SELECT ${columns} FROM ${table}
           WHERE ${scope} AND owner_hash = ${owner.hash} AND id = ${id}::uuid FOR UPDATE`);
         const row = v.parse(rowValidator, result.rows[0]);
         await active(signal, tx);
@@ -206,8 +206,9 @@ export function createStorageIntents(options: StorageIntentsOptions) {
           return cause;
         }
         await active(signal, tx);
-        const updated =
-          await tx.execute(sql`UPDATE ${table} SET state = 'ready', error_code = NULL, updated_at = clock_timestamp()
+        const updated = await tx.execute<
+          v.InferOutput<typeof rowValidator>
+        >(sql`UPDATE ${table} SET state = 'ready', error_code = NULL, updated_at = clock_timestamp()
           WHERE ${scope} AND id = ${id}::uuid RETURNING ${columns}`);
         return view(v.parse(rowValidator, updated.rows[0]));
       });

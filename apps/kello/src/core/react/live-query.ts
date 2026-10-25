@@ -50,9 +50,9 @@ export function createLiveQueryHooks<Router extends AnyNestedClient>(
     function useLiveQuery<Input>(input: Input) {
       if (!declaration || !v.is(v.function(), target)) throw new Error("Not a live procedure");
       const [revision, setRevision] = useState(0);
-      const key = JSON.stringify(serializer.serialize(input));
+      const key = JSON.stringify(serializer.serializeJson(input));
       const issue = useMemo(() => {
-        const parsed: unknown = serializer.deserialize(JSON.parse(key));
+        const parsed: unknown = serializer.deserializeJson(JSON.parse(key));
         return async () => v.parse(liveQueryEnvelope, await target(parsed));
       }, [key, revision, target]);
       const state = useNeonLiveQuery({ client: live, rows: declaration.rows, issue });

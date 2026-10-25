@@ -1,17 +1,18 @@
 import { createHash } from "node:crypto";
 import { generateDrizzleJson, generateMigration, inspectSchema } from "drizzle-kit/api-postgres";
+import type { Hint } from "drizzle-kit/api-postgres";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SchemaDefinition } from "kello/server";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import * as v from "valibot";
-import { snapshotValidator } from "./snapshot";
+import { fromDrizzleSnapshot, snapshotValidator } from "./snapshot";
 import { databaseIdentifier } from "./connection";
 import { alignCheckExpressions, alignFullTextIndexes, normalizeFullTextIndexes } from "./expressions";
 
-export type MigrationSnapshot = Awaited<ReturnType<typeof generateDrizzleJson>>;
-export type RenameHint = NonNullable<Parameters<typeof generateMigration>[2]>[number];
+export type MigrationSnapshot = v.InferOutput<typeof snapshotValidator>;
+export type RenameHint = Extract<Hint, { type: "rename"; kind: "table" | "column" }>;
 
 export async function inspectSnapshot(database: NodePgDatabase, namespace: string): Promise<MigrationSnapshot> {
   const selectedNamespace = v.parse(databaseIdentifier, namespace);
@@ -22,7 +23,7 @@ export async function inspectSnapshot(database: NodePgDatabase, namespace: strin
     if (previous === undefined) throw new Error("Missing PostgreSQL search path");
     await tx.execute(sql`SET LOCAL search_path = pg_catalog`);
     const inspected = await normalizeFullTextIndexes(
-      v.parse(snapshotValidator, await inspectSchema(tx, [selectedNamespace])),
+      fromDrizzleSnapshot(await inspectSchema(tx, [selectedNamespace])),
       true,
     );
     // Releasing a nested savepoint retains SET LOCAL values in the outer transaction.
@@ -105,7 +106,7 @@ export async function createNativeSnapshot(
   const namespace = v.parse(databaseIdentifier, schema.namespace);
   const imports =
     namespace === "public" ? { ...schema.tables } : { ...schema.tables, __loomNamespace: pgSchema(namespace) };
-  const generated = await generateDrizzleJson(imports, previous?.id, [namespace]);
+  const generated = fromDrizzleSnapshot(await generateDrizzleJson(imports, previous?.id, [namespace]));
   // Never canonicalize persisted history or reinterpret its recorded safety. Keep raw native
   // output, retaining only a proved-equivalent baseline spelling during regeneration.
   const snapshot = previous ? await alignFullTextIndexes(generated, previous) : generated;
@@ -114,7 +115,7 @@ export async function createNativeSnapshot(
 }
 
 export async function emptySnapshot(namespace: string): Promise<MigrationSnapshot> {
-  const snapshot = await generateDrizzleJson({}, undefined, [namespace]);
+  const snapshot = fromDrizzleSnapshot(await generateDrizzleJson({}, undefined, [namespace]));
   return { ...snapshot, id: snapshotHash(snapshot), prevIds: [] };
 }
 
@@ -123,5 +124,5 @@ export async function migrationStatements(
   after: MigrationSnapshot,
   renames: readonly RenameHint[] = [],
 ): Promise<readonly string[]> {
-  return generateMigration(await alignCheckExpressions(before, after), after, [...renames]);
+  return generateMigration(await alignCheckExpressions(before, after), after, { hints: [...renames] });
 }

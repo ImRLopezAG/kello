@@ -1,4 +1,4 @@
-import "@orpc/experimental-effect/extensions/effect";
+import "@orpc/effect/extensions/effect";
 import "../realtime/procedure";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { channel } from "node:diagnostics_channel";
@@ -6,7 +6,7 @@ import type { ErrorMap } from "@orpc/server";
 import { os, ORPCError, ValidationError } from "@orpc/server";
 import { AsyncIteratorClass, isAsyncIteratorObject } from "@orpc/shared";
 import { reconcileORPCError } from "@orpc/contract";
-import type { WithEffectContext } from "@orpc/experimental-effect";
+import type { WithEffectContext } from "@orpc/effect";
 import type { OperationType } from "@orpc/tanstack-query";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { Cause, Context, Effect } from "effect";

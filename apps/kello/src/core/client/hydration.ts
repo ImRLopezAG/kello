@@ -36,13 +36,13 @@ const cache = v.object({
 
 /** A string crosses both framework serializers without weakening their type checks. */
 export function encodeHydration(state: DehydratedState): string {
-  const serialized = serializer.serialize(state);
+  const serialized = serializer.serializeJson(state);
   if (serialized.blobs?.length) throw new Error("Prefetch file data separately from SSR hydration");
   return JSON.stringify(serialized);
 }
 
 export function decodeHydration(state: string, prefix: string) {
-  const value = serializer.deserialize(v.parse(wire, JSON.parse(state)));
+  const value = serializer.deserializeJson(v.parse(wire, JSON.parse(state)));
   const parsed = v.parse(cache, value);
   if (parsed.queries.some((query) => query.queryKey[0] !== prefix || query.queryHash !== hashKey(query.queryKey)))
     throw new Error("Hydration contains data outside its Kello session");

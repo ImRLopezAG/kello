@@ -49,9 +49,9 @@ test("SSR consumes one finite native snapshot and hydration attaches one live st
     );
     expect(value).toEqual({ at: new Date("2026-09-24"), count: 1n });
     // Use the native serializer for hydration too; plain JSON loses bigint/Date.
-    const serialized = JSON.stringify(serializer.serialize(dehydrate(ssr.queryClient)));
+    const serialized = JSON.stringify(serializer.serializeJson(dehydrate(ssr.queryClient)));
     // SAFETY: this fixture round-trips the state just produced by dehydrate above.
-    const state = serializer.deserialize(JSON.parse(serialized)) as ReturnType<typeof dehydrate>;
+    const state = serializer.deserializeJson(JSON.parse(serialized)) as ReturnType<typeof dehydrate>;
     hydrate(browser.queryClient, state);
     ssr.queryClient.clear();
     expect(closed).toBe(0);

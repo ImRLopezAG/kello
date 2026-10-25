@@ -50,7 +50,7 @@ export function prepareMutationReplay(
       return previous.result;
     }
     const value = await invoke();
-    const inserted = await db.execute(sql`
+    const inserted = await db.execute<{ scope_hash: string }>(sql`
       INSERT INTO ${table} (scope_hash, key_hash, fingerprint, result, expires_at)
       VALUES (${scopeHash}, ${keyHash}, ${fingerprint}, ${JSON.stringify(value)}::jsonb,
         clock_timestamp() + ${mutationReplayWindowSeconds} * interval '1 second')

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import "@orpc/experimental-effect/extensions/effect";
+import "@orpc/effect/extensions/effect";
 import { test, expect } from "bun:test";
 import { call, os, ORPCError } from "@orpc/server";
-import type { WithEffectContext } from "@orpc/experimental-effect";
+import type { WithEffectContext } from "@orpc/effect";
 import { Context, Effect, Layer, ManagedRuntime } from "effect";
 import * as v from "valibot";
 

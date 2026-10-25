@@ -25,7 +25,7 @@ const memberships = pgTable("memberships", {
 const db = drizzle.mock();
 const adapter = drizzleAdapter();
 
-test("RC.4 typed select and membership join retain SQL binding and tenant value", () => {
+test("RC.5 typed select and membership join retain SQL binding and tenant value", () => {
   const subject = "member-' OR true --";
   const query = db
     .select(getTableColumns(messages))
@@ -44,7 +44,7 @@ test("RC.4 typed select and membership join retain SQL binding and tenant value"
   ]);
 });
 
-test("RC.4 column encoders prepare Date, JSON and boolean parameters before Neon encoding", () => {
+test("RC.5 column encoders prepare Date, JSON and boolean parameters before Neon encoding", () => {
   const when = new Date("2026-10-15T12:00:00Z");
   const query = db
     .select({ id: messages.id })
@@ -57,11 +57,11 @@ test("RC.4 column encoders prepare Date, JSON and boolean parameters before Neon
   ]);
 });
 
-test("RC.4 default flat selection is accepted", () => {
+test("RC.5 default flat selection is accepted", () => {
   assert.match(adapter.prepare(db.select().from(messages)).sql, /^select /);
 });
 
-test("RC.4 explicit aliases support renamed properties and aggregate SQL", () => {
+test("RC.5 explicit aliases support renamed properties and aggregate SQL", () => {
   const query = db
     .select({
       channelId: sql<number>`${messages.channel_id}`.as("channelId"),
@@ -91,13 +91,13 @@ test("unbound placeholders remain rejected, not stringified into a sealed parame
   assert.throws(() => adapter.prepare(query), /parameter that cannot be encoded/);
 });
 
-test("SDK seal preserves RC.4 inferred row type without casts or rawSql", async () => {
+test("SDK seal preserves RC.5 inferred row type without casts or rawSql", async () => {
   // Disposable, generated test key: never a provider-issued project credential.
   const secret = `nrt_live_1${Buffer.alloc(32, 7).toString("base64url")}`;
   const realtime = createRealtime({ secret, db: "fixture", adapter });
   const query = db.select({ id: messages.id, body: messages.body }).from(messages);
   const sealed = await realtime.seal({ query });
-  type Row = NonNullable<typeof sealed.__row>;
+  type Row = NonNullable<typeof sealed.__row>["__type"];
   type Exact = Row extends { id: number; body: string }
     ? { id: number; body: string } extends Row
       ? true
@@ -107,7 +107,7 @@ test("SDK seal preserves RC.4 inferred row type without casts or rawSql", async 
   assert.equal(exact, true);
   assert.equal(sealed.capability.split(".").length, 5);
   const row: Row = { id: 1, body: "hello" };
-  // @ts-expect-error RC.4 number inference must not become unknown/any.
+  // @ts-expect-error RC.5 number inference must not become unknown/any.
   const invalidRow: Row = { id: "wrong", body: "hello" };
   assert.equal(row.id, 1);
   void invalidRow;
@@ -120,7 +120,7 @@ test("Drizzle-compatible timestamp parser retains UTC Date semantics", () => {
   assert.throws(() => parse("2026-02-30 00:00:00"), /Invalid PostgreSQL timestamp/);
 });
 
-test("RC.4 native arrays retain PostgreSQL escaping and NULL semantics", () => {
+test("RC.5 native arrays retain PostgreSQL escaping and NULL semantics", () => {
   const query = db
     .select({ id: messages.id })
     .from(messages)
@@ -141,7 +141,7 @@ test("RC.4 native arrays retain PostgreSQL escaping and NULL semantics", () => {
   assert.equal(adapter.prepare(nested).parameters[0]?.value, "{{1,NULL},{2,3}}");
 });
 
-test("RC.4 JSON arrays use their column encoder, not SQL array encoding", () => {
+test("RC.5 JSON arrays use their column encoder, not SQL array encoding", () => {
   const table = pgTable("json_values", { value: jsonb() });
   const query = db
     .select({ value: table.value })
