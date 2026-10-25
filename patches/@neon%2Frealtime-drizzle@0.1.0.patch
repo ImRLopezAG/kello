@@ -28,7 +28,7 @@
    "peerDependencies": {
      "@neon/realtime": "^0.1.0",
 -    "drizzle-orm": ">=0.45.2 <0.46.0"
-+    "drizzle-orm": ">=0.45.2 <0.46.0 || 1.0.0-rc.4"
++    "drizzle-orm": ">=0.45.2 <0.46.0 || 1.0.0-rc.5"
    },
    "peerDependenciesMeta": {
      "drizzle-orm": {

@@ -1,0 +1,88 @@
+diff --git a/api-postgres.js b/api-postgres.js
+--- a/api-postgres.js
++++ b/api-postgres.js
+@@ -143887,6 +143887,23 @@
+ 		return sqlStatements;
+ 	});
+ };
++const inspectSchema = async (drizzleInstance, schemaFilters) => {
++ if (!schemaFilters.length) throw new Error("Introspection requires explicit schema filters");
++ const { prepareEntityFilter } = await Promise.resolve().then(() => (init_pull_utils(), pull_utils_exports));
++ const { fromDatabaseForDrizzle } = await Promise.resolve().then(() => (init_introspect(), introspect_exports));
++ const { sql } = require("drizzle-orm");
++ let pending = Promise.resolve();
++ const db = { query: (query, _params) => {
++  const next = pending.then(async () => (await drizzleInstance.execute(sql.raw(query))).rows);
++  pending = next.then(() => {}, () => {});
++  return next;
++ } };
++ const filter = prepareEntityFilter("postgresql", { schemas: schemaFilters, tables: [], extensions: [], entities: void 0 }, []);
++ const previous = await fromDatabaseForDrizzle(db, filter, () => {}, { schema: "drizzle", table: "__drizzle_migrations" });
++ const { ddl, errors } = interimToDDL(previous);
++ if (errors.length) throw new Error("PostgreSQL introspection produced unsupported metadata");
++ return schemaState("00000000-0000-0000-0000-000000000000", [], ddl.entities.list());
++};
+ const pushSchema = async (imports, drizzleInstance, entitiesConfig, migrationsConfig, options) => {
+ 	const { prepareEntityFilter } = await Promise.resolve().then(() => (init_pull_utils(), pull_utils_exports));
+ 	const { resolver } = await Promise.resolve().then(() => (init_prompts(), prompts_exports));
+@@ -144002,3 +144019,5 @@
+ exports.reconstruct = reconstruct;
+ exports.startStudioServer = startStudioServer;
+ exports.up = up;
++
++exports.inspectSchema = inspectSchema;
+diff --git a/api-postgres.mjs b/api-postgres.mjs
+--- a/api-postgres.mjs
++++ b/api-postgres.mjs
+@@ -143870,6 +143870,23 @@
+ 		return sqlStatements;
+ 	});
+ };
++const inspectSchema = async (drizzleInstance, schemaFilters) => {
++ if (!schemaFilters.length) throw new Error("Introspection requires explicit schema filters");
++ const { prepareEntityFilter } = await Promise.resolve().then(() => (init_pull_utils(), pull_utils_exports));
++ const { fromDatabaseForDrizzle } = await Promise.resolve().then(() => (init_introspect(), introspect_exports));
++ const { sql } = await import("drizzle-orm");
++ let pending = Promise.resolve();
++ const db = { query: (query, _params) => {
++  const next = pending.then(async () => (await drizzleInstance.execute(sql.raw(query))).rows);
++  pending = next.then(() => {}, () => {});
++  return next;
++ } };
++ const filter = prepareEntityFilter("postgresql", { schemas: schemaFilters, tables: [], extensions: [], entities: void 0 }, []);
++ const previous = await fromDatabaseForDrizzle(db, filter, () => {}, { schema: "drizzle", table: "__drizzle_migrations" });
++ const { ddl, errors } = interimToDDL(previous);
++ if (errors.length) throw new Error("PostgreSQL introspection produced unsupported metadata");
++ return schemaState("00000000-0000-0000-0000-000000000000", [], ddl.entities.list());
++};
+ const pushSchema = async (imports, drizzleInstance, entitiesConfig, migrationsConfig, options) => {
+ 	const { prepareEntityFilter } = await Promise.resolve().then(() => (init_pull_utils(), pull_utils_exports));
+ 	const { resolver } = await Promise.resolve().then(() => (init_prompts(), prompts_exports));
+@@ -143979,4 +143996,4 @@
+ 	return schemaState(id, migrations.snapshots.get(id).prevIds, state.entities.list());
+ };
+ //#endregion
+-export { generateDrizzleJson, generateMigration, pushSchema, reconstruct, startStudioServer, up };
++export { inspectSchema, generateDrizzleJson, generateMigration, pushSchema, reconstruct, startStudioServer, up };
+diff --git a/api-postgres.d.ts b/api-postgres.d.ts
+--- a/api-postgres.d.ts
++++ b/api-postgres.d.ts
+@@ -1,3 +1,4 @@
+ import { n as Hint, r as MissingHint, t as MissingHintsError } from "./errors-CItim3Z8.js";
+ import { a as startStudioServer, i as reconstruct, n as generateMigration, o as up, r as pushSchema, t as generateDrizzleJson } from "./api-postgres-BmtrWN8f.js";
+-export { type Hint, type MissingHint, type MissingHintsError, generateDrizzleJson, generateMigration, pushSchema, reconstruct, startStudioServer, up };
+\ No newline at end of file
++declare const inspectSchema: (database: import("drizzle-orm/pg-core/async").PgAsyncDatabase<any>, schemaFilters: string[]) => ReturnType<typeof generateDrizzleJson>;
++export { inspectSchema, type Hint, type MissingHint, type MissingHintsError, generateDrizzleJson, generateMigration, pushSchema, reconstruct, startStudioServer, up };
+\ No newline at end of file
+diff --git a/api-postgres.d.mts b/api-postgres.d.mts
+--- a/api-postgres.d.mts
++++ b/api-postgres.d.mts
+@@ -1,3 +1,4 @@
+ import { n as Hint, r as MissingHint, t as MissingHintsError } from "./errors-qAgobqTQ.mjs";
+ import { a as startStudioServer, i as reconstruct, n as generateMigration, o as up, r as pushSchema, t as generateDrizzleJson } from "./api-postgres-BfZxXto3.mjs";
+-export { type Hint, type MissingHint, type MissingHintsError, generateDrizzleJson, generateMigration, pushSchema, reconstruct, startStudioServer, up };
+\ No newline at end of file
++declare const inspectSchema: (database: import("drizzle-orm/pg-core/async").PgAsyncDatabase<any>, schemaFilters: string[]) => ReturnType<typeof generateDrizzleJson>;
++export { inspectSchema, type Hint, type MissingHint, type MissingHintsError, generateDrizzleJson, generateMigration, pushSchema, reconstruct, startStudioServer, up };
+\ No newline at end of file

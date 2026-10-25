@@ -5,11 +5,11 @@
   "description": "DB-free research example for wrapping the official Neon Realtime SDK. Not a product package.",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "bun check --no-script -p tsconfig.json"
   },
   "devDependencies": {
     "@kello/ts-config": "workspace:*",
-    "@neon/realtime": "0.1.0",
+    "@neon/realtime": "0.1.2",
     "@neon/realtime-drizzle": "0.1.0",
     "@neon/realtime-react": "0.1.0",
     "@neon/realtime-tanstack": "0.1.0",
@@ -17,7 +17,7 @@
     "@tanstack/db": "0.9.2",
     "@types/node": "24.19.0",
     "@types/react": "19.3.0",
-    "drizzle-orm": "1.0.0-rc.4",
+    "drizzle-orm": "1.0.0-rc.5",
     "react": "19.3.0",
     "typescript": "7.0.2"
   }

@@ -1,5 +1,5 @@
-import type { AnyRelations, TableRelationalConfig, SQL } from "drizzle-orm";
-import { One, Relation, is, relationToSQL } from "drizzle-orm";
+import type { AnyRelations, TableRelationalConfig } from "drizzle-orm";
+import { One, Relation, SQL, is, relationToSQL } from "drizzle-orm";
 import { PgDialect, alias, PgTable } from "drizzle-orm/pg-core";
 import type { StandardSchemaV1, StandardJSONSchemaV1 } from "@standard-schema/spec";
 import { createHash } from "node:crypto";
@@ -222,9 +222,9 @@ export function createSearchValidators<Schema extends SearchSchema, Graph extend
                 type: relation.relationType,
                 optional: is(relation, One) && relation.optional,
                 alias: relation.alias,
-                reversed: relation.isReversed,
-                filter: joins.filter && dialect.sqlToQuery(joins.filter),
-                join: joins.joinCondition && dialect.sqlToQuery(joins.joinCondition),
+                reversed: relation.isFilterReversed,
+                filter: joins.filter.length ? dialect.sqlToQuery(new SQL(joins.filter)) : undefined,
+                join: joins.joinCondition && dialect.sqlToQuery(new SQL(joins.joinCondition)),
               },
             ];
           }),

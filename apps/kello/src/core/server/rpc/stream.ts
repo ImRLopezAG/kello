@@ -1,4 +1,4 @@
-import { getAsyncIteratorObjectSchemaDetails } from "@orpc/contract";
+import { getAsyncIteratorObjectSchemasDetails } from "@orpc/contract";
 import type { AnyProcedure } from "@orpc/server";
 import { isAsyncIteratorObject, wrapAsyncIterator } from "@orpc/shared";
 import * as v from "valibot";
@@ -20,7 +20,7 @@ export const rpcOutput = v.union([
 
 export function isStreamingProcedure(procedure: AnyProcedure): boolean {
   return (
-    procedure["~orpc"].outputSchemas?.some((schema) => getAsyncIteratorObjectSchemaDetails(schema) !== undefined) ??
+    procedure["~orpc"].outputSchemas?.some((schema) => getAsyncIteratorObjectSchemasDetails([schema]) !== undefined) ??
     false
   );
 }

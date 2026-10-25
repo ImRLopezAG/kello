@@ -48,9 +48,9 @@ export const rpcProtocolVersion = "loom-orpc-2";
 
 /** Encoding belongs to oRPC; validate before a transaction commits. */
 export function serializeRpcValue(value: RpcValue) {
-  return serializer.serialize(v.parse(rpcValue, value));
+  return serializer.serializeJson(v.parse(rpcValue, value));
 }
 
 export function deserializeRpcValue(value: ReturnType<typeof serializeRpcValue>): RpcValue {
-  return v.parse(rpcValue, serializer.deserialize(value));
+  return v.parse(rpcValue, serializer.deserializeJson(value));
 }

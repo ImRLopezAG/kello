@@ -49,7 +49,9 @@ const status = os.files.status.handler(
     if (!file) throw new ORPCError("FORBIDDEN");
     if (!file.jobId) return null;
     // This example uses the default metadata namespace from its independent config.
-    const result = await db.execute(sql`SELECT state, attempts FROM loom_meta.jobs WHERE id = ${file.jobId}::uuid`);
+    const result = await db.execute<v.InferOutput<typeof jobStatus>>(
+      sql`SELECT state, attempts FROM loom_meta.jobs WHERE id = ${file.jobId}::uuid`,
+    );
     const [job] = v.parse(v.array(jobStatus), result.rows);
     return job ?? null;
   },

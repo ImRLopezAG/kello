@@ -28,7 +28,7 @@ describe("Drizzle programmatic migration compatibility", () => {
       },
       before.id,
     );
-    await assert.rejects(generateMigration(before, after), /Unresolved migration hints/);
+    await assert.rejects(generateMigration(before, after), /Schema changes require hints/);
   });
 
   test("rejects an ambiguous column rename before returning SQL", async () => {
@@ -41,7 +41,7 @@ describe("Drizzle programmatic migration compatibility", () => {
       },
       before.id,
     );
-    await assert.rejects(generateMigration(before, after), /Unresolved migration hints/);
+    await assert.rejects(generateMigration(before, after), /Schema changes require hints/);
   });
 
   test("generates an explicitly mapped column rename without dropping data", async () => {
@@ -54,9 +54,9 @@ describe("Drizzle programmatic migration compatibility", () => {
       },
       before.id,
     );
-    const statements = await generateMigration(before, after, [
-      { type: "rename", kind: "column", from: ["public", "tasks", "title"], to: ["public", "tasks", "name"] },
-    ]);
+    const statements = await generateMigration(before, after, {
+      hints: [{ type: "rename", kind: "column", from: ["public", "tasks", "title"], to: ["public", "tasks", "name"] }],
+    });
     expect(statements.join("\n")).toContain('RENAME COLUMN "title" TO "name"');
     expect(statements.join("\n")).not.toContain("DROP");
   });
@@ -67,15 +67,15 @@ describe("Drizzle programmatic migration compatibility", () => {
       { workspaces: pgTable("workspaces", { id: integer().primaryKey() }) },
       before.id,
     );
-    const statements = await generateMigration(before, after, [
-      { type: "rename", kind: "table", from: ["public", "projects"], to: ["public", "workspaces"] },
-    ]);
+    const statements = await generateMigration(before, after, {
+      hints: [{ type: "rename", kind: "table", from: ["public", "projects"], to: ["public", "workspaces"] }],
+    });
     expect(statements.join("\n")).toContain('RENAME TO "workspaces"');
     expect(statements.join("\n")).not.toContain("DROP");
     await assert.rejects(
-      generateMigration(before, after, [
-        { type: "rename", kind: "table", from: ["public", "missing"], to: ["public", "workspaces"] },
-      ]),
+      generateMigration(before, after, {
+        hints: [{ type: "rename", kind: "table", from: ["public", "missing"], to: ["public", "workspaces"] }],
+      }),
       /doesn't match any deleted table/,
     );
   });

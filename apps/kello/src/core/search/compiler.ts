@@ -1,7 +1,6 @@
 import {
   and,
   or,
-  not,
   eq,
   ne,
   gt,
@@ -36,6 +35,7 @@ export interface CompiledSearch {
   readonly where: (table: TableRelationalConfig["table"]) => SQL;
 }
 export interface SearchQueryConfig {
+  readonly strategy: "basic";
   readonly columns: Record<string, boolean>;
   readonly with: Record<string, SearchQueryConfig>;
   readonly where: { readonly RAW: (table: TableRelationalConfig["table"]) => SQL };
@@ -170,7 +170,7 @@ export function compileSearch(
           );
         } else if (name === "NOT") {
           // Authorization stays outside NOT, which negates only client membership.
-          predicates.push(not(client(node, source, record(condition))));
+          predicates.push(sql`not (${client(node, source, record(condition))})`);
         } else if (name === "relations") {
           for (const [relationName, conditions] of Object.entries(record(condition))) {
             const relation = configNode(node).relations[relationName];
@@ -181,16 +181,19 @@ export function compileSearch(
               const through = relation.throughTable ? junction(node, relation) : undefined;
               const throughTable = through ? alias(through.table, `j${++sequence}`) : undefined;
               const joins = relationToSQL(relation, source, target, throughTable);
+              if (throughTable && !joins.joinCondition?.length) {
+                throw new Error("Search junction requires a join condition");
+              }
               const match = combine([
-                ...(joins.filter ? [joins.filter] : []),
+                ...(joins.filter.length ? [new SQL(joins.filter)] : []),
                 visit(child, target, record(childFilter)),
                 ...(through && throughTable ? [scope(through.policy, throughTable, identity)] : []),
               ]);
               const join = throughTable
-                ? sql`inner join ${getTableAsAliasSQL(throughTable)} on ${joins.joinCondition}`
+                ? sql`inner join ${new SQL(getTableAsAliasSQL(throughTable))} on ${new SQL(joins.joinCondition ?? [])}`
                 : sql``;
-              const exists = sql`exists (select 1 from ${getTableAsAliasSQL(target)} ${join} where ${match})`;
-              predicates.push(mode === "none" || mode === "isNot" ? not(exists) : exists);
+              const exists = sql`exists (select 1 from ${new SQL(getTableAsAliasSQL(target))} ${join} where ${match})`;
+              predicates.push(mode === "none" || mode === "isNot" ? sql`not (${exists})` : exists);
             }
           }
         } else {
@@ -220,6 +223,9 @@ export function compileSearch(
     }
     if (incoming?.relation.throughTable) junction(incoming.node, incoming.relation);
     return {
+      // Junction authorization references the joined relation alias. Keep it in scope
+      // rather than moving the predicate into RC5's pre-join optimized subquery.
+      strategy: "basic",
       columns: Object.fromEntries(selectedColumns(node.public, selection).map((name) => [name, true])),
       with: children,
       where: {

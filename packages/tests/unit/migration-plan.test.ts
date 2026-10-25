@@ -21,7 +21,7 @@ test("migration planning is deterministic and separates safe additions from requ
 test("migration planning refuses rename guesses and marks explicit renames for review", async () => {
   const before = await createSnapshot(defineSchema((f) => ({ tasks: { title: f.text() } })));
   const renamed = defineSchema((f) => ({ tasks: { name: f.text() } }));
-  await expect(planMigration(before, renamed)).rejects.toThrow("Unresolved migration hints");
+  await expect(planMigration(before, renamed)).rejects.toMatchObject({ code: "missing_hints" });
   const plan = await planMigration(before, renamed, [
     { type: "rename", kind: "column", from: ["public", "tasks", "title"], to: ["public", "tasks", "name"] },
   ]);

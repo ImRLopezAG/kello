@@ -176,6 +176,40 @@ describe("native project procedures", () => {
     expect(deserializeRpcValue(serializeRpcValue(value))).toEqual(value);
   });
 
+  test("beta.46 preserves persisted beta.43 mutation result bytes", () => {
+    const value = {
+      date: new Date("2026-09-24T00:00:00Z"),
+      count: 99n,
+      empty: null,
+      absent: undefined,
+      url: new URL("https://example.com/"),
+      set: new Set(["a"]),
+      map: new Map([["a", 1]]),
+    };
+    // Captured with beta.43 before upgrading; persisted replay rows must remain readable.
+    const previous = {
+      json: {
+        date: "2026-09-24T00:00:00.000Z",
+        count: "99",
+        empty: null,
+        absent: null,
+        url: "https://example.com/",
+        set: ["a"],
+        map: [["a", 1]],
+      },
+      meta: [
+        ["date", "date"],
+        ["bigint", "count"],
+        ["undefined", "absent"],
+        ["url", "url"],
+        ["set", "set"],
+        ["map", "map"],
+      ],
+    };
+    expect(JSON.stringify(serializeRpcValue(value))).toBe(JSON.stringify(previous));
+    expect(deserializeRpcValue(JSON.parse(JSON.stringify(previous)))).toEqual(value);
+  });
+
   test("finite outputs reject values that JSON would silently discard", async () => {
     interface Cyclic {
       self?: Cyclic;

@@ -53,7 +53,7 @@ export function createDurableJobQueue<Call extends { readonly version: string }>
   async function fenced(lease: JobLease, update: SQL, condition: SQL = sql`TRUE`): Promise<boolean> {
     const captured = v.parse(jobLease, { id: lease.id, owner: lease.owner, token: lease.token });
     // Lock first, then check the clock: time spent waiting for a row lock cannot revive an expired lease.
-    const result = await db.execute(sql`
+    const result = await db.execute<{ id: string }>(sql`
       WITH locked AS MATERIALIZED (
         SELECT id, state, lease_owner, fencing_token, lease_expires_at, cancel_requested
         FROM ${table} WHERE deployment = ${deployment} AND id = ${captured.id}::uuid FOR UPDATE
@@ -115,7 +115,7 @@ export function createDurableJobQueue<Call extends { readonly version: string }>
       v.parse(leaseOwner, owner);
       v.parse(leaseDuration, seconds);
       // Reap at most 100 abandoned terminal attempts per call; no unbounded sweep or process-local recovery state.
-      const reaped = await db.execute(sql`
+      const reaped = await db.execute<{ id: string }>(sql`
         WITH expired AS (
           SELECT id FROM ${table} WHERE deployment = ${deployment} AND COALESCE(claim_version, call->>'version') = ${version} AND state = 'running'
             AND lease_expires_at <= clock_timestamp() AND (cancel_requested OR attempts >= max_attempts)
@@ -128,7 +128,9 @@ export function createDurableJobQueue<Call extends { readonly version: string }>
         RETURNING job.id
       `);
       if (reaped.rows.length > 0) publishRuntimeMetric({ type: "job.lease.reaped", count: reaped.rows.length });
-      const result = await db.execute(sql`
+      const result = await db.execute<
+        DurableJob<JsonValue> & { ageMs: number; dueLagMs: number; recovered: boolean }
+      >(sql`
         WITH authority AS MATERIALIZED (
           SELECT set_config('loom.worker_version', ${version}, true)
         ), candidate AS (
@@ -204,7 +206,7 @@ export function createDurableJobQueue<Call extends { readonly version: string }>
     },
     async inspect(id: string): Promise<JobRecord | null> {
       v.parse(jobId, id);
-      const result = await db.execute(sql`
+      const result = await db.execute<JobRecord>(sql`
         SELECT id, fencing_token::text AS "fencingToken", state, attempts, cancel_requested AS "cancelRequested", error_code AS "errorCode", result
         FROM ${table} WHERE deployment = ${deployment} AND id = ${id}::uuid
       `);
@@ -215,7 +217,7 @@ export function createDurableJobQueue<Call extends { readonly version: string }>
       v.parse(jobId, id);
       v.parse(jobRecord.entries.fencingToken, expectedToken);
       const due = v.parse(v.date(), dueAt).toISOString();
-      const result = await db.execute(sql`
+      const result = await db.execute<{ job_id: string }>(sql`
         WITH locked AS MATERIALIZED (
           SELECT id, fencing_token, attempts, error_code, result FROM ${table}
           WHERE deployment = ${deployment} AND id = ${id}::uuid FOR UPDATE

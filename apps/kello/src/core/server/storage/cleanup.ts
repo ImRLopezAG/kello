@@ -41,7 +41,9 @@ export function createStorageCleanup(options: StorageCleanupOptions) {
         const result = await db.transaction(async (tx) => {
           await lockRuntimeActivation(tx, metadataNamespace);
           await active(current, tx);
-          const selected = await tx.execute(sql`SELECT id, upload, state FROM ${table}
+          const selected = await tx.execute<
+            v.InferOutput<typeof rowValidator>
+          >(sql`SELECT id, upload, state FROM ${table}
             WHERE ${scope} AND upload->>'bucket' IN (${sql.join(
               buckets.map((bucket) => sql`${bucket}`),
               sql`, `,

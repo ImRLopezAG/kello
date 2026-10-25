@@ -66,7 +66,9 @@ const probe = os.input(v.strictObject({ nonce: v.pipe(v.string(), v.uuid()) })).
     const completed = await worker.run(1);
     assert.deepEqual(completed, { claimed: 1, completed: 1, failed: 0, leaseLost: 0 });
     assert.equal((await queue.inspect(id))?.state, "succeeded");
-    assert.deepEqual((await connection.db.execute(sql`SELECT value FROM ${table}`)).rows, [{ value: 7 }]);
+    assert.deepEqual((await connection.db.execute<{ value: number }>(sql`SELECT value FROM ${table}`)).rows, [
+      { value: 7 },
+    ]);
     return { succeeded: true, value: 7 };
   } finally {
     try {

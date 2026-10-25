@@ -1,4 +1,4 @@
-import { getAsyncIteratorObjectSchemaDetails } from "@orpc/contract";
+import { getAsyncIteratorObjectSchemasDetails } from "@orpc/contract";
 import type { AnySchema, AnyProcedureContract } from "@orpc/contract";
 import type { AnyRelations, TableRelationalConfig, SQL } from "drizzle-orm";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
@@ -103,8 +103,8 @@ export function searchContractDescriptor(
   const outputs = procedure["~orpc"].outputSchemas ?? [];
   const inputMetadata = inputs.map(searchSchemaMetadata).filter((value) => value !== undefined);
   const outputMetadata = outputs.map((schema) => {
-    const iterator = getAsyncIteratorObjectSchemaDetails(schema);
-    return { metadata: searchSchemaMetadata(iterator?.yieldSchema ?? schema), streaming: iterator !== undefined };
+    const iterator = getAsyncIteratorObjectSchemasDetails([schema]);
+    return { metadata: searchSchemaMetadata(iterator?.yieldSchemas[0] ?? schema), streaming: iterator !== undefined };
   });
   if (!inputMetadata.length && !outputMetadata.some(({ metadata }) => metadata)) return undefined;
   const input = inputMetadata[0];

@@ -1,3 +1,4 @@
+import { fromDrizzleSnapshot } from "../../../apps/kello/src/tooling/migrations/snapshot";
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -255,10 +256,10 @@ test("seven pre-U1 format-2 artifacts retain bytes and historical safety under c
       ["method", true, "english", "B", true, false, "btree"],
     ] as const) {
       const schema = fixture(options.namespace, { gin, config, weight, bodyOnly, historicalSpelling, method });
-      const native = await generateDrizzleJson(
-        { ...schema.tables, __loomNamespace: pgSchema(options.namespace) },
-        before.id,
-        [options.namespace],
+      const native = fromDrizzleSnapshot(
+        await generateDrizzleJson({ ...schema.tables, __loomNamespace: pgSchema(options.namespace) }, before.id, [
+          options.namespace,
+        ]),
       );
       const snapshot = { ...native, id: snapshotHash(native), prevIds: [before.id] };
       const automatic = { automatic: true, transactional: true, issues: [] } as const;

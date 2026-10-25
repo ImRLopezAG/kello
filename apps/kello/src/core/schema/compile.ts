@@ -51,6 +51,7 @@ export type NativeTables<Entities extends Record<string, EntityDeclaration>> = {
     schema: string | undefined;
     columns: PgBuildColumns<Name, Columns<Entities[Name], Name>>;
     dialect: "pg";
+    isAlias: false;
   }> & {
     /** Type-only document metadata follows the table through native relation graphs; runtime metadata lives on the schema. */
     readonly _: EntityFullText<Entities[Name]>;

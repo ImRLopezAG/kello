@@ -27,6 +27,9 @@ const namespace = `live_${run.replaceAll("-", "")}`;
 const metadataNamespace = `loom_${namespace}`;
 const root = await mkdtemp(join(tmpdir(), "loom-live-neon-"));
 const cleanupErrors: string[] = [];
+const rpcStatuses: number[] = [];
+const websocketStatuses: number[] = [];
+const pageErrorNames: string[] = [];
 const report = {
   run,
   namespace,
@@ -34,8 +37,14 @@ const report = {
   issuance: 0,
   status: "starting",
   browserVerified: false,
+  browserStage: "not-started",
+  browserStatus: "unknown",
+  rpcStatuses,
+  websocketStatuses,
+  pageErrorNames,
   schemaDropped: false,
   poolClosed: false,
+  originsRestored: false,
   cleanupErrors,
 };
 const reportFile = join(tmpdir(), `loom-live-functions-${run}.json`);
@@ -44,6 +53,7 @@ let browser: Browser | undefined;
 let connection: Awaited<ReturnType<typeof connectDatabase>> | undefined;
 let server: ReturnType<typeof Bun.serve> | undefined;
 let allocated = false;
+let restoreOrigins: (() => Promise<void>) | undefined;
 let stage = "admission";
 let finish = () => {};
 const finished = new Promise<void>((resolve) => {
@@ -257,6 +267,26 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
     resolveLogin: async ({ credential }) => loginStore.get(credential),
     liveQueries: prepared.liveQueries,
   });
+  // Admit only this disposable browser origin and restore the prior provider setting.
+  const currentRealtime = await control.realtime.get({ projectId, branchId });
+  assert(currentRealtime.enabled && !currentRealtime.pending);
+  const originalOrigins = currentRealtime.allowed_origins ?? [];
+  const admittedOrigins = [...new Set([...originalOrigins, server.url.origin])];
+  restoreOrigins = async () => {
+    const current = await control.realtime.get({ projectId, branchId });
+    assert.deepEqual(current.allowed_origins ?? [], admittedOrigins);
+    await control.realtime.enable(
+      { projectId, branchId, allowed_origins: originalOrigins },
+      { waitForReadiness: true, wait: { timeoutMs: 60_000 } },
+    );
+    const restored = await control.realtime.get({ projectId, branchId });
+    assert.deepEqual(restored.allowed_origins ?? [], originalOrigins);
+    report.originsRestored = true;
+  };
+  await control.realtime.enable(
+    { projectId, branchId, allowed_origins: admittedOrigins },
+    { waitForReadiness: true, wait: { timeoutMs: 60_000 } },
+  );
   report.status = "ready";
   await writeFile(reportFile, JSON.stringify(report, null, 2), { mode: 0o600 });
   console.log(JSON.stringify({ status: "READY", port: server.port, run, reportFile }));
@@ -265,8 +295,29 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.setDefaultTimeout(30_000);
+    const network = await page.context().newCDPSession(page);
+    await network.send("Network.enable");
+    network.on("Network.webSocketHandshakeResponseReceived", ({ response }) => {
+      if (report.websocketStatuses.length < 16) report.websocketStatuses.push(response.status);
+    });
+    page.on("response", (response) => {
+      if (new URL(response.url()).pathname.startsWith("/api/kello/rpc") && report.rpcStatuses.length < 16)
+        report.rpcStatuses.push(response.status());
+    });
+    page.on("pageerror", (error) => {
+      if (report.pageErrorNames.length < 8)
+        report.pageErrorNames.push(
+          ["Error", "TypeError", "RangeError", "ReferenceError", "SyntaxError", "URIError", "EvalError"].includes(
+            error.name,
+          )
+            ? error.name
+            : "Unknown",
+        );
+    });
+    report.browserStage = "initial-live";
     await page.goto(server.url.href);
     await page.waitForFunction(() => document.querySelector("#status")?.textContent === "live");
+    report.browserStage = "initial-rows";
     async function rows(title: string) {
       await page.waitForFunction((expected) => {
         const text = document.querySelector("#rows")?.textContent;
@@ -276,6 +327,7 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
       }, title);
     }
     await rows("alpha");
+    report.browserStage = "update-confirmation";
     await page.getByRole("button", { name: "Update and confirm", exact: true }).click();
     await page.waitForFunction(() => document.querySelector("#result")?.textContent === "confirmed");
     await rows("alpha-updated");
@@ -297,6 +349,7 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
     await page.waitForFunction(() => document.querySelector("#status")?.textContent === "closed");
     assert.equal(await page.locator("#rows").textContent(), "");
     assert.equal(await page.locator("#result").textContent(), "disposed");
+    report.browserStage = "complete";
     report.browserVerified = true;
   } else {
     const timeout = setTimeout(finish, 240_000);
@@ -306,6 +359,15 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
   report.status = "closed";
 } catch (cause) {
   report.status = "failed";
+  if (browser) {
+    const value = await browser
+      .contexts()[0]
+      ?.pages()[0]
+      ?.locator("#status")
+      .textContent()
+      .catch(() => undefined);
+    if (value && ["connecting", "live", "stale", "closed", "error"].includes(value)) report.browserStatus = value;
+  }
   // Fixed categories only: provider or SQL exceptions may contain credentials.
   console.error(
     JSON.stringify({
@@ -335,6 +397,11 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
     await server?.stop(true);
   } catch {
     cleanupErrors.push("server");
+  }
+  try {
+    await restoreOrigins?.();
+  } catch {
+    cleanupErrors.push("realtime-origins");
   }
   if (connection) {
     if (allocated) {

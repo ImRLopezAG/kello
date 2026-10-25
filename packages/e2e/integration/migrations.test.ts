@@ -50,7 +50,7 @@ test("programmatic Drizzle rename resolution does not write progress to stdout",
     import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
     const before = await generateDrizzleJson({ tasks: pgTable("tasks", { title: text() }) });
     const after = await generateDrizzleJson({ tasks: pgTable("tasks", { name: text() }) }, before.id);
-    await generateMigration(before, after, [{type:"rename",kind:"column",from:["public","tasks","title"],to:["public","tasks","name"]}]);
+    await generateMigration(before, after, { hints: [{type:"rename",kind:"column",from:["public","tasks","title"],to:["public","tasks","name"]}] });
     console.log("complete");`;
   const child = Bun.spawn([process.execPath, "--eval", source], {
     cwd: fileURLToPath(new URL("..", import.meta.url)),

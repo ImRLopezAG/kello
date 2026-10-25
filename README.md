@@ -50,7 +50,7 @@ Here `tasks.list` is an explicitly streaming contract. The [React guide](apps/do
 
 ## Try it locally
 
-Use Bun 1.4.2 and Node 24:
+Use Bun 1.4.4 and Node 24:
 
 ```sh
 git clone https://github.com/ImRLopezAG/kello.git kello

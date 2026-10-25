@@ -37,7 +37,7 @@ export function projectTemplates(name: string) {
           dependencies: {
             kello: "0.0.0",
             valibot: "1.5.0",
-            "drizzle-orm": "1.0.0-rc.4",
+            "drizzle-orm": "1.0.0-rc.5",
           },
           devDependencies: { typescript: "7.0.2" },
         },

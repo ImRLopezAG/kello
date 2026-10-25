@@ -23,6 +23,11 @@ export async function verifyCloudSchemaExpansion(
   verifyRetainedRuntime: () => Promise<void>,
 ) {
   const project = await loadProject(root);
+  const { namespace, metadataNamespace } = project.config.database;
+  assert.match(namespace, /^[a-z_][a-z0-9_]*$/);
+  assert.match(metadataNamespace, /^loom_[a-z0-9_]+$/);
+  const tasksTable = `"${namespace}".tasks`;
+  const historyTable = `"${metadataNamespace}".migration_history`;
   const settings = project.config.deployment;
   assert(settings);
   const migrations = await readMigrations(root, project.config.database.migrations);
@@ -47,8 +52,8 @@ export async function verifyCloudSchemaExpansion(
   await writeFile(schemaPath, expanded);
   const migration = await generateRelease(root, "acceptance-note");
   assert(migration.plan.safety.automatic);
-  const history = (await admin.query("SELECT hash FROM loom_meta.migration_history ORDER BY ordinal")).rows;
-  const tasks = (await admin.query("SELECT _id,title,done FROM app.tasks ORDER BY _id")).rows;
+  const history = (await admin.query(`SELECT hash FROM ${historyTable} ORDER BY ordinal`)).rows;
+  const tasks = (await admin.query(`SELECT _id,title,done FROM ${tasksTable} ORDER BY _id`)).rows;
   assert(tasks.length > 0);
   const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
   assert(connectionString);
@@ -57,12 +62,13 @@ export async function verifyCloudSchemaExpansion(
       connectionString,
       root,
       runtimeRole: declaration.runtimeRole,
-      namespace: "app",
+      namespace,
+      metadataNamespace,
       migrations: project.config.database.migrations,
     }),
     /lacks compatibility/,
   );
-  assert.deepEqual((await admin.query("SELECT hash FROM loom_meta.migration_history ORDER BY ordinal")).rows, history);
+  assert.deepEqual((await admin.query(`SELECT hash FROM ${historyTable} ORDER BY ordinal`)).rows, history);
 
   // Old handlers use explicit projections and never depend on the new nullable column.
   // Retain their exact source version while declaring the reviewed migration range.
@@ -104,7 +110,7 @@ export async function verifyCloudSchemaExpansion(
   } finally {
     clearTimeout(timeout);
   }
-  assert.deepEqual((await admin.query("SELECT hash FROM loom_meta.migration_history ORDER BY ordinal")).rows, history);
+  assert.deepEqual((await admin.query(`SELECT hash FROM ${historyTable} ORDER BY ordinal`)).rows, history);
   await writeFile(schemaPath, expanded);
   const generated = await generateProject(root);
   assert.notEqual(generated.version, declaration.version);
@@ -112,17 +118,19 @@ export async function verifyCloudSchemaExpansion(
   assert.deepEqual(
     (
       await admin.query(
-        "SELECT data_type,is_nullable FROM information_schema.columns WHERE table_schema='app' AND table_name='tasks' AND column_name='acceptance_note'",
+        "SELECT data_type,is_nullable FROM information_schema.columns WHERE table_schema=$1 AND table_name='tasks' AND column_name='acceptance_note'",
+        [namespace],
       )
     ).rows,
     [{ data_type: "text", is_nullable: "YES" }],
   );
-  assert.deepEqual((await admin.query("SELECT _id,title,done FROM app.tasks ORDER BY _id")).rows, tasks);
+  assert.deepEqual((await admin.query(`SELECT _id,title,done FROM ${tasksTable} ORDER BY _id`)).rows, tasks);
   assert.equal(
-    (await admin.query("SELECT count(*)::integer AS count FROM app.tasks WHERE acceptance_note IS NULL")).rows[0].count,
+    (await admin.query(`SELECT count(*)::integer AS count FROM ${tasksTable} WHERE acceptance_note IS NULL`)).rows[0]
+      .count,
     tasks.length,
   );
-  assert.deepEqual((await admin.query("SELECT hash FROM loom_meta.migration_history ORDER BY ordinal")).rows, [
+  assert.deepEqual((await admin.query(`SELECT hash FROM ${historyTable} ORDER BY ordinal`)).rows, [
     ...history,
     { hash: migration.plan.hash },
   ]);

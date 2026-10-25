@@ -62,3 +62,15 @@ export const snapshotValidator = v.strictObject({
     ]),
   ),
 });
+
+/** RC5 emits v9 states. Kello keeps its persisted v8 storage contract and hash domain.
+ * Its restricted entity vocabulary is unchanged; validate the native envelope before
+ * conversion. This leaves committed plans, SQL, lineage and deployed ledger IDs intact.
+ */
+// This function is the schema-validation boundary for untrusted Kit output.
+// oxlint-disable-next-line anti-slop/no-unknown-parameters
+export function fromDrizzleSnapshot(input: unknown): v.InferOutput<typeof snapshotValidator> {
+  const { renames: _renames, ...entries } = snapshotValidator.entries;
+  const snapshot = v.parse(v.strictObject({ ...entries, version: v.literal("9") }), input);
+  return { ...snapshot, version: "8", renames: [] };
+}

@@ -259,7 +259,11 @@ describe("generated metadata guards across native option forms", () => {
     });
     const observer = new QueryObserver(
       cache,
-      rpc.watch.liveOptions({ input: { columns: { title: true } }, initialData: titlePage, enabled: false }),
+      rpc.watch.liveOptions({
+        input: { columns: { title: true } },
+        initialData: (): typeof titlePage | typeof donePage => titlePage,
+        enabled: false,
+      }),
     );
     const stop = observer.subscribe(() => {});
     try {

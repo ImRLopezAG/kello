@@ -252,11 +252,17 @@ try {
     assert.equal((await db.select().from(tasks).where(eq(tasks.id, "task")))[0]?.title, "committed");
   });
   await check("rollback stores neither domain change nor replay receipt", async () => {
-    const count = await db.execute(sql`SELECT count(*)::int AS n FROM ${sql.identifier(namespace)}.mutation_results`);
+    const count = await db.execute<{ n: number }>(
+      sql`SELECT count(*)::int AS n FROM ${sql.identifier(namespace)}.mutation_results`,
+    );
     await assert.rejects(mutate("rolledback", "rollback", { fail: true }));
     assert.equal((await db.select().from(tasks).where(eq(tasks.id, "task")))[0]?.title, "committed");
     assert.deepEqual(
-      (await db.execute(sql`SELECT count(*)::int AS n FROM ${sql.identifier(namespace)}.mutation_results`)).rows,
+      (
+        await db.execute<{ n: number }>(
+          sql`SELECT count(*)::int AS n FROM ${sql.identifier(namespace)}.mutation_results`,
+        )
+      ).rows,
       count.rows,
     );
   });
@@ -269,11 +275,17 @@ try {
   });
   await check("aborted current attempt rolls back and has no receipt", async () => {
     const abort = new AbortController();
-    const count = await db.execute(sql`SELECT count(*)::int AS n FROM ${sql.identifier(namespace)}.mutation_results`);
+    const count = await db.execute<{ n: number }>(
+      sql`SELECT count(*)::int AS n FROM ${sql.identifier(namespace)}.mutation_results`,
+    );
     await assert.rejects(mutate("aborted", "abort", { who: { ...alice, signal: abort.signal }, abort }));
     assert.equal((await db.select().from(tasks).where(eq(tasks.id, "task")))[0]?.title, "retried");
     assert.deepEqual(
-      (await db.execute(sql`SELECT count(*)::int AS n FROM ${sql.identifier(namespace)}.mutation_results`)).rows,
+      (
+        await db.execute<{ n: number }>(
+          sql`SELECT count(*)::int AS n FROM ${sql.identifier(namespace)}.mutation_results`,
+        )
+      ).rows,
       count.rows,
     );
   });

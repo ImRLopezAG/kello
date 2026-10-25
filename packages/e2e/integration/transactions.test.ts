@@ -53,7 +53,9 @@ test.skipIf(!connectionString)(
         message: "Transaction conflict",
       });
       expect(attempts).toBe(3);
-      expect((await connection.db.execute(sql`SELECT 1 AS healthy`)).rows).toEqual([{ healthy: 1 }]);
+      expect((await connection.db.execute<{ healthy: number }>(sql`SELECT 1 AS healthy`)).rows).toEqual([
+        { healthy: 1 },
+      ]);
     } finally {
       await connection.db.execute(sql`DROP SCHEMA ${sql.identifier(metadataNamespace)} CASCADE`);
       await connection.db.execute(sql`DROP ROLE ${sql.identifier(runtimeRole)}`);
@@ -123,7 +125,7 @@ test.skipIf(!connectionString)(
       await runFunctionTransaction(connection, "mutation", async (tx) => {
         attempts++;
         await tx.execute(sql`SELECT value FROM ${relation}`);
-        if (attempts === 1) await db.execute(sql`UPDATE ${relation} SET value = value + 1`);
+        if (attempts === 1) await db.execute<{ value: number }>(sql`UPDATE ${relation} SET value = value + 1`);
         await tx.execute(sql`UPDATE ${relation} SET value = value + 10`);
       });
       expect(attempts).toBe(2);
@@ -187,7 +189,7 @@ test.skipIf(!connectionString)(
       expect(metrics).toHaveLength(retriesBeforeDeadlock + deadlockAttempts - contenders.length);
       expect((await db.execute<{ value: number }>(sql`SELECT value FROM ${relation}`)).rows).toEqual([{ value: 16 }]);
       const escaped = await runFunctionTransaction(connection, "mutation", async (tx) => {
-        const deferred = tx.execute(sql`UPDATE ${relation} SET value = 999`);
+        const deferred = tx.execute<{ value: number }>(sql`UPDATE ${relation} SET value = 999`);
         const prepared = tx
           .select({ value: sql<number>`value` })
           .from(sql`${relation}`)
