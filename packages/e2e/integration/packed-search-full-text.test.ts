@@ -305,11 +305,11 @@ test("packed generated full-text search preserves native inference and public bo
           "@orpc/server": "2.0.0-beta.46",
           "@orpc/tanstack-query": "2.0.0-beta.46",
           "@tanstack/react-query": "5.104.3",
-          "drizzle-orm": "1.0.0-rc.4",
+          "drizzle-orm": "1.0.0-rc.5",
           valibot: "1.5.0",
           react: "19.3.0",
           "react-dom": "19.3.0",
-          effect: "4.0.5",
+          effect: "4.0.6",
         },
         devDependencies: {
           "vite-plus": "1.0.0",

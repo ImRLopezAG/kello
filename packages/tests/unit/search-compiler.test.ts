@@ -108,6 +108,7 @@ describe("authorized native search compilation", () => {
     );
     const query = db.query.tasks.findMany(compiled.config).toSQL();
     expect(query.sql).toContain("exists (select 1");
+    expect(query.sql).toContain('from "app"."labels" as "s1" inner join "app"."task_labels" as "j2" on ');
     expect(query.sql).toContain("not (exists");
     expect(query.sql).not.toContain("OR 1=1");
     expect(query.params).toContain("%\\%' OR 1=1 --\\_\\\\%");

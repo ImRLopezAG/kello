@@ -190,9 +190,9 @@ export function compileSearch(
                 ...(through && throughTable ? [scope(through.policy, throughTable, identity)] : []),
               ]);
               const join = throughTable
-                ? sql`inner join ${getTableAsAliasSQL(throughTable)} on ${new SQL(joins.joinCondition ?? [])}`
+                ? sql`inner join ${new SQL(getTableAsAliasSQL(throughTable))} on ${new SQL(joins.joinCondition ?? [])}`
                 : sql``;
-              const exists = sql`exists (select 1 from ${getTableAsAliasSQL(target)} ${join} where ${match})`;
+              const exists = sql`exists (select 1 from ${new SQL(getTableAsAliasSQL(target))} ${join} where ${match})`;
               predicates.push(mode === "none" || mode === "isNot" ? sql`not (${exists})` : exists);
             }
           }
