@@ -75,7 +75,7 @@ test("repeated mounts evaluate authored relations against independent instance t
   try {
     await initializeProject(root, "relations");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "zod", "drizzle-orm"])
+    for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -241,7 +241,7 @@ test.skipIf(!connectionString)(
     try {
       await initializeProject(root, "scopes");
       await mkdir(join(root, "node_modules"));
-      for (const name of ["kello", "valibot", "zod", "drizzle-orm"])
+      for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm"])
         await symlink(
           await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
           join(root, "node_modules", name),

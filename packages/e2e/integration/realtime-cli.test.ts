@@ -503,7 +503,7 @@ test("observed origins compare as normalized sets", async () => {
 
 test("SDK wait timeout resolves for reread while request timeout remains a fixed failure", async () => {
   // Resolve the SDK from its owning package; the e2e workspace does not declare it directly.
-  const sdk = await import(Bun.resolveSync("@neon/sdk", join(import.meta.dir, "../../../apps/kello")));
+  const sdk = await import(Bun.resolveSync("@neon/sdk", join(import.meta.dir, "../../../apps/kello-cli")));
   const wait = new sdk.NeonWaitTimeoutError(canary, { timeoutMs: 1, operations: [] });
   const request = new sdk.NeonRequestTimeoutError(canary, { timeoutMs: 1 });
   for (const cause of [wait, request]) {

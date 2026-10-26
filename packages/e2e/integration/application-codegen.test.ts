@@ -13,7 +13,7 @@ test("contract-first generation bootstraps typed builders and a native browser c
     await initializeProject(root, "application");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "@orpc/tanstack-query", "valibot", "zod", "drizzle-orm"]) {
+    for (const name of ["kello", "kello-cli", "@orpc/tanstack-query", "valibot", "zod", "drizzle-orm"]) {
       const workspace = name === "@orpc/tanstack-query" ? "e2e" : "tests";
       await symlink(
         await realpath(fileURLToPath(new URL(`../../${workspace}/node_modules/${name}`, import.meta.url))),

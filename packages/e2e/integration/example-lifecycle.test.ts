@@ -216,7 +216,7 @@ test.skipIf(!connectionString)(
         recursive: true,
       });
       await mkdir(join(root, "node_modules/@kello"), { recursive: true });
-      for (const name of ["kello", "@orpc/server", "valibot", "drizzle-orm"]) {
+      for (const name of ["kello", "kello-cli", "@orpc/server", "valibot", "drizzle-orm"]) {
         await mkdir(join(root, "node_modules", name, ".."), { recursive: true });
         await symlink(await realpath(join(source, "node_modules", name)), join(root, "node_modules", name));
       }

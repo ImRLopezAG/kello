@@ -18,9 +18,10 @@ const manifestSchema = v.object({
   devDependencies: v.record(v.string(), v.string()),
 });
 
-test("Frontend examples build as independent consumers of one packed Kello artifact", async () => {
+test("Frontend examples build as independent consumers of matching packed runtime and CLI artifacts", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-packed-frameworks-"));
   const archive = join(root, "kello.tgz");
+  const cliArchive = join(root, "kello-cli.tgz");
   const privateMarker = `server-secret-${crypto.randomUUID()}`;
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, {
@@ -46,6 +47,10 @@ test("Frontend examples build as independent consumers of one packed Kello artif
     await run(
       ["bun", "pm", "pack", "--filename", archive, "--ignore-scripts"],
       fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
+    );
+    await run(
+      ["bun", "pm", "pack", "--filename", cliArchive, "--ignore-scripts"],
+      fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
     );
     const digest = createHash("sha256")
       .update(await readFile(archive))
@@ -74,6 +79,7 @@ test("Frontend examples build as independent consumers of one packed Kello artif
       });
       const manifest = v.parse(manifestSchema, JSON.parse(await readFile(join(target, "package.json"), "utf8")));
       manifest.dependencies.kello = "file:../kello.tgz";
+      manifest.devDependencies["kello-cli"] = "file:../kello-cli.tgz";
       delete manifest.devDependencies["@kello/ts-config"];
       assert(
         !Object.values({ ...manifest.dependencies, ...manifest.devDependencies }).some((value) =>

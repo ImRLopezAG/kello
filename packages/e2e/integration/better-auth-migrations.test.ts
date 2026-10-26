@@ -18,7 +18,7 @@ test("explicit auth component mounts own native migrations and retain removed pl
   try {
     await initializeProject(root, "auth");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "zod", "drizzle-orm", "better-auth"])
+    for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm", "better-auth"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),

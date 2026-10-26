@@ -164,7 +164,7 @@ test("watching a consumer preserves generated contracts through a failed edit an
   const root = await mkdtemp(join(tmpdir(), "loom-watch-consumer-"));
   await initializeProject(root, "tasks");
   await mkdir(join(root, "node_modules/@kello"), { recursive: true });
-  for (const name of ["kello", "valibot", "drizzle-orm"]) {
+  for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"]) {
     await symlink(
       await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
       join(root, "node_modules", name),

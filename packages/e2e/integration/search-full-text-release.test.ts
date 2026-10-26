@@ -71,7 +71,7 @@ async function prepareFixture(
 ) {
   await initializeProject(root, "full-text-release");
   await mkdir(join(root, "node_modules"), { recursive: true });
-  for (const name of ["kello", "valibot", "drizzle-orm"])
+  for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
     await symlink(
       await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
       join(root, "node_modules", name),

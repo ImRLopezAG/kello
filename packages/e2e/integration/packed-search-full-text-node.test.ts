@@ -507,7 +507,7 @@ test("packed public full-text consumer executes under independently pinned Node 
     assert.equal(consumer.caseCount, 34);
     assert.equal(consumer.cases.length, 34);
     assert.equal(new Set(consumer.cases).size, 34);
-    assert.equal(commands, 6);
+    assert.equal(commands, 7);
     await emit(consumer, errors);
     requireNoErrors(errors, "consumer receipt failed");
     completed = true;

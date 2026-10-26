@@ -11,7 +11,7 @@ test("generated service contexts retain SDK overloads for local and mounted usag
   try {
     await initializeProject(root, "services");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "zod", "drizzle-orm", "effect"])
+    for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm", "effect"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),

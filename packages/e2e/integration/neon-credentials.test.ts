@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createNeonCredentials, NeonCredentialError } from "../../../apps/kello-cli/src/tooling/neon/credentials";
 
 async function storedKey(configDir: string, name: string, key: string) {
-  const cli = join(import.meta.dir, "../../../apps/kello/node_modules/neon/dist/cli.js");
+  const cli = join(import.meta.dir, "../../../apps/kello-cli/node_modules/neon/dist/cli.js");
   const server = Bun.serve({
     port: 0,
     hostname: "127.0.0.1",

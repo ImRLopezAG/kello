@@ -12,7 +12,7 @@ test("native generation bootstraps, isolates internal routes, and atomically rep
     await initializeProject(root, "rpc");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm", "@orpc/tanstack-query"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "@orpc/tanstack-query"]) {
       await symlink(
         await realpath(
           fileURLToPath(
@@ -225,7 +225,7 @@ test("native capability modules resolve internal objects and reject invalid targ
     await initializeProject(root, "capabilities");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm", "@orpc/tanstack-query"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "@orpc/tanstack-query"]) {
       await symlink(
         await realpath(
           fileURLToPath(

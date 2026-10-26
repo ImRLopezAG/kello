@@ -17,7 +17,7 @@ async function prepareFixture(root: string, url: string, admin: pg.Client, runti
   const metadataNamespace = `loom_${suffix}`;
   await initializeProject(root, "prefix-readiness");
   await mkdir(join(root, "node_modules"));
-  for (const name of ["kello", "valibot", "drizzle-orm"])
+  for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
     await symlink(
       await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
       join(root, "node_modules", name),

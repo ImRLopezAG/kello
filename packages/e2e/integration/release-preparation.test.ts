@@ -125,7 +125,7 @@ test.skipIf(!connectionString)(
         'import { defineProcedureStorage } from "kello/server"; export default defineProcedureStorage({ buckets: { uploads: {} } });',
       );
       await mkdir(join(root, "node_modules/@kello"), { recursive: true });
-      for (const name of ["kello", "valibot", "drizzle-orm"])
+      for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
         await symlink(
           await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
           join(root, "node_modules", name),

@@ -193,7 +193,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
     'import { defineRpcAuth } from "kello/server"; export default defineRpcAuth({ allowAnonymous: true, authorize: ({ path }) => { if (path.join(":") !== "tasks:list") throw new Error("Denied"); } });',
   );
   await mkdir(join(root, "node_modules/@kello"), { recursive: true });
-  for (const name of ["kello", "valibot", "drizzle-orm"])
+  for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
     await symlink(
       await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
       join(root, "node_modules", name),

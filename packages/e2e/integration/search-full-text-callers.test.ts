@@ -62,7 +62,7 @@ publicFields:["_id","title"], ${fullText ? 'fullText:{content:{config:"pg_catalo
     console.log("U2_CALLER_TARGET", JSON.stringify({ version, database, namespace }));
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm"])
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
