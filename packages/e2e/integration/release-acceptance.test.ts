@@ -5,6 +5,84 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import * as v from "valibot";
 
+test("CLI bootstrap skips only an identical published CI artifact and fails closed", async () => {
+  const workflow = v.parse(
+    v.object({
+      jobs: v.object({
+        publish: v.object({ steps: v.array(v.object({ name: v.optional(v.string()), run: v.optional(v.string()) })) }),
+      }),
+    }),
+    Bun.YAML.parse(await readFile(new URL("../../../.github/workflows/release.yml", import.meta.url), "utf8")),
+  );
+  const script = workflow.jobs.publish.steps.find((step) => step.name === "Check CLI bootstrap artifact")?.run;
+  assert(script, "The first CLI publication must not bypass artifact verification or be published twice");
+  const root = await mkdtemp(`${tmpdir()}/kello-cli-bootstrap-`);
+  const cwd = fileURLToPath(new URL("../../../", import.meta.url));
+  try {
+    await writeFile(`${root}/kello-cli.tgz`, "verified CLI bytes");
+    await writeFile(
+      `${root}/registry.mjs`,
+      `
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+const {version} = JSON.parse(readFileSync('apps/kello-cli/package.json', 'utf8'));
+const scenario = process.env.SCENARIO;
+globalThis.fetch = async (url) => {
+  assert.equal(new URL(url).origin, 'https://registry.npmjs.org');
+  if (scenario === 'offline') throw new Error('offline');
+  if (scenario === 'server-error') return new Response('', {status:503});
+  if (String(url).endsWith('/dist-tags')) return Response.json({alpha: scenario === 'wrong-tag' ? '0.0.0' : version});
+  if (String(url).endsWith('.tgz')) return new Response(scenario === 'changed-bytes' ? 'changed' : 'verified CLI bytes');
+  if (scenario === 'absent') return new Response('', {status:404});
+  return Response.json({name:'kello-cli', version:scenario === 'wrong-version' ? '0.0.0' : version,
+    dist:{integrity:scenario === 'wrong-integrity' ? 'sha512-invalid' : 'sha512-'+createHash('sha512').update('verified CLI bytes').digest('base64')}});
+};
+`,
+    );
+    for (const scenario of [
+      "absent",
+      "identical",
+      "changed-bytes",
+      "wrong-version",
+      "wrong-integrity",
+      "wrong-tag",
+      "server-error",
+      "offline",
+    ]) {
+      const output = `${root}/output`;
+      await writeFile(output, "");
+      const child: Bun.Subprocess<"ignore", "pipe", "pipe"> = Bun.spawn(
+        ["bash", "-e", "-o", "pipefail", "-c", script],
+        {
+          cwd,
+          env: {
+            ...process.env,
+            ARTIFACT_DIR: root,
+            GITHUB_OUTPUT: output,
+            SCENARIO: scenario,
+            NODE_OPTIONS: `--import=${root}/registry.mjs`,
+          },
+          stdout: "pipe",
+          stderr: "pipe",
+          stdin: "ignore",
+          timeout: 10000,
+        },
+      );
+      const [code, stdout, stderr] = await Promise.all([
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+      ]);
+      const valid = scenario === "absent" || scenario === "identical";
+      assert.equal(code === 0, valid, `${scenario}: ${stdout} ${stderr}`);
+      assert.equal(await readFile(output, "utf8"), valid ? `published=${scenario === "identical"}\n` : "");
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("publication verifies the CI tarball identity and rejects changed bytes", async () => {
   const workflow = v.parse(
     v.object({

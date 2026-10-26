@@ -98,10 +98,45 @@ jobs:
           JS
       - name: Update npm for trusted publishing
         run: npm install --global npm@11
+      - name: Check CLI bootstrap artifact
+        id: cli
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/kello-release
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { appendFileSync, readFileSync } from 'node:fs';
+          const {version} = JSON.parse(readFileSync('apps/kello-cli/package.json', 'utf8'));
+          const registry = 'https://registry.npmjs.org';
+          const get = (url) => fetch(url, {signal: AbortSignal.timeout(10000)});
+          const response = await get(`${registry}/kello-cli/${encodeURIComponent(version)}`);
+          let published = false;
+          if (response.status !== 404) {
+            assert(response.ok, 'CLI registry lookup failed');
+            const metadata = await response.json();
+            assert.equal(metadata.name, 'kello-cli');
+            assert.equal(metadata.version, version);
+            const local = readFileSync(`${process.env.ARTIFACT_DIR}/kello-cli.tgz`);
+            assert.equal(metadata.dist.integrity, `sha512-${createHash('sha512').update(local).digest('base64')}`);
+            const archive = await get(`${registry}/kello-cli/-/kello-cli-${encodeURIComponent(version)}.tgz`);
+            assert(archive.ok, 'CLI archive lookup failed');
+            assert(local.equals(Buffer.from(await archive.arrayBuffer())), 'CLI bootstrap differs from verified CI artifact');
+            const tags = await get(`${registry}/-/package/kello-cli/dist-tags`);
+            assert(tags.ok, 'CLI tags lookup failed');
+            assert.equal((await tags.json()).alpha, version);
+            published = true;
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, `published=${published}\n`);
+          JS
       - name: Publish using npm trusted publishing
         env:
           NODE_AUTH_TOKEN: ""
           NPM_TOKEN: ""
-        run: |
-          npm publish "$RUNNER_TEMP/kello-release/kello.tgz" --ignore-scripts --access public --tag alpha
-          npm publish "$RUNNER_TEMP/kello-release/kello-cli.tgz" --ignore-scripts --access public --tag alpha
+        run: npm publish "$RUNNER_TEMP/kello-release/kello.tgz" --ignore-scripts --access public --tag alpha
+      - name: Publish verified CLI artifact with OIDC
+        if: steps.cli.outputs.published != 'true'
+        env:
+          NODE_AUTH_TOKEN: ""
+          NPM_TOKEN: ""
+        run: npm publish "$RUNNER_TEMP/kello-release/kello-cli.tgz" --ignore-scripts --access public --tag alpha
