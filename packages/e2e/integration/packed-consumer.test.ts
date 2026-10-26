@@ -91,7 +91,7 @@ test("packed tooling preserves migration and bucket privacy patches without cons
           "drizzle-orm": "1.0.0-rc.5",
           effect: "4.0.6",
           valibot: "1.5.0",
-          zod: "4.6.5",
+          zod: "4.6.7",
         },
         devDependencies: { "@types/node": "24.13.6" },
       }),
