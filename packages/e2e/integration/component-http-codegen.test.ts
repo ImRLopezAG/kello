@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject } from "kello/tooling";
+import { generateProject, initializeProject } from "kello-cli";
 
 test("generated HTTP handlers retain own SDK, environment and private caller types", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-http-types-"));

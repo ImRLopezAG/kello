@@ -16,8 +16,8 @@ import {
   planRelease,
   validateMigration,
   withNeonReleaseDatabase,
-} from "kello/tooling";
-import type { DeploymentDatabaseProvider, MigrationArtifact, NeonReleaseDatabaseOptions } from "kello/tooling";
+} from "kello-cli";
+import type { DeploymentDatabaseProvider, MigrationArtifact, NeonReleaseDatabaseOptions } from "kello-cli";
 
 // All Kello calls use the public package. The provider fixture only resolves a local target.
 const databaseUrl = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
@@ -78,7 +78,7 @@ async function prepareFixture(
     );
   await writeFile(
     join(root, "kello.config.ts"),
-    `import {defineConfig} from "kello/tooling";
+    `import {defineConfig} from "kello-cli";
 export default defineConfig(${JSON.stringify({
       project: "full-text-release",
       database: { namespace, metadataNamespace },

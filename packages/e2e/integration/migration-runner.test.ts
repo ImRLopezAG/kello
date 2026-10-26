@@ -15,10 +15,10 @@ import {
   planMigration,
   writeMigration,
   migrationStatus,
-} from "kello/tooling";
+} from "kello-cli";
 import pg from "pg";
-import type { DeploymentDatabaseProvider } from "kello/tooling";
-import { catalogFingerprint } from "../../../apps/kello/src/tooling/migrations/drift";
+import type { DeploymentDatabaseProvider } from "kello-cli";
+import { catalogFingerprint } from "../../../apps/kello-cli/src/tooling/migrations/drift";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

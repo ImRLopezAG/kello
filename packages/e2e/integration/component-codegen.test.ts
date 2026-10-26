@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject, loadProject } from "kello/tooling";
+import { generateProject, initializeProject, loadProject } from "kello-cli";
 
 test("generation discovers only mounted components and emits isolated current facades", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-components-"));

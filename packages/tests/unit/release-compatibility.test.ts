@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { defineSchema } from "kello/server";
-import { emptySnapshot, inspectReleaseSchema, planCustomMigration, planMigration, writeMigration } from "kello/tooling";
+import { emptySnapshot, inspectReleaseSchema, planCustomMigration, planMigration, writeMigration } from "kello-cli";
 
 test("release schema ranges bind ordered artifacts and tolerate unchanged schemas in data migrations", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-compatibility-"));

@@ -6,7 +6,7 @@ import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { DiagnosticsRecord } from "kello/tooling";
+import type { DiagnosticsRecord } from "kello-cli";
 
 const e2e = fileURLToPath(new URL("../", import.meta.url));
 
@@ -28,7 +28,7 @@ const nativeServer = `
 import assert from "node:assert/strict";
 import { open } from "node:fs/promises";
 import { createProjectProcedures, defineSchema } from "kello/server";
-import { startDiagnostics } from "kello/tooling";
+import { startDiagnostics } from "kello-cli";
 import { startHttpHandlerServer } from "${fileURLToPath(new URL("../fixtures/http-handler-server.ts", import.meta.url))}";
 import { RPCLink } from "@orpc/client/fetch";
 
@@ -160,7 +160,7 @@ test("built diagnostics observe only child-native HTTP RPC once across HTTP inst
 const normalization = String.raw`
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
-import { startDiagnostics } from "kello/tooling";
+import { startDiagnostics } from "kello-cli";
 
 assert.equal(Number(process.versions.node.split(".")[0]), 24, "Native Node 24 is required");
 const outcome = process.argv[2];

@@ -3,8 +3,8 @@ import { isDeepStrictEqual } from "node:util";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
-import { buildNeonFunctionBundle } from "kello/tooling";
-import { createKelloNeonApi } from "kello/tooling";
+import { buildNeonFunctionBundle } from "kello-cli";
+import { createKelloNeonApi } from "kello-cli";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
 /** Deploys only a public verification key; the signing key stays in this test process. */

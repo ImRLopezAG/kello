@@ -1,4 +1,4 @@
-import { initializeProject } from "kello/tooling";
+import { initializeProject } from "kello-cli";
 import assert from "node:assert/strict";
 import { mkdir, realpath, symlink, writeFile, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -22,7 +22,7 @@ import {
   inspectNeonFunctionHealth,
   retireNeonReleaseDatabase,
   retireProjectReleaseDatabase,
-} from "kello/tooling";
+} from "kello-cli";
 
 const [root, certificate, key] = process.argv.slice(2);
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
@@ -200,7 +200,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
     );
   await writeFile(
     join(root, "kello.config.ts"),
-    `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify({ project: "release", database: { namespace, metadataNamespace }, provider: { projectId: "project", targets: { preview: { branchId: "br-preview" } } } })});`,
+    `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "release", database: { namespace, metadataNamespace }, provider: { projectId: "project", targets: { preview: { branchId: "br-preview" } } } })});`,
   );
   await writeFile(
     join(root, "kello/storage.ts"),
@@ -862,7 +862,7 @@ globalThis.fetch = (input, init) => {
 };
 `,
     );
-    const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
+    const cli = fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url));
     const child = Bun.spawn(
       [
         process.execPath,

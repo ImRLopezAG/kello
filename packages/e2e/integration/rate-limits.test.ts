@@ -26,7 +26,7 @@ import {
 } from "../../../apps/kello/src/core/server/rate-limits/service";
 import type { RateLimitScope } from "../../../apps/kello/src/core/server/rate-limits/service";
 import { RateLimitExceeded, RateLimitUnavailable } from "../../../apps/kello/src/core/server/rate-limits/errors";
-import { bootstrapDatabase } from "../../../apps/kello/src/tooling/migrations/bootstrap";
+import { bootstrapDatabase } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 if (!connectionString)

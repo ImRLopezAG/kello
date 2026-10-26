@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { resolveBranchCredentials } from "../../../apps/kello/src/tooling/deploy/neon/credentials";
+import { resolveBranchCredentials } from "../../../apps/kello-cli/src/tooling/deploy/neon/credentials";
 
 const target = { projectId: "project", branchId: "br-developer", endpointId: "ep-developer" };
 

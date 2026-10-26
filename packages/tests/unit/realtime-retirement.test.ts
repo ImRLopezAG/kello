@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { frameworkMigrations } from "../../../apps/kello/src/tooling/migrations/bootstrap";
+import { frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
 test("framework appends retirement without rewriting its published prefix", () => {
   const migrations = frameworkMigrations("loom_meta");

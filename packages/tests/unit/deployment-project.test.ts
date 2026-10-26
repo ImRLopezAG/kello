@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from "vite-plus/test";
-import type { DeploymentDatabaseProvider } from "../../../apps/kello/src/tooling/deploy/neon/connection";
-import type { NeonReleasePreparationOptions } from "../../../apps/kello/src/tooling/deploy/neon/prepare-release";
+import type { DeploymentDatabaseProvider } from "../../../apps/kello-cli/src/tooling/deploy/neon/connection";
+import type { NeonReleasePreparationOptions } from "../../../apps/kello-cli/src/tooling/deploy/neon/prepare-release";
 
 interface RecordingClient {
   query(text: string): Promise<{ rows: { token: string; runtime_role: string }[] }>;
@@ -28,8 +28,8 @@ const state = vi.hoisted(() => {
   };
   return initial;
 });
-vi.mock("../../../apps/kello/src/tooling/project/load", async () => {
-  const { defineConfig } = await import("../../../apps/kello/src/tooling/config/define-config");
+vi.mock("../../../apps/kello-cli/src/tooling/project/load", async () => {
+  const { defineConfig } = await import("../../../apps/kello-cli/src/tooling/config/define-config");
   return {
     async loadProject() {
       return {
@@ -53,13 +53,13 @@ vi.mock("../../../apps/kello/src/tooling/project/load", async () => {
     },
   };
 });
-vi.mock("../../../apps/kello/src/tooling/migrations/history", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/history", () => ({
   async readMigrations() {
     return [{ plan: { hash: "b".repeat(64), after: "c".repeat(64) } }];
   },
 }));
-vi.mock("../../../apps/kello/src/tooling/migrations/connection", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../../apps/kello/src/tooling/migrations/connection")>()),
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/connection", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../apps/kello-cli/src/tooling/migrations/connection")>()),
   async withMigrationConnection<T>(_uri: string, operation: (client: RecordingClient) => Promise<T>): Promise<T> {
     return operation({
       async query(text: string) {
@@ -70,20 +70,20 @@ vi.mock("../../../apps/kello/src/tooling/migrations/connection", async (importOr
   },
   async acquireMigrationLock() {},
 }));
-vi.mock("../../../apps/kello/src/tooling/migrations/bootstrap", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/bootstrap", () => ({
   async bootstrapSession() {
     state.bootstraps++;
   },
 }));
-vi.mock("../../../apps/kello/src/tooling/deploy/neon/release", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/deploy/neon/release", () => ({
   async deployNeonRelease(_root: string, input: NeonReleasePreparationOptions) {
     state.releases++;
     state.releaseInput = input;
     throw new Error("release reached");
   },
 }));
-import { deployProjectRelease } from "../../../apps/kello/src/tooling/deploy/neon/project";
-import { withDeploymentConnection } from "../../../apps/kello/src/tooling/deploy/neon/connection";
+import { deployProjectRelease } from "../../../apps/kello-cli/src/tooling/deploy/neon/project";
+import { withDeploymentConnection } from "../../../apps/kello-cli/src/tooling/deploy/neon/connection";
 
 let endpoint = "ep-preview";
 const databaseProvider: DeploymentDatabaseProvider = {
@@ -136,7 +136,7 @@ function writes() {
 }
 
 test("the pinned authority reaches managed credential writes and the release", async () => {
-  const { loadProject } = await import("../../../apps/kello/src/tooling/project/load");
+  const { loadProject } = await import("../../../apps/kello-cli/src/tooling/project/load");
   const { config } = await loadProject("/project");
   const pinned = {
     ...expected,
@@ -166,7 +166,7 @@ for (const change of [
   "deployment",
 ] as const)
   test(`a changed ${change} after development preflight rejects with zero privileged writes`, async () => {
-    const { loadProject } = await import("../../../apps/kello/src/tooling/project/load");
+    const { loadProject } = await import("../../../apps/kello-cli/src/tooling/project/load");
     const { config } = await loadProject("/project");
     let pinned = {
       ...expected,
@@ -188,7 +188,7 @@ for (const change of [
   });
 
 test("the release's own deployment connection refuses a target differing from the pinned authority", async () => {
-  const { loadProject } = await import("../../../apps/kello/src/tooling/project/load");
+  const { loadProject } = await import("../../../apps/kello-cli/src/tooling/project/load");
   const { config } = await loadProject("/project");
   const { version: _version, ...pinned } = {
     ...expected,

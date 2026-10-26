@@ -23,6 +23,10 @@ test("documented authoring examples compile and validate through a packed public
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
       fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
+    await run(
+      ["bun", "pm", "pack", "--filename", join(root, "kello-cli.tgz"), "--ignore-scripts"],
+      fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
+    );
     await cp(examples, join(root, "examples"), {
       recursive: true,
       filter: (path) => !["_generated", ".kello"].includes(path.split("/").at(-1) ?? ""),
@@ -34,6 +38,7 @@ test("documented authoring examples compile and validate through a packed public
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
+          "kello-cli": "file:./kello-cli.tgz",
           "drizzle-orm": "1.0.0-rc.5",
           "@orpc/server": "2.0.0-beta.46",
           effect: "4.0.6",
@@ -63,7 +68,7 @@ test("documented authoring examples compile and validate through a packed public
     await run(["bun", "install", "--ignore-scripts"]);
     await writeFile(
       join(root, "generate.ts"),
-      'import { generateProject } from "kello/tooling"; await generateProject("./examples");',
+      'import { generateProject } from "kello-cli"; await generateProject("./examples");',
     );
     await run(["bun", "generate.ts"]);
     await writeFile(

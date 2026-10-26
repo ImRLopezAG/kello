@@ -1,10 +1,10 @@
-import { createKelloNeonApi } from "../../../apps/kello/src/tooling/neon/api";
+import { createKelloNeonApi } from "../../../apps/kello-cli/src/tooling/neon/api";
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createNeonCredentials, NeonCredentialError } from "../../../apps/kello/src/tooling/neon/credentials";
+import { createNeonCredentials, NeonCredentialError } from "../../../apps/kello-cli/src/tooling/neon/credentials";
 
 async function storedKey(configDir: string, name: string, key: string) {
   const cli = join(import.meta.dir, "../../../apps/kello/node_modules/neon/dist/cli.js");

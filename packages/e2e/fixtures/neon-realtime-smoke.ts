@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createKelloNeonApi } from "kello/tooling";
-import { createKelloNeonClient } from "../../../apps/kello/src/tooling/neon/api";
+import { createKelloNeonApi } from "kello-cli";
+import { createKelloNeonClient } from "../../../apps/kello-cli/src/tooling/neon/api";
 import {
   connectDatabase,
   defineSchema,

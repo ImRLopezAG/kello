@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import pg from "pg";
-import { bootstrapSession, frameworkMigrations } from "../../../apps/kello/src/tooling/migrations/bootstrap";
+import { bootstrapSession, frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
 // The integration runner supplies an admitted disposable PG18 target. Never create a local server.
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;

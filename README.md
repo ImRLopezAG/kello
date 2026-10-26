@@ -56,11 +56,11 @@ Use Bun 1.4.4 and Node 24:
 git clone https://github.com/ImRLopezAG/kello.git kello
 cd kello
 bun install --frozen-lockfile
-bunx turbo run build --filter=kello
+bunx turbo run build --filter=kello-cli
 bun run --cwd apps/docs dev
 ```
 
-Open [localhost:4321](http://localhost:4321) for the homepage and documentation. Follow the quickstart to authenticate with Neon, link a disposable development branch, review migrations, and deploy an example. There is no public `npm install kello` step yet.
+Open [localhost:4321](http://localhost:4321) for the homepage and documentation. Follow the quickstart to authenticate with Neon, link a disposable development branch, review migrations, and deploy an example. Application runtime code uses `kello`; configuration, generation, migrations and deployment use the matching `kello-cli` development dependency. The executable remains `kello`.
 
 ## Explore the examples
 

@@ -12,7 +12,7 @@ import {
   createKelloNeonApi,
   defineConfig,
   inspectDeploymentTarget,
-} from "kello/tooling";
+} from "kello-cli";
 
 const projectId = "late-moon-69483649";
 const branchId = "br-dark-block-awbbt60w";

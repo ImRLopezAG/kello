@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject, loadProject } from "kello/tooling";
+import { generateProject, initializeProject, loadProject } from "kello-cli";
 
 test("generation aggregates scoped cron and storage resources and rejects root collisions", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-component-resources-"));

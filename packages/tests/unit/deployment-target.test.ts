@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { defineConfig, inspectDeploymentTarget } from "kello/tooling";
-import type { DeploymentProvider } from "kello/tooling";
+import { defineConfig, inspectDeploymentTarget } from "kello-cli";
+import type { DeploymentProvider } from "kello-cli";
 
 function fixture() {
   const project = { id: "project", name: "tasks", regionId: "aws-us-east-2", pgVersion: 18 };

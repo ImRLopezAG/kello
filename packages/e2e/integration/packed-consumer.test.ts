@@ -6,26 +6,26 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 test("fresh workspace installation links the CLI before compiled output exists", async () => {
-  const source = fileURLToPath(new URL("../../../apps/kello/", import.meta.url));
+  const source = fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url));
   const manifest = await Bun.file(join(source, "package.json")).json();
   const workspaceLock = await readFile(new URL("../../../bun.lock", import.meta.url), "utf8");
   assert.match(workspaceLock, /"bin":\s*\{\s*"kello": "cli\.js"/);
   const root = await mkdtemp(join(tmpdir(), "loom-workspace-bin-"));
   try {
-    await mkdir(join(root, "apps/kello"), { recursive: true });
+    await mkdir(join(root, "apps/kello-cli"), { recursive: true });
     await writeFile(
       join(root, "package.json"),
-      JSON.stringify({ private: true, workspaces: ["apps/*"], dependencies: { kello: "workspace:*" } }),
+      JSON.stringify({ private: true, workspaces: ["apps/*"], dependencies: { "kello-cli": "workspace:*" } }),
     );
     await writeFile(
-      join(root, "apps/kello/package.json"),
+      join(root, "apps/kello-cli/package.json"),
       JSON.stringify({ name: manifest.name, version: manifest.version, bin: manifest.bin, type: "module" }),
     );
     // Copy committed package files, with no prebuilt dist output.
     if (!manifest.bin.kello.startsWith("./bin/")) {
-      await cp(join(source, manifest.bin.kello), join(root, "apps/kello", manifest.bin.kello));
+      await cp(join(source, manifest.bin.kello), join(root, "apps/kello-cli", manifest.bin.kello));
     }
-    assert.equal(await Bun.file(join(root, "apps/kello/bin/kello.js")).exists(), false);
+    assert.equal(await Bun.file(join(root, "apps/kello-cli/bin/kello.js")).exists(), false);
     const child = Bun.spawn(["bun", "install", "--ignore-scripts"], {
       cwd: root,
       stdout: "pipe",
@@ -39,15 +39,15 @@ test("fresh workspace installation links the CLI before compiled output exists",
     ]);
     assert.equal(code, 0, `${stdout}\n${stderr}`);
     await access(join(root, "node_modules/.bin/kello"));
-    assert.equal(await Bun.file(join(root, "apps/kello/dist/cli.js")).exists(), false);
+    assert.equal(await Bun.file(join(root, "apps/kello-cli/dist/cli.js")).exists(), false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("packed tooling preserves migration and bucket privacy patches without consumer configuration", async () => {
-  const publicManifest = await Bun.file(new URL("../../../apps/kello/package.json", import.meta.url)).json();
-  assert.equal(publicManifest.name, "kello");
+  const publicManifest = await Bun.file(new URL("../../../apps/kello-cli/package.json", import.meta.url)).json();
+  assert.equal(publicManifest.name, "kello-cli");
   assert.match(publicManifest.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
   assert.equal(publicManifest.bin.kello, "cli.js");
   assert(!Object.keys(publicManifest.dependencies).some((name) => name.startsWith("@kello/")));
@@ -67,7 +67,21 @@ test("packed tooling preserves migration and bucket privacy patches without cons
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
       fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
-    const entries = (await run(["tar", "-tzf", join(root, "kello.tgz")])).trim().split("\n");
+    await run(
+      ["bun", "pm", "pack", "--filename", join(root, "kello-cli.tgz"), "--ignore-scripts"],
+      fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
+    );
+    const runtimeEntries = (await run(["tar", "-tzf", join(root, "kello.tgz")])).trim().split("\n");
+    assert(
+      runtimeEntries.every(
+        (path) => !path.includes("/tooling/") && !path.endsWith(".map") && !path.endsWith("/cli.js"),
+      ),
+    );
+    const entries = (await run(["tar", "-tzf", join(root, "kello-cli.tgz")])).trim().split("\n");
+    assert(
+      entries.every((path) => !path.endsWith(".map")),
+      "published package must exclude source maps",
+    );
     assert(
       entries.every(
         (path) =>
@@ -79,6 +93,31 @@ test("packed tooling preserves migration and bucket privacy patches without cons
       ),
     );
     for (const required of ["package/README.md", "package/LICENSE"]) assert(entries.includes(required), required);
+    const runtimeOnly = join(root, "runtime-only");
+    await mkdir(runtimeOnly);
+    await writeFile(
+      join(runtimeOnly, "package.json"),
+      JSON.stringify({
+        private: true,
+        type: "module",
+        dependencies: { kello: "file:../kello.tgz", "drizzle-orm": "1.0.0-rc.5" },
+      }),
+    );
+    await run(["bun", "install", "--ignore-scripts", "--linker", "isolated"], runtimeOnly);
+    await writeFile(
+      join(runtimeOnly, "verify.mjs"),
+      `import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+await import("kello/server");
+await import("kello/client");
+const require = createRequire(import.meta.resolve("kello"));
+for (const name of ["kello-cli", "neon", "libpg-query", "fflate", "@neon/sdk", "vite-plus"]) {
+  assert.throws(() => require.resolve(name), { code: "MODULE_NOT_FOUND" }, name);
+}
+assert.throws(() => import.meta.resolve("kello/tooling"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
+`,
+    );
+    await run(["node", "verify.mjs"], runtimeOnly);
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({
@@ -86,6 +125,7 @@ test("packed tooling preserves migration and bucket privacy patches without cons
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
+          "kello-cli": "file:./kello-cli.tgz",
           "@orpc/server": "2.0.0-beta.46",
           "@orpc/tanstack-query": "2.0.0-beta.46",
           "drizzle-orm": "1.0.0-rc.5",
@@ -128,7 +168,7 @@ test("packed tooling preserves migration and bucket privacy patches without cons
       ]),
     );
     assert.equal(proposed.dryRun, true);
-    assert.match(await readFile(join(root, "node_modules/kello/dist/cli.js"), "utf8"), /^#!\/usr\/bin\/env bun/);
+    assert.match(await readFile(join(root, "node_modules/kello-cli/dist/cli.js"), "utf8"), /^#!\/usr\/bin\/env bun/);
     assert.match(await readFile(join(root, "node_modules/kello/dist/core/react/index.js"), "utf8"), /^"use client";/);
     const browserForbidden = [
       "startDiagnostics",
@@ -159,11 +199,11 @@ test("packed tooling preserves migration and bucket privacy patches without cons
       join(root, "diagnostics.ts"),
       `import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
-import { startDiagnostics } from "kello/tooling";
+import { startDiagnostics } from "kello-cli";
 import type {
   DiagnosticsOptions, DiagnosticsSession, DiagnosticsStats, DiagnosticsRecord,
   DiagnosticsRuntimeEvent, DiagnosticsDeploymentEvent,
-} from "kello/tooling";
+} from "kello-cli";
 // @ts-expect-error diagnostics are tooling-only, including their declaration surface
 import type { startDiagnostics as ClientDiagnostics } from "kello/client";
 // @ts-expect-error diagnostics are not a React export
@@ -295,7 +335,7 @@ await import("kello/server");
       "drizzle-kit@1.0.0-rc.5.patch",
       "@neon%2Fconfig@1.9.2.patch",
     ]) {
-      assert((await readFile(join(root, "node_modules/kello/dist/third-party", name), "utf8")).length > 0);
+      assert((await readFile(join(root, "node_modules/kello-cli/dist/third-party", name), "utf8")).length > 0);
     }
     await writeFile(
       join(root, "verify.mjs"),
@@ -307,7 +347,7 @@ import { call, implement } from "@orpc/server";
 import { Effect, Layer } from "effect";
 import { z } from "zod";
 import * as v from "valibot";
-import { createSnapshot, planMigration, defineConfig, prepareNeonStorageBuckets } from "kello/tooling";
+import { createSnapshot, planMigration, defineConfig, prepareNeonStorageBuckets } from "kello-cli";
 if (!("Bun" in globalThis)) assert.equal(process.versions.node.split(".")[0], "24");
 const contract = resolveContract(defineContract({ hello: oc.input(z.object({ name: z.string() })).output(v.string()) }), { validators: { tables: {}, id: () => v.string() } });
 const hello = implement(contract).hello.handler(({ input }) => input.name);
@@ -365,7 +405,7 @@ try {
     });
     assert.equal(await login.exited, 6);
     assert.equal(JSON.parse(await new Response(login.stderr).text()).error.code, "NEON_LOGIN_REQUIRED");
-    const worker = Bun.spawn(["bun", join(root, "node_modules/kello/dist/tooling/neon/credential-worker.js")], {
+    const worker = Bun.spawn(["bun", join(root, "node_modules/kello-cli/dist/tooling/neon/credential-worker.js")], {
       cwd: root,
       env: {
         ...process.env,
@@ -385,7 +425,7 @@ try {
     await writeFile(
       join(root, "generate-native.mjs"),
       `import assert from "node:assert/strict";
-import { initializeProject, generateProject, saveResolvedProject } from "kello/tooling";
+import { initializeProject, generateProject, saveResolvedProject } from "kello-cli";
 await initializeProject("./native", "native");
 await saveResolvedProject("./native", {
   format: 1, projectId: "project-fixture", branchId: "br-fixture", branchName: "dev", protected: false, isDefault: false,
@@ -443,7 +483,7 @@ for (const output of browser.outputs) {
     );
     await writeFile(
       join(root, "generate-variants.mjs"),
-      'import { generateProject } from "kello/tooling"; await generateProject("./variants");',
+      'import { generateProject } from "kello-cli"; await generateProject("./variants");',
     );
     await run(["bun", "generate-variants.mjs"]);
     await run([

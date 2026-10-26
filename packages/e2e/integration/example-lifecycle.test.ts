@@ -10,7 +10,7 @@ import {
   planRelease,
   prepareProject,
   projectRuntimeGraph,
-} from "kello/tooling";
+} from "kello-cli";
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -222,7 +222,7 @@ test.skipIf(!connectionString)(
       }
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling";
+        `import { defineConfig } from "kello-cli";
       export default defineConfig({ project: "tasks", database: { namespace: "app", migrations: "kello/migrations" },
         provider: { projectId: "local-example", targets: { development: { branchId: "br-local-development" } } } });`,
       );

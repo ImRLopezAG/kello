@@ -12,9 +12,9 @@ import {
 } from "../../../apps/kello/src/core/server/application/definition";
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import { defineTable } from "../../../apps/kello/src/core/schema/table";
-import { liveRowsSource } from "../../../apps/kello/src/tooling/codegen/live-query";
-import { applicationClientArtifacts } from "../../../apps/kello/src/tooling/codegen/application";
-import { discoverProcedures } from "../../../apps/kello/src/tooling/codegen/procedures";
+import { liveRowsSource } from "../../../apps/kello-cli/src/tooling/codegen/live-query";
+import { applicationClientArtifacts } from "../../../apps/kello-cli/src/tooling/codegen/application";
+import { discoverProcedures } from "../../../apps/kello-cli/src/tooling/codegen/procedures";
 import { generateRpcOpenAPI } from "../../../apps/kello/src/core/server/rpc/openapi";
 import { bindRpcDatabaseProcedure } from "../../../apps/kello/src/core/server/rpc/database";
 import { rpcErrorBoundary } from "../../../apps/kello/src/core/server/rpc/procedure";

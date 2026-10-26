@@ -1,4 +1,4 @@
-import { initializeProject } from "kello/tooling";
+import { initializeProject } from "kello-cli";
 import { expect, test } from "bun:test";
 import { mkdtemp, mkdir, readFile, readlink, realpath, symlink, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
 import { watch } from "node:fs";
 import { EventEmitter } from "node:events";
-import { watchDevelopment, prepareProject, activateProject } from "kello/tooling";
+import { watchDevelopment, prepareProject, activateProject } from "kello-cli";
 
 async function until(check: () => boolean | Promise<boolean>): Promise<void> {
   const deadline = Date.now() + 3000;

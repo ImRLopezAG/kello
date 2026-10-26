@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
 import pg from "pg";
 import * as v from "valibot";
-import { createKelloNeonApi } from "kello/tooling";
+import { createKelloNeonApi } from "kello-cli";
 import { prepareCloudComponents } from "../fixtures/cloud-components";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
 
@@ -24,7 +24,7 @@ test.skipIf(process.env.LOOM_CLOUD_DEV_COMPONENT_WATCH !== "1")(
     assert(main);
     const branchName = `loom-acceptance-dev-watch-${crypto.randomUUID()}`;
     const root = await mkdtemp(join(tmpdir(), "loom-cloud-dev-watch-"));
-    const cli = createRequire(import.meta.resolve("kello/tooling")).resolve("neon/dist/index.js");
+    const cli = createRequire(import.meta.resolve("kello-cli")).resolve("neon/dist/index.js");
     const checks: string[] = [];
     const cleanupFailures: string[] = [];
     let branchId: string | undefined;
@@ -141,12 +141,12 @@ if(!row) throw new Error("Insert failed"); return row;
       const issuer = await createCloudIssuer(root, projectId, branchId);
       const token = await issuer.token("dev-watch-owner", "loom-acceptance", "15m");
       const address = new URL(uri);
-      const tooling: typeof import("kello/tooling") = await import(
-        join(root, "node_modules/kello/dist/tooling/index.js")
+      const tooling: typeof import("kello-cli") = await import(
+        join(root, "node_modules/kello-cli/dist/tooling/index.js")
       );
       await write(
         "kello.config.ts",
-        `import {defineConfig} from "kello/tooling"; export default defineConfig(${JSON.stringify({
+        `import {defineConfig} from "kello-cli"; export default defineConfig(${JSON.stringify({
           project: "dev-watch",
           database: { namespace, metadataNamespace: metadata },
           provider: { projectId, targets: { preview: { branchId } } },
@@ -187,7 +187,7 @@ if(!row) throw new Error("Insert failed"); return row;
       };
       await run([
         process.execPath,
-        join(root, "node_modules/kello/dist/cli.js"),
+        join(root, "node_modules/kello-cli/dist/cli.js"),
         "link",
         "--project-id",
         projectId,
@@ -200,7 +200,7 @@ if(!row) throw new Error("Insert failed"); return row;
       stage = "initial CLI startup";
       console.info("[dev-watch] initial CLI startup");
       child = Bun.spawn(
-        [process.execPath, join(root, "node_modules/kello/dist/cli.js"), "dev", "--cwd", root, "--json"],
+        [process.execPath, join(root, "node_modules/kello-cli/dist/cli.js"), "dev", "--cwd", root, "--json"],
         { cwd: root, env, stdin: "ignore", stdout: "pipe", stderr: "pipe" },
       );
       const running = child;

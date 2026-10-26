@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createRealNeonApi } from "@neon/config-runtime/v1";
 import type { NeonApi } from "@neon/config-runtime/v1";
-import { defineConfig, readNeonFunctionReceipt } from "kello/tooling";
-import { applyNeonFunctions } from "../../../apps/kello/src/tooling/deploy/neon/apply";
-import { createDevelopmentCoordinator } from "../../../apps/kello/src/tooling/dev/coordinator";
+import { defineConfig, readNeonFunctionReceipt } from "kello-cli";
+import { applyNeonFunctions } from "../../../apps/kello-cli/src/tooling/deploy/neon/apply";
+import { createDevelopmentCoordinator } from "../../../apps/kello-cli/src/tooling/dev/coordinator";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "loom-function-apply-"));

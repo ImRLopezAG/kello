@@ -8,7 +8,7 @@ import pg from "pg";
 import * as v from "valibot";
 import { defineApplication, defineComponent } from "kello";
 import { createRpcHttpApp } from "kello/neon";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import {
   createProjectProcedures,
   createRpcRuntime,

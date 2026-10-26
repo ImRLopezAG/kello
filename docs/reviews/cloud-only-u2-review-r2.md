@@ -14,7 +14,7 @@ Personally read complete current bodies of all four pinned files and their HEAD-
 
 ## U2-R2-1 — P2: Reject regex flags that JSON Schema drops
 
-Location: `apps/kello/src/tooling/codegen/live-query.ts:27-40`, specifically the unconditional `string_format` check-kind acceptance at line 35. Confidence: high; independently reproduced against pinned source and installed Zod 4.6.5.
+Location: `apps/kello-cli/src/tooling/codegen/live-query.ts:27-40`, specifically the unconditional `string_format` check-kind acceptance at line 35. Confidence: high; independently reproduced against pinned source and installed Zod 4.6.5.
 
 The positive allowlist accepts all `string_format` checks without inspecting their format or regex options. Zod's regex check is a `string_format` check. Installed `src/v4/core/checks.ts:780-784` executes the original RegExp, including its flags; `src/v4/core/json-schema-processors.ts:163-165` serializes only `pattern.source`; `src/v4/classic/from-json-schema.ts:575-577` reconstructs `new RegExp(schema.pattern)` with no flags. The existing restricted JSON Schema emitter permits `pattern`, so it cannot detect the already-lost flags.
 
@@ -23,7 +23,7 @@ Concrete causal scenario: a live contract declares `z.array(z.object({ text: z.s
 Reviewer in-memory reproduction, exit 0, with no files/resources acquired:
 
 ```sh
-bun -e 'import { z } from "./packages/examples/next/node_modules/zod/index.js"; import { liveRowsSource } from "./apps/kello/src/tooling/codegen/live-query.ts"; const rows=z.array(z.object({text:z.string().regex(/^[^a]+$/i)})); const generated=new Function("z","return "+liveRowsSource(rows))(z); console.log(JSON.stringify({original:rows.safeParse([{text:"A"}]).success,generated:generated.safeParse([{text:"A"}]).success}));'
+bun -e 'import { z } from "./packages/examples/next/node_modules/zod/index.js"; import { liveRowsSource } from "./apps/kello-cli/src/tooling/codegen/live-query.ts"; const rows=z.array(z.object({text:z.string().regex(/^[^a]+$/i)})); const generated=new Function("z","return "+liveRowsSource(rows))(z); console.log(JSON.stringify({original:rows.safeParse([{text:"A"}]).success,generated:generated.safeParse([{text:"A"}]).success}));'
 ```
 
 Observed: `{"original":false,"generated":true}`. A separate `/abc/i` probe also showed the inverse compatibility failure: original accepts `ABC`, generated rejects it.
@@ -49,7 +49,7 @@ No additional P1/P2/P3 finding retained in the bounded correction. R1's wider so
 All four supplied SHA256 pins matched on initial successful verification and closing verification immediately before writing this report; HEAD remained unchanged. No drift was adopted. Manifest: `/private/tmp/kello-u2-review-correction-pins.json`.
 
 ```text
-899e6d5d72c392f19f7b4cd8ee800cc7e1ce36b853d24556c0ac44594f4cbaed  apps/kello/src/tooling/codegen/live-query.ts
+899e6d5d72c392f19f7b4cd8ee800cc7e1ce36b853d24556c0ac44594f4cbaed  apps/kello-cli/src/tooling/codegen/live-query.ts
 6b1a9f7496837c4ad80385f1b6e39830c533416ef7f5ebe03de43043f9ed0953  packages/tests/unit/live-procedure.test.ts
 e4bdd1b45f37eb8a93a9b3f64e30369adffc8e9d040987d5c9e937182a21cc5b  packages/examples/jobs-storage/kello/contracts/files.ts
 b0b0568084c946783de9078fcafeab361fae565062a0fc556eebb99b53226c69  packages/examples/jobs-storage/types/live.test-d.ts

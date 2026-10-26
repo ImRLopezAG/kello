@@ -1,5 +1,5 @@
-import { buildNeonFunctionBundle } from "kello/tooling";
-import { bootstrapDatabase } from "kello/tooling";
+import { buildNeonFunctionBundle } from "kello-cli";
+import { bootstrapDatabase } from "kello-cli";
 import pg from "pg";
 import { unzipSync } from "fflate";
 import assert from "node:assert/strict";
@@ -73,6 +73,10 @@ test("packed components preserve typed per-instance bindings and transitive defi
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
       join(workspace, "apps/kello"),
     );
+    await run(
+      ["bun", "pm", "pack", "--filename", join(root, "kello-cli.tgz"), "--ignore-scripts"],
+      join(workspace, "apps/kello-cli"),
+    );
     await write(
       join(root, "package.json"),
       JSON.stringify({
@@ -81,6 +85,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
         overrides: { kello: "file:./kello.tgz", "@loom-test/sdk": "file:./sdk.tgz" },
         dependencies: {
           kello: "file:./kello.tgz",
+          "kello-cli": "file:./kello-cli.tgz",
           valibot: "1.5.0",
           "@orpc/client": "2.0.0-beta.46",
           "drizzle-orm": "1.0.0-rc.5",
@@ -119,7 +124,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
     await run([
       "bun",
       "-e",
-      `import { generateProject } from "kello/tooling"; await generateProject(${JSON.stringify(author)});`,
+      `import { generateProject } from "kello-cli"; await generateProject(${JSON.stringify(author)});`,
     ]);
     const library = join(root, "stateful");
     await mkdir(library);
@@ -185,7 +190,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
     );
     await write(
       join(root, "verify.ts"),
-      `import assert from "node:assert/strict"; import { writeFile } from "node:fs/promises"; import { loadProject, generateProject } from "kello/tooling"; import { getTableConfig } from "drizzle-orm/pg-core"; const project = await loadProject(${JSON.stringify(consumer)}); assert.deepEqual(project.components.map(c => c.path), ["first", "first/sdk", "second", "second/sdk"]); const schemas = project.componentScopes.filter(s => s.schema.tables.products).map(s => getTableConfig(s.schema.tables.products).schema); assert.equal(new Set(schemas).size, 2); const generated = await generateProject(${JSON.stringify(consumer)}); assert.equal((await generateProject(${JSON.stringify(consumer)})).version, generated.version); await writeFile(${JSON.stringify(join(root, "version.txt"))}, generated.version);`,
+      `import assert from "node:assert/strict"; import { writeFile } from "node:fs/promises"; import { loadProject, generateProject } from "kello-cli"; import { getTableConfig } from "drizzle-orm/pg-core"; const project = await loadProject(${JSON.stringify(consumer)}); assert.deepEqual(project.components.map(c => c.path), ["first", "first/sdk", "second", "second/sdk"]); const schemas = project.componentScopes.filter(s => s.schema.tables.products).map(s => getTableConfig(s.schema.tables.products).schema); assert.equal(new Set(schemas).size, 2); const generated = await generateProject(${JSON.stringify(consumer)}); assert.equal((await generateProject(${JSON.stringify(consumer)})).version, generated.version); await writeFile(${JSON.stringify(join(root, "version.txt"))}, generated.version);`,
     );
     const installedBefore = await snapshot(installedStateful);
     await run(["bun", "verify.ts"]);
@@ -234,7 +239,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
     await run([
       "bun",
       "-e",
-      `import assert from "node:assert/strict"; import { readFile } from "node:fs/promises"; import { loadProject } from "kello/tooling"; assert.notEqual((await loadProject(${JSON.stringify(consumer)})).version, await readFile(${JSON.stringify(join(root, "version.txt"))}, "utf8"));`,
+      `import assert from "node:assert/strict"; import { readFile } from "node:fs/promises"; import { loadProject } from "kello-cli"; assert.notEqual((await loadProject(${JSON.stringify(consumer)})).version, await readFile(${JSON.stringify(join(root, "version.txt"))}, "utf8"));`,
     ]);
     await write(join(root, "browser.ts"), 'import component from "@loom-test/stateful"; console.log(component);');
     const browser = Bun.spawn(["bun", "build", "browser.ts", "--target", "browser"], {

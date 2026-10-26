@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
 import pg from "pg";
 import { createLocalJWKSet, jwtVerify } from "jose";
-import { buildNeonFunctionBundle } from "kello/tooling";
+import { buildNeonFunctionBundle } from "kello-cli";
 import { createAuthClient } from "better-auth/client";
 import { jwtClient, organizationClient } from "better-auth/client/plugins";
 import { resolveBetterAuthSchema } from "kello/better-auth";
@@ -19,7 +19,7 @@ import {
   planMigration,
   writeMigration,
   applyMigrations,
-} from "kello/tooling";
+} from "kello-cli";
 import { ORPCError, MalformedResponseError } from "@orpc/client";
 import { createRpcHttpTransport } from "kello/client";
 

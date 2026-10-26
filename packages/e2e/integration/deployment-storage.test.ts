@@ -1,4 +1,4 @@
-import { initializeProject } from "kello/tooling";
+import { initializeProject } from "kello-cli";
 import assert from "node:assert/strict";
 import { test } from "bun:test";
 import { createHash } from "node:crypto";
@@ -8,8 +8,8 @@ import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import pg from "pg";
 import { unzipSync } from "fflate";
-import { buildNeonFunctionBundle } from "kello/tooling";
-import { generateProject, prepareNeonEntrypoints, bootstrapDatabase } from "kello/tooling";
+import { buildNeonFunctionBundle } from "kello-cli";
+import { generateProject, prepareNeonEntrypoints, bootstrapDatabase } from "kello-cli";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -33,7 +33,7 @@ test.skipIf(!connectionString)(
       }
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig({ project: "storage", database: { metadataNamespace: ${JSON.stringify(metadataNamespace)} } });`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig({ project: "storage", database: { metadataNamespace: ${JSON.stringify(metadataNamespace)} } });`,
       );
       await writeFile(
         join(root, "kello/storage.ts"),

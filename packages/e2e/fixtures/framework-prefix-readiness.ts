@@ -3,12 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import { generateRelease, initializeProject } from "kello/tooling";
-import type { DeploymentDatabaseProvider } from "kello/tooling";
-import { loadProject } from "../../../apps/kello/src/tooling/project/load";
-import { quoteIdentifier } from "../../../apps/kello/src/tooling/migrations/connection";
-import { ormHistoryTable } from "../../../apps/kello/src/tooling/migrations/state";
-import { planProjectRelease } from "../../../apps/kello/src/tooling/deploy/neon/plan-release";
+import { generateRelease, initializeProject } from "kello-cli";
+import type { DeploymentDatabaseProvider } from "kello-cli";
+import { loadProject } from "../../../apps/kello-cli/src/tooling/project/load";
+import { quoteIdentifier } from "../../../apps/kello-cli/src/tooling/migrations/connection";
+import { ormHistoryTable } from "../../../apps/kello-cli/src/tooling/migrations/state";
+import { planProjectRelease } from "../../../apps/kello-cli/src/tooling/deploy/neon/plan-release";
 
 async function prepareFixture(root: string, url: string, admin: pg.Client, runtimeRole: string) {
   const address = new URL(url);
@@ -24,7 +24,7 @@ async function prepareFixture(root: string, url: string, admin: pg.Client, runti
     );
   await writeFile(
     join(root, "kello.config.ts"),
-    `import {defineConfig} from "kello/tooling"; export default defineConfig(${JSON.stringify({ project: "prefix-readiness", database: { namespace, metadataNamespace }, provider: { projectId: "project", targets: { preview: { branchId: "br-preview" } } } })});`,
+    `import {defineConfig} from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "prefix-readiness", database: { namespace, metadataNamespace }, provider: { projectId: "project", targets: { preview: { branchId: "br-preview" } } } })});`,
   );
   const schemaFile = join(root, "kello/schema.ts");
   await writeFile(

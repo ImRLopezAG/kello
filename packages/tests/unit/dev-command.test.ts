@@ -1,8 +1,8 @@
 import { expect, test, vi } from "vite-plus/test";
 
 const startup = vi.hoisted(() => ({ start: vi.fn() }));
-vi.mock("kello/tooling", () => ({ startProjectDevelopment: startup.start }));
-import { devCommand } from "../../../apps/kello/src/commands/dev";
+vi.mock("kello-cli", () => ({ startProjectDevelopment: startup.start }));
+import { devCommand } from "../../../apps/kello-cli/src/commands/dev";
 
 test("dev cancellation during setup aborts startup and exits cleanly", async () => {
   const log = vi.spyOn(console, "log").mockImplementation(() => {});

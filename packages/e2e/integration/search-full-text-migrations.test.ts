@@ -1,4 +1,4 @@
-import { fromDrizzleSnapshot } from "../../../apps/kello/src/tooling/migrations/snapshot";
+import { fromDrizzleSnapshot } from "../../../apps/kello-cli/src/tooling/migrations/snapshot";
 import assert from "node:assert/strict";
 import { isDeepStrictEqual } from "node:util";
 import { expect, test } from "bun:test";
@@ -16,16 +16,20 @@ import {
   inspectSnapshot,
   migrationStatements,
   snapshotHash,
-} from "../../../apps/kello/src/tooling/migrations/adapter";
-import { classifyMigration } from "../../../apps/kello/src/tooling/migrations/classifier";
-import { planMigration } from "../../../apps/kello/src/tooling/migrations/planner";
-import { readMigrations, validateMigration, writeMigration } from "../../../apps/kello/src/tooling/migrations/history";
-import { applyMigrations } from "../../../apps/kello/src/tooling/migrations/runner";
-import { migrationStatus } from "../../../apps/kello/src/tooling/migrations/status";
-import { migrationHash } from "../../../apps/kello/src/tooling/migrations/planner";
-import type { MigrationPlan } from "../../../apps/kello/src/tooling/migrations/planner";
-import type { MigrationSnapshot } from "../../../apps/kello/src/tooling/migrations/adapter";
-import { normalizeFullTextIndexes } from "../../../apps/kello/src/tooling/migrations/expressions";
+} from "../../../apps/kello-cli/src/tooling/migrations/adapter";
+import { classifyMigration } from "../../../apps/kello-cli/src/tooling/migrations/classifier";
+import { planMigration } from "../../../apps/kello-cli/src/tooling/migrations/planner";
+import {
+  readMigrations,
+  validateMigration,
+  writeMigration,
+} from "../../../apps/kello-cli/src/tooling/migrations/history";
+import { applyMigrations } from "../../../apps/kello-cli/src/tooling/migrations/runner";
+import { migrationStatus } from "../../../apps/kello-cli/src/tooling/migrations/status";
+import { migrationHash } from "../../../apps/kello-cli/src/tooling/migrations/planner";
+import type { MigrationPlan } from "../../../apps/kello-cli/src/tooling/migrations/planner";
+import type { MigrationSnapshot } from "../../../apps/kello-cli/src/tooling/migrations/adapter";
+import { normalizeFullTextIndexes } from "../../../apps/kello-cli/src/tooling/migrations/expressions";
 
 // Private native spike: deliberately independent of the rank worker's shared fixture.
 function fixture(

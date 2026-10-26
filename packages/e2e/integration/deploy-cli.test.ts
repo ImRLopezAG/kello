@@ -23,7 +23,7 @@ const cases: [string[], number, string][] = [
 
 test.each(cases)("deployment CLI rejects %j with %i/%s and redacts release contents", async (args, code, error) => {
   const root = await mkdtemp(join(tmpdir(), "loom-deploy-cli-"));
-  const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
+  const cli = fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url));
   async function run(args: string[], code: number, error: string) {
     const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
       stdout: "pipe",

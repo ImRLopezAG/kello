@@ -2,8 +2,8 @@ import { expect, test } from "vite-plus/test";
 import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { withNeonReleaseReceipt } from "kello/tooling";
-import type { NeonReleaseStage } from "kello/tooling";
+import { withNeonReleaseReceipt } from "kello-cli";
+import type { NeonReleaseStage } from "kello-cli";
 
 const key = "a".repeat(64);
 const identity = {

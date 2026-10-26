@@ -1,0 +1,6 @@
+{
+  "extends": "@kello/ts-config/bun.json",
+  "compilerOptions": { "types": ["bun"], "paths": {} },
+  "include": ["src/**/*.ts", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

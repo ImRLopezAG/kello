@@ -17,7 +17,7 @@ import {
   loadProject,
   reconcileComponentNamespaces,
   withMigrationConnection,
-} from "kello/tooling";
+} from "kello-cli";
 import { callExample } from "../fixtures/rpc-call";
 import { writeSearchComponent } from "../fixtures/search-component";
 
@@ -43,7 +43,7 @@ test.skipIf(!connectionString)(
         );
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig({ database: { namespace: "search_root_${suffix}", metadataNamespace: "${metadataNamespace}" } });`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig({ database: { namespace: "search_root_${suffix}", metadataNamespace: "${metadataNamespace}" } });`,
       );
       await rm(join(root, "kello/contracts"), { recursive: true });
       await rm(join(root, "kello/functions"), { recursive: true });

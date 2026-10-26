@@ -19,7 +19,7 @@ import {
   generateRelease,
   loadProjectConfig,
   readNeonFunctionReceipt,
-} from "kello/tooling";
+} from "kello-cli";
 import { verifyCloudAppPeers } from "../fixtures/cloud-app-peers";
 import { verifyCloudComponentBrowser } from "../fixtures/cloud-component-browser";
 import { startCloudFramework, verifyCloudFramework } from "../fixtures/cloud-framework";
@@ -116,7 +116,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
       } satisfies Parameters<typeof defineConfig>[0];
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify(config)});`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify(config)});`,
       );
       if (example === "tasks") await generateRelease(root, "acceptance-initial");
       let generated = await generateProject(root);

@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { releaseInputHash } from "../../../apps/kello/src/tooling/deploy/neon/prepare-release";
+import { releaseInputHash } from "../../../apps/kello-cli/src/tooling/deploy/neon/prepare-release";
 
 test("managed Realtime secret rotation changes keyed release identity without disclosing secrets", () => {
   const input = {

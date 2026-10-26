@@ -1,9 +1,9 @@
 import { expect, test, vi } from "vite-plus/test";
 import pg from "pg";
 import * as v from "valibot";
-import { defineConfig } from "kello/tooling";
-import { activateGrant, prepareGrant } from "../../../apps/kello/src/tooling/deploy/neon/activation";
-import { inspectNeonFunctionHealth } from "../../../apps/kello/src/tooling/deploy/neon/health";
+import { defineConfig } from "kello-cli";
+import { activateGrant, prepareGrant } from "../../../apps/kello-cli/src/tooling/deploy/neon/activation";
+import { inspectNeonFunctionHealth } from "../../../apps/kello-cli/src/tooling/deploy/neon/health";
 
 test("health preserves caller cancellation instead of replacing it with a health failure", async () => {
   const signal = AbortSignal.abort();
@@ -59,8 +59,8 @@ for (const rollbackFails of [false, true])
     }
   });
 
-const { withProcedureUpgrade } = await import("../../../apps/kello/src/tooling/migrations/procedure-upgrade");
-const { createDevelopmentCoordinator } = await import("../../../apps/kello/src/tooling/dev/coordinator");
+const { withProcedureUpgrade } = await import("../../../apps/kello-cli/src/tooling/migrations/procedure-upgrade");
+const { createDevelopmentCoordinator } = await import("../../../apps/kello-cli/src/tooling/dev/coordinator");
 
 for (const rollback of ["success", "error", "falsey"] as const)
   for (const successor of [false, true])

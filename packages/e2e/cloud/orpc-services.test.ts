@@ -18,7 +18,7 @@ import {
   inspectDeploymentTarget,
   NeonFunctionHealthError,
   readNeonFunctionReceipt,
-} from "kello/tooling";
+} from "kello-cli";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
 
 /** Assembled REST and invocation services on a real storage-enabled branch. */
@@ -99,7 +99,7 @@ export default os.probe.router({
       const address = new URL(connectionString);
       await writeFile(
         join(root, "kello.config.ts"),
-        `import {defineConfig} from "kello/tooling"; export default defineConfig(${JSON.stringify({ project: "jobs-storage", database: { migrations: "kello/migrations" }, openapi: true, provider: { projectId, targets: { preview: { branchId } } }, auth: { origins: [origin], audience: "loom-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] }, deployment: { environment: "preview", deployment: "preview", databaseName: decodeURIComponent(address.pathname.slice(1)), migrationRole: decodeURIComponent(address.username), runtimeRole, quarantine: "preserve" } })});`,
+        `import {defineConfig} from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "jobs-storage", database: { migrations: "kello/migrations" }, openapi: true, provider: { projectId, targets: { preview: { branchId } } }, auth: { origins: [origin], audience: "loom-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] }, deployment: { environment: "preview", deployment: "preview", databaseName: decodeURIComponent(address.pathname.slice(1)), migrationRole: decodeURIComponent(address.username), runtimeRole, quarantine: "preserve" } })});`,
       );
       const generated = await generateProject(root);
       // Typecheck backend independently: this fixture deliberately replaces frontend routes.

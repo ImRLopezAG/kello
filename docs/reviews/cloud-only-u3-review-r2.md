@@ -12,7 +12,7 @@ I read the full applicable `/Users/angel/dev/loom/AGENTS.md`, the actual plan `d
 
 ## Finding R2-F1 — P2: real release cancellation is retained as a cleanup failure
 
-**Location:** `apps/kello/src/tooling/dev/coordinator.ts:60–70`, especially cancellation classification and assignment to `drained`; downstream causal site `apps/kello/src/tooling/deploy/neon/apply.ts:271–306`; observable rejection at coordinator `stop()` line 121 and `apps/kello/src/commands/dev.ts:78`.
+**Location:** `apps/kello-cli/src/tooling/dev/coordinator.ts:60–70`, especially cancellation classification and assignment to `drained`; downstream causal site `apps/kello-cli/src/tooling/deploy/neon/apply.ts:271–306`; observable rejection at coordinator `stop()` line 121 and `apps/kello-cli/src/commands/dev.ts:78`.
 
 **Trigger:** An ordinary edit supersedes a release, or the user stops development, while `applyNeonFunctions` is polling an accepted function deployment. The actual release awaits a signal-aware timer at line 301 (or checks the same composed signal at lines 272/274). Cancellation rejects that operation. Its enclosing catch at lines 305–306 replaces the rejection with a fresh generic `Error("Function deployment incomplete; inspect the saved function receipt before resuming")`, without a cause.
 
@@ -50,22 +50,22 @@ All **38 present bodies** in the supplied freeze manifest were read in full, inc
 
 - `apps/docs/content/docs/operations/development.mdx`
 - `apps/kello/README.md`
-- `apps/kello/src/cli.ts`
-- `apps/kello/src/commands/dev.ts`
-- `apps/kello/src/tooling/config/development.ts`
-- `apps/kello/src/tooling/deploy/neon/connection.ts`
-- `apps/kello/src/tooling/deploy/neon/credentials.ts`
-- `apps/kello/src/tooling/deploy/neon/managed-credentials.ts`
-- `apps/kello/src/tooling/deploy/neon/prepare-release.ts`
-- `apps/kello/src/tooling/deploy/neon/project.ts`
-- `apps/kello/src/tooling/deploy/neon/publish-client.ts`
-- `apps/kello/src/tooling/deploy/neon/release-database.ts`
-- `apps/kello/src/tooling/deploy/neon/schema-provision.ts`
-- `apps/kello/src/tooling/dev/coordinator.ts`
-- `apps/kello/src/tooling/dev/development.ts`
-- `apps/kello/src/tooling/dev/project.ts`
-- `apps/kello/src/tooling/dev/watcher.ts`
-- `apps/kello/src/tooling/index.ts`
+- `apps/kello-cli/src/cli.ts`
+- `apps/kello-cli/src/commands/dev.ts`
+- `apps/kello-cli/src/tooling/config/development.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/connection.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/credentials.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/managed-credentials.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/prepare-release.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/project.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/publish-client.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/release-database.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/schema-provision.ts`
+- `apps/kello-cli/src/tooling/dev/coordinator.ts`
+- `apps/kello-cli/src/tooling/dev/development.ts`
+- `apps/kello-cli/src/tooling/dev/project.ts`
+- `apps/kello-cli/src/tooling/dev/watcher.ts`
+- `apps/kello-cli/src/tooling/index.ts`
 - `docs/architecture/development.md`
 - `packages/e2e/cloud/dev-component-watch.test.ts`
 - `packages/e2e/fixtures/http-handler-server.ts`
@@ -116,16 +116,16 @@ Opening and closing checks independently matched all **60 freeze entries: 38 SHA
 Closing correction-file hashes:
 
 ```text
-3dcd3437a8f4a380d165e1adfbc1f98473ce93f1be4a0009e1652d8acbbd1797  apps/kello/src/tooling/dev/development.ts
-b2d9966c00ac778cd989a6ce4e7065115eb6713a61a0f27c5082fa85bfc11518  apps/kello/src/tooling/dev/watcher.ts
-e0fed59cb204d514976cf161e418fcf3503d785d3e901449771f9b539f66f452  apps/kello/src/tooling/dev/coordinator.ts
-0a47d9df11fba2884a02ba5638e9b76fdebc6fcfa969148d7c7e5c917ca668bc  apps/kello/src/tooling/deploy/neon/project.ts
-671cbc7856caa034995bfc412226d8ff2cb0fc419097a2023ce098ed3a188caa  apps/kello/src/tooling/deploy/neon/managed-credentials.ts
-bf28542e4ec990fc2e11b1ec156bc0894d0114caa764c15061a4af2b8ccfce79  apps/kello/src/tooling/deploy/neon/connection.ts
-e6c131264a2a331cd954600cab15ebc7c469d5d231cb6b84538e0f62dde34003  apps/kello/src/tooling/deploy/neon/release-database.ts
-2287db3487680a2a724f737bc3195c0e8239ca5e1847dc4bbef67e278a680042  apps/kello/src/tooling/deploy/neon/prepare-release.ts
-78a2b7bed87e4b339968edbb078f19f712cb0029163cbebd6ff91b95bb231d71  apps/kello/src/tooling/deploy/neon/publish-client.ts
-dce92edef286678e721555eb7477b7644d0949ea7e8e5b6ad0688c4a906c4c4f  apps/kello/src/commands/dev.ts
+3dcd3437a8f4a380d165e1adfbc1f98473ce93f1be4a0009e1652d8acbbd1797  apps/kello-cli/src/tooling/dev/development.ts
+b2d9966c00ac778cd989a6ce4e7065115eb6713a61a0f27c5082fa85bfc11518  apps/kello-cli/src/tooling/dev/watcher.ts
+e0fed59cb204d514976cf161e418fcf3503d785d3e901449771f9b539f66f452  apps/kello-cli/src/tooling/dev/coordinator.ts
+0a47d9df11fba2884a02ba5638e9b76fdebc6fcfa969148d7c7e5c917ca668bc  apps/kello-cli/src/tooling/deploy/neon/project.ts
+671cbc7856caa034995bfc412226d8ff2cb0fc419097a2023ce098ed3a188caa  apps/kello-cli/src/tooling/deploy/neon/managed-credentials.ts
+bf28542e4ec990fc2e11b1ec156bc0894d0114caa764c15061a4af2b8ccfce79  apps/kello-cli/src/tooling/deploy/neon/connection.ts
+e6c131264a2a331cd954600cab15ebc7c469d5d231cb6b84538e0f62dde34003  apps/kello-cli/src/tooling/deploy/neon/release-database.ts
+2287db3487680a2a724f737bc3195c0e8239ca5e1847dc4bbef67e278a680042  apps/kello-cli/src/tooling/deploy/neon/prepare-release.ts
+78a2b7bed87e4b339968edbb078f19f712cb0029163cbebd6ff91b95bb231d71  apps/kello-cli/src/tooling/deploy/neon/publish-client.ts
+dce92edef286678e721555eb7477b7644d0949ea7e8e5b6ad0688c4a906c4c4f  apps/kello-cli/src/commands/dev.ts
 ee274d62b288f733fb5f2a8f0fbea468003695d462f328370a2571b1a56d9135  packages/tests/unit/deployment-project.test.ts
 fd6d49b2817f56d936b26123424d96fadcf541fb0fa9161e1082c4159b023832  packages/tests/unit/dev-preview.test.ts
 0ee16fc3c25941f534deab6f513738e53df4702f5b5561e642cb4ac65d80b3ef  packages/tests/unit/dev-coordinator.test.ts

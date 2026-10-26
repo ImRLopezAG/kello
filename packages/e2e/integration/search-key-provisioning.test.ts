@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test, expect } from "bun:test";
 import pg from "pg";
-import { bootstrapDatabase } from "kello/tooling";
-import { provisionSearchCursorKey } from "../../../apps/kello/src/tooling/deploy/neon/search-key";
+import { bootstrapDatabase } from "kello-cli";
+import { provisionSearchCursorKey } from "../../../apps/kello-cli/src/tooling/deploy/neon/search-key";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

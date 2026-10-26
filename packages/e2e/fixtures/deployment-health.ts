@@ -3,8 +3,8 @@ import * as v from "valibot";
 import { createServer } from "node:https";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { defineConfig, inspectNeonFunctionHealth, NeonFunctionHealthError } from "kello/tooling";
-import type { NeonFunctionReceipt, DeploymentHealthProvider } from "kello/tooling";
+import { defineConfig, inspectNeonFunctionHealth, NeonFunctionHealthError } from "kello-cli";
+import type { NeonFunctionReceipt, DeploymentHealthProvider } from "kello-cli";
 
 const [certificate, key, mode, root] = process.argv.slice(2);
 if (!certificate || !key || !root) throw new Error("Missing fixture paths");

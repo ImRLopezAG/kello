@@ -4,7 +4,7 @@ import { test, expect } from "bun:test";
 import pg from "pg";
 import * as v from "valibot";
 import { defineRelations, sql } from "drizzle-orm";
-import { bootstrapDatabase, withProcedureUpgrade, ProcedureUpgradeError } from "kello/tooling";
+import { bootstrapDatabase, withProcedureUpgrade, ProcedureUpgradeError } from "kello-cli";
 import {
   createRpcRuntime,
   defineRpcAuth,

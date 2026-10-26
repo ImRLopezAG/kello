@@ -61,6 +61,14 @@ jobs:
           assert.equal(pkg.publishConfig.tag, 'alpha');
           assert.equal(pkg.publishConfig.access, 'public');
           assert.equal(readFileSync('LICENSE', 'utf8'), readFileSync('apps/kello/LICENSE', 'utf8'));
+          const cli = JSON.parse(readFileSync('apps/kello-cli/package.json', 'utf8'));
+          assert.equal(cli.name, 'kello-cli');
+          assert.equal(cli.version, pkg.version);
+          assert.equal(cli.license, pkg.license);
+          assert.equal(cli.repository.url, pkg.repository.url);
+          assert.equal(cli.publishConfig.tag, 'alpha');
+          assert.equal(cli.publishConfig.access, 'public');
+          assert.equal(readFileSync('LICENSE', 'utf8'), readFileSync('apps/kello-cli/LICENSE', 'utf8'));
           JS
       - name: Download verified CI package
         env:
@@ -76,14 +84,17 @@ jobs:
           import assert from 'node:assert/strict';
           import { createHash } from 'node:crypto';
           import { readFileSync } from 'node:fs';
-          const pkg = JSON.parse(readFileSync('apps/kello/package.json', 'utf8'));
           const dir = process.env.ARTIFACT_DIR;
-          const manifest = JSON.parse(readFileSync(`${dir}/manifest.json`, 'utf8'));
-          assert.equal(manifest.commit, process.env.RELEASE_COMMIT, 'CI artifact commit mismatch');
-          assert.equal(manifest.name, pkg.name, 'CI artifact package mismatch');
-          assert.equal(manifest.version, pkg.version, 'CI artifact version mismatch');
-          const sha256 = createHash('sha256').update(readFileSync(`${dir}/kello.tgz`)).digest('hex');
-          assert.equal(manifest.sha256, sha256, 'CI tarball checksum mismatch');
+          for (const name of ['kello', 'kello-cli']) {
+            const pkg = JSON.parse(readFileSync(`apps/${name}/package.json`, 'utf8'));
+            const file = name === 'kello' ? 'manifest.json' : 'cli-manifest.json';
+            const manifest = JSON.parse(readFileSync(`${dir}/${file}`, 'utf8'));
+            assert.equal(manifest.commit, process.env.RELEASE_COMMIT, 'CI artifact commit mismatch');
+            assert.equal(manifest.name, pkg.name, 'CI artifact package mismatch');
+            assert.equal(manifest.version, pkg.version, 'CI artifact version mismatch');
+            const sha256 = createHash('sha256').update(readFileSync(`${dir}/${name}.tgz`)).digest('hex');
+            assert.equal(manifest.sha256, sha256, 'CI tarball checksum mismatch');
+          }
           JS
       - name: Update npm for trusted publishing
         run: npm install --global npm@11
@@ -91,4 +102,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ""
           NPM_TOKEN: ""
-        run: npm publish "$RUNNER_TEMP/kello-release/kello.tgz" --ignore-scripts --access public --tag alpha
+        run: |
+          npm publish "$RUNNER_TEMP/kello-release/kello.tgz" --ignore-scripts --access public --tag alpha
+          npm publish "$RUNNER_TEMP/kello-release/kello-cli.tgz" --ignore-scripts --access public --tag alpha

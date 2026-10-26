@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Effect, Layer } from "effect";
 import { createComponentServiceRegistry, createEffectRuntime } from "kello/server";
-import { generateProject, initializeProject } from "kello/tooling";
+import { generateProject, initializeProject } from "kello-cli";
 
 // Run from the repository with: bun packages/e2e/benchmarks/components.ts
 // This uses the already compiled public package. It does not build or access Neon.

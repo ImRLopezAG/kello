@@ -13,10 +13,10 @@ import {
   type DiscoveryProvider,
   type RealtimeEnableInput,
   type RealtimeProvider,
-} from "kello/tooling";
+} from "kello-cli";
 
-import { realtimeStatusCommand } from "../../../apps/kello/src/commands/realtime";
-import { resolveRealtimeEnvironment } from "../../../apps/kello/src/tooling/deploy/neon/environment";
+import { realtimeStatusCommand } from "../../../apps/kello-cli/src/commands/realtime";
+import { resolveRealtimeEnvironment } from "../../../apps/kello-cli/src/tooling/deploy/neon/environment";
 
 const canary = "nrt_live_1_secret-canary";
 const origins = ["https://app.example.test"];

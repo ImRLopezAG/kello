@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "bun:test";
-import { applyMigrations, loadProject } from "kello/tooling";
+import { applyMigrations, loadProject } from "kello-cli";
 import pg from "pg";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;

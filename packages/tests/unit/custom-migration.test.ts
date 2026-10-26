@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineSchema } from "kello/server";
-import { emptySnapshot, planMigration, planCustomMigration, readMigrations, writeMigration } from "kello/tooling";
+import { emptySnapshot, planMigration, planCustomMigration, readMigrations, writeMigration } from "kello-cli";
 
 const schema = defineSchema((f) => ({ tasks: { title: f.text() } }), { namespace: "app" });
 

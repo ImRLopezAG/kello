@@ -16,16 +16,35 @@ async function runLoaderTest(body: string) {
   try {
     const sourcePackage = join(root, "node_modules/kello");
     await mkdir(sourcePackage, { recursive: true });
-    const dependencies = resolve(sourceDirectory, "../node_modules");
-    for (const name of await readdir(dependencies)) {
-      if (name !== "kello") await symlink(join(dependencies, name), join(root, "node_modules", name));
+    const dependencyRoots = [
+      resolve(sourceDirectory, "../node_modules"),
+      resolve(sourceDirectory, "../../kello-cli/node_modules"),
+    ];
+    const linked = new Set(["kello"]);
+    for (const dependencies of dependencyRoots) {
+      for (const name of await readdir(dependencies)) {
+        if (linked.has(name)) continue;
+        // Merge scoped package links: runtime and CLI have different @neon dependencies.
+        if (name.startsWith("@")) {
+          await mkdir(join(root, "node_modules", name), { recursive: true });
+          for (const child of await readdir(join(dependencies, name))) {
+            const key = `${name}/${child}`;
+            if (linked.has(key)) continue;
+            await symlink(join(dependencies, key), join(root, "node_modules", key));
+            linked.add(key);
+          }
+        } else {
+          await symlink(join(dependencies, name), join(root, "node_modules", name));
+          linked.add(name);
+        }
+      }
     }
     await writeFile(
       join(sourcePackage, "package.json"),
       JSON.stringify({
         name: "kello",
         type: "module",
-        exports: { "./server": "./server.ts", "./contract": "./contract.ts" },
+        exports: { "./server": "./server.ts", "./contract": "./contract.ts", "./internal/tooling": "./tooling.ts" },
       }),
     );
     await writeFile(
@@ -35,6 +54,10 @@ async function runLoaderTest(body: string) {
     await writeFile(
       join(sourcePackage, "contract.ts"),
       `export * from ${JSON.stringify(join(sourceDirectory, "core/contract/index.ts"))};`,
+    );
+    await writeFile(
+      join(sourcePackage, "tooling.ts"),
+      `export * from ${JSON.stringify(join(sourceDirectory, "internal/tooling.ts"))};`,
     );
     const script = join(root, "test.ts");
     await writeFile(
@@ -48,7 +71,7 @@ import { mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 const root = ${JSON.stringify(root)};
 const bundledLoader = await build({
-  entrypoints: [${JSON.stringify(join(sourceDirectory, "tooling/project/load.ts"))}], target: "bun", format: "esm", packages: "external",
+  entrypoints: [${JSON.stringify(resolve(sourceDirectory, "../../kello-cli/src/tooling/project/load.ts"))}], target: "bun", format: "esm", packages: "external",
   plugins: [{ name: "rate-limits-loader-source-imports", setup(builder) {
     builder.onResolve({ filter: /^kello\\/server$/ }, () => ({ path: ${JSON.stringify(join(sourceDirectory, "core/server/index.ts"))}, external: true }));
   } }],

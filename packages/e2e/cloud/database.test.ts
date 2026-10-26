@@ -3,13 +3,13 @@ import { test } from "bun:test";
 import pg from "pg";
 import * as v from "valibot";
 import { createRequire } from "node:module";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 
 const identifier = v.pipe(v.string(), v.regex(/^[a-zA-Z0-9_-]+$/));
 
 /** Keep connection strings and provider diagnostics out of test output. */
 async function neon(args: string[]): Promise<string> {
-  const cli = createRequire(import.meta.resolve("kello/tooling")).resolve("neon/dist/index.js");
+  const cli = createRequire(import.meta.resolve("kello-cli")).resolve("neon/dist/index.js");
   const child = Bun.spawn(["node", cli, ...args], { stdout: "pipe", stderr: "pipe" });
   const timeout = setTimeout(() => child.kill(), 30000);
   try {

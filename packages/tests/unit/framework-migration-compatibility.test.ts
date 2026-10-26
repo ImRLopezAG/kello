@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { frameworkMigrations } from "../../../apps/kello/src/tooling/migrations/bootstrap";
+import { frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
 // Published framework prefix from main before the Kello rename. Existing ledgers retain these hashes.
 const originalPrefix = [

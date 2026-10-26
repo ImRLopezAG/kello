@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { defineSchema, defineTable } from "kello/server";
-import { emptySnapshot, inspectSnapshot, planMigration } from "kello/tooling";
+import { emptySnapshot, inspectSnapshot, planMigration } from "kello-cli";
 import pg from "pg";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;

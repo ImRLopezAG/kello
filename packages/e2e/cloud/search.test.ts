@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import pg from "pg";
 import * as v from "valibot";
-import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello/tooling";
+import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello-cli";
 import { prepareCloudSearch } from "../fixtures/cloud-search";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
 import { deployLiveServices } from "../fixtures/cloud-live-services";
@@ -61,8 +61,8 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
     let passed = false;
     try {
       await prepareCloudSearch(root, namespace);
-      const tooling: typeof import("kello/tooling") = await import(
-        join(root, "node_modules/kello/dist/tooling/index.js")
+      const tooling: typeof import("kello-cli") = await import(
+        join(root, "node_modules/kello-cli/dist/tooling/index.js")
       );
       await admin.connect();
       connected = true;
@@ -91,7 +91,7 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       const origin = frontend.url.origin;
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify({
+        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify({
           project: "search",
           openapi: true,
           database: { namespace, metadataNamespace },

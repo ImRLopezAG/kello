@@ -2,11 +2,11 @@ import { afterEach, describe, expect, expectTypeOf, test, vi } from "vite-plus/t
 import { Context, Effect, Metric } from "effect";
 import type { MetricsData } from "effect/observability/OtlpMetrics";
 import { OtlpSerialization, layerJson } from "effect/observability/OtlpSerialization";
-import { createDiagnosticsMetrics } from "../../../apps/kello/src/tooling/diagnostics/metrics";
+import { createDiagnosticsMetrics } from "../../../apps/kello-cli/src/tooling/diagnostics/metrics";
 import type {
   DiagnosticsDeploymentEvent,
   DiagnosticsRuntimeEvent,
-} from "../../../apps/kello/src/tooling/diagnostics/types";
+} from "../../../apps/kello-cli/src/tooling/diagnostics/types";
 import packageJson from "../../../apps/kello/package.json" with { type: "json" };
 
 type MetricData = MetricsData["resourceMetrics"][number]["scopeMetrics"][number]["metrics"][number];

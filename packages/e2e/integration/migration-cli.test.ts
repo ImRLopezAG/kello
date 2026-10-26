@@ -1,10 +1,10 @@
-import { initializeProject } from "kello/tooling";
+import { initializeProject } from "kello-cli";
 import { expect, test } from "bun:test";
 import { mkdtemp, mkdir, realpath, symlink, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readMigrations } from "kello/tooling";
+import { readMigrations } from "kello-cli";
 import pg from "pg";
 import * as v from "valibot";
 
@@ -19,7 +19,7 @@ test.skipIf(!connectionString)(
     const root = await mkdtemp(join(tmpdir(), "loom-migration-cli-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
-    const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
+    const cli = fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url));
     async function run(args: string[], exitCode = 0) {
       const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
         stdout: "pipe",
@@ -43,7 +43,7 @@ test.skipIf(!connectionString)(
       }
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify({ project: "migration-fixture", database: { namespace, metadataNamespace, migrationUrlEnv: "LOOM_TEST_DATABASE_URL" } })});`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "migration-fixture", database: { namespace, metadataNamespace, migrationUrlEnv: "LOOM_TEST_DATABASE_URL" } })});`,
       );
       const schemaFile = join(root, "kello/schema.ts");
       await writeFile(

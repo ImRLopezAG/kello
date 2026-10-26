@@ -11,7 +11,7 @@ export const packedFullTextNodeFiles = {
   "tasks-contract.mjs": packedFullTextFiles["app/kello/contracts/tasks.ts"].replace("} as const;", "};"),
 } as const;
 
-export const packedFullTextNodeInitialize = `import { initializeProject, saveResolvedProject } from "kello/tooling";
+export const packedFullTextNodeInitialize = `import { initializeProject, saveResolvedProject } from "kello-cli";
 await initializeProject("./app", "packed-full-text-node");
 await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: "br-fixture", branchName: "dev", protected: false, isDefault: false, databaseName: "neondb", migrationRole: "neondb_owner", public: { serviceUrl: "https://packed-full-text-node.example.test" } });
 `;

@@ -13,7 +13,7 @@ import {
   createJwtVerifier,
   defineSchema,
 } from "kello/server";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import pg from "pg";

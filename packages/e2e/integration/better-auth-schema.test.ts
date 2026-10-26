@@ -6,7 +6,7 @@ import { betterAuth } from "better-auth";
 import { jwt, organization, twoFactor } from "better-auth/plugins";
 import { inbox } from "better-inbox";
 import { compileBetterAuthSchema, createBetterAuthDatabase } from "kello/better-auth";
-import { createNativeSnapshot, emptySnapshot, migrationStatements } from "kello/tooling";
+import { createNativeSnapshot, emptySnapshot, migrationStatements } from "kello-cli";
 import type { BetterAuthOptions } from "better-auth";
 import type { SecondaryStorage } from "@better-auth/core/db";
 

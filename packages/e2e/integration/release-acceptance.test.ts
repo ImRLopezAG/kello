@@ -28,7 +28,18 @@ test("publication verifies the CI tarball identity and rejects changed bytes", a
   try {
     const payload = "fixture archive bytes";
     const digest = new Bun.CryptoHasher("sha256").update(payload).digest("hex");
-    for (const scenario of ["valid", "wrong-commit", "wrong-version", "wrong-name", "changed-bytes"] as const) {
+    for (const scenario of [
+      "valid",
+      "wrong-commit",
+      "wrong-version",
+      "wrong-name",
+      "changed-bytes",
+      "cli-wrong-commit",
+      "cli-wrong-version",
+      "cli-wrong-name",
+      "cli-changed-bytes",
+      "cli-missing",
+    ] as const) {
       await writeFile(`${root}/kello.tgz`, scenario === "changed-bytes" ? "changed" : payload);
       await writeFile(
         `${root}/manifest.json`,
@@ -39,6 +50,15 @@ test("publication verifies the CI tarball identity and rejects changed bytes", a
           sha256: digest,
         }),
       );
+      await writeFile(`${root}/kello-cli.tgz`, scenario === "cli-changed-bytes" ? "changed" : payload);
+      const cli = {
+        commit: scenario === "cli-wrong-commit" ? "0".repeat(40) : commit,
+        name: scenario === "cli-wrong-name" ? "other" : "kello-cli",
+        version: scenario === "cli-wrong-version" ? "999.0.0-alpha.0" : pkg.version,
+        sha256: digest,
+      };
+      if (scenario === "cli-missing") await rm(`${root}/cli-manifest.json`, { force: true });
+      else await writeFile(`${root}/cli-manifest.json`, JSON.stringify(cli));
       const child: Bun.Subprocess<"ignore", "pipe", "pipe"> = Bun.spawn(
         ["bash", "-e", "-o", "pipefail", "-c", script],
         {

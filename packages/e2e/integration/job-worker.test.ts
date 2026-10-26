@@ -13,7 +13,7 @@ import {
   encodeRpcJobCall,
 } from "kello/server";
 import { ORPCError } from "@orpc/server";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
 import pg from "pg";

@@ -18,7 +18,7 @@ import {
   generateProject,
   inspectDeploymentTarget,
   readNeonFunctionReceipt,
-} from "kello/tooling";
+} from "kello-cli";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
 
 const hash = v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/));
@@ -106,7 +106,7 @@ test.skipIf(process.env.LOOM_CLOUD_UPGRADE !== "1")(
       const address = new URL(connectionString);
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify({
+        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify({
           project: "tasks",
           database: { migrations: "kello/migrations" },
           provider: { projectId, targets: { preview: { branchId } } },

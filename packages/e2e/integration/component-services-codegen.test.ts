@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject } from "kello/tooling";
+import { generateProject, initializeProject } from "kello-cli";
 
 test("generated service contexts retain SDK overloads for local and mounted usage", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-service-types-"));

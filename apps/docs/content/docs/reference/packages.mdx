@@ -3,7 +3,7 @@ title: Package exports
 description: Choose the public entry point for browser, server, and tooling code.
 ---
 
-Kello ships its CLI and library in one `kello` package. Consumers use compiled public exports; they should not import workspace source paths or `dist` internals.
+Kello separates the `kello` runtime from `kello-cli`, a development dependency for configuration, migrations and deployment. Use matching release versions. Consumers use compiled public exports; they should not import workspace source paths, `kello/internal/tooling`, or `dist` internals.
 
 | Import              | Purpose                                                                                  | Where                            |
 | ------------------- | ---------------------------------------------------------------------------------------- | -------------------------------- |
@@ -15,7 +15,7 @@ Kello ships its CLI and library in one `kello` package. Consumers use compiled p
 | `kello/react/neon`  | Official Neon SDK binding and provider                                                   | React client                     |
 | `kello/better-auth` | Custom Better Auth component and schema integration                                      | Backend only                     |
 | `kello/neon`        | Neon runtime, ingress, storage and trigger adapters                                      | Backend/platform integration     |
-| `kello/tooling`     | Config, code generation, migrations, development and deployment operations               | CLI/build tooling only           |
+| `kello-cli`         | Config, code generation, migrations, development and deployment operations               | CLI/build tooling only           |
 
 Prefer the generated `api`, `rpc`, `server`, and component facades for project-specific types. Low-level runtime exports exist for integrations and tests; ordinary handlers should not construct database pools, transaction coordinators, connection tickets, or activation grants themselves.
 

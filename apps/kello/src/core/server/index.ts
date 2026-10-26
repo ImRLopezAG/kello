@@ -53,7 +53,7 @@ export { serializeRpcValue, deserializeRpcValue, rpcProtocolVersion } from "./rp
 export { generateRpcOpenAPI } from "./rpc/openapi";
 export { createDatabaseMiddleware, bindRpcDatabaseProcedure, getDatabasePolicy } from "./rpc/database";
 export type { DatabasePolicy, RpcDatabaseOptions } from "./rpc/database";
-export type { SchemaDefinition } from "../schema/define-schema";
+export type { SchemaDefinition, LoadedSchema } from "../schema/define-schema";
 export { defineTable } from "../schema/table";
 export { fields } from "../schema/fields";
 export { systemFieldSql } from "../schema/system-fields";

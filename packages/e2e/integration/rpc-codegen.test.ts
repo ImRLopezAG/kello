@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, realpath, symlink, writeFile, readFile, readlink, readd
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { generateProject, initializeProject, loadProject } from "kello/tooling";
+import { generateProject, initializeProject, loadProject } from "kello-cli";
 
 test("native generation bootstraps, isolates internal routes, and atomically replaces bounded artifacts", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-rpc-codegen-"));
@@ -47,7 +47,7 @@ test("native generation bootstraps, isolates internal routes, and atomically rep
 
     await writeFile(
       join(root, "kello.config.ts"),
-      'import { defineConfig } from "kello/tooling"; export default defineConfig({ project: "rpc", openapi: true });',
+      'import { defineConfig } from "kello-cli"; export default defineConfig({ project: "rpc", openapi: true });',
     );
     const contract = (
       name: string,

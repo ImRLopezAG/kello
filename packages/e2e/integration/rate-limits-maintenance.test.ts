@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import { bootstrapDatabase } from "../../../apps/kello/src/tooling/migrations/bootstrap";
-import { registerRateLimitPolicies } from "../../../apps/kello/src/tooling/migrations/rate-limits";
-import { cleanupRateLimits } from "../../../apps/kello/src/tooling/migrations/rate-limits-cleanup";
+import { bootstrapDatabase } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
+import { registerRateLimitPolicies } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits";
+import { cleanupRateLimits } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits-cleanup";
 import { defineRateLimits } from "../../../apps/kello/src/core/server/rate-limits/policy";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;

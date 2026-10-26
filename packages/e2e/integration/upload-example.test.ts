@@ -5,7 +5,7 @@ import { test } from "bun:test";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import * as v from "valibot";
-import { applyMigrations, loadProject } from "kello/tooling";
+import { applyMigrations, loadProject } from "kello-cli";
 import { createRpcRuntime } from "kello/server";
 import type { InvocationIdentity, JsonValue, StorageDelivery } from "kello/server";
 import { createHash } from "node:crypto";

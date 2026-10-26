@@ -1,12 +1,12 @@
 import { test, expect } from "bun:test";
 import assert from "node:assert/strict";
-import { withMigrationConnection } from "../../../apps/kello/src/tooling/migrations/connection";
+import { withMigrationConnection } from "../../../apps/kello-cli/src/tooling/migrations/connection";
 import {
   captureSchemaBaseline,
   establishSchemaBaseline,
-} from "../../../apps/kello/src/tooling/migrations/branch-baseline";
-import { applyMigrations, migrationStatus, readMigrations } from "kello/tooling";
-import { ormHistoryTable } from "../../../apps/kello/src/tooling/migrations/state";
+} from "../../../apps/kello-cli/src/tooling/migrations/branch-baseline";
+import { applyMigrations, migrationStatus, readMigrations } from "kello-cli";
+import { ormHistoryTable } from "../../../apps/kello-cli/src/tooling/migrations/state";
 
 const source = process.env.LOOM_BASELINE_SOURCE_URL;
 const target = process.env.LOOM_BASELINE_TARGET_URL;

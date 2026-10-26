@@ -6,7 +6,7 @@ import {
   createOtlpExporter,
   serializeMetrics,
   type OtlpFailureCode,
-} from "../../../apps/kello/src/tooling/diagnostics/otlp";
+} from "../../../apps/kello-cli/src/tooling/diagnostics/otlp";
 
 function metrics(count = 1): MetricsData {
   return {

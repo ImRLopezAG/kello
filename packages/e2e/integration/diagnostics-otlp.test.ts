@@ -5,14 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
-import { createDiagnosticsMetrics } from "../../../apps/kello/src/tooling/diagnostics/metrics";
-import { createOtlpExporter, serializeMetrics } from "../../../apps/kello/src/tooling/diagnostics/otlp";
+import { createDiagnosticsMetrics } from "../../../apps/kello-cli/src/tooling/diagnostics/metrics";
+import { createOtlpExporter, serializeMetrics } from "../../../apps/kello-cli/src/tooling/diagnostics/otlp";
 
 import { RPCLink } from "@orpc/client/fetch";
 import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import { createRpcHttpApp } from "../../../apps/kello/src/core/adapters/neon/rpc-http";
-import { startDiagnostics } from "../../../apps/kello/src/tooling/diagnostics/session";
+import { startDiagnostics } from "../../../apps/kello-cli/src/tooling/diagnostics/session";
 import { Schema } from "effect";
 import type { MetricsData } from "effect/observability/OtlpMetrics";
 import packageJson from "../../../apps/kello/package.json" with { type: "json" };
@@ -907,9 +907,9 @@ test("the private Effect JSON bridge loads under native Bun and Node 24", async 
     await symlink(fileURLToPath(new URL("../node_modules", import.meta.url)), join(root, "node_modules"), "dir");
     const entry = join(root, "native.ts");
     const metricsPath = fileURLToPath(
-      new URL("../../../apps/kello/src/tooling/diagnostics/metrics.ts", import.meta.url),
+      new URL("../../../apps/kello-cli/src/tooling/diagnostics/metrics.ts", import.meta.url),
     );
-    const otlpPath = fileURLToPath(new URL("../../../apps/kello/src/tooling/diagnostics/otlp.ts", import.meta.url));
+    const otlpPath = fileURLToPath(new URL("../../../apps/kello-cli/src/tooling/diagnostics/otlp.ts", import.meta.url));
     await writeFile(
       entry,
       `

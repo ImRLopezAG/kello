@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { createNeonObjectStorage } from "kello/neon";
-import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello/tooling";
+import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello-cli";
 
 const projectId = "late-moon-69483649";
 const branchId = "br-dark-block-awbbt60w";

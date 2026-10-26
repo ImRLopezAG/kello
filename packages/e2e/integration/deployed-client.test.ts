@@ -4,9 +4,9 @@ import { mkdtemp, readFile, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject, loadProjectConfig, saveResolvedProject } from "kello/tooling";
-import type { DiscoveryProvider } from "kello/tooling";
-import { publishDeployedClient } from "../../../apps/kello/src/tooling/deploy/neon/publish-client";
+import { generateProject, initializeProject, loadProjectConfig, saveResolvedProject } from "kello-cli";
+import type { DiscoveryProvider } from "kello-cli";
+import { publishDeployedClient } from "../../../apps/kello-cli/src/tooling/deploy/neon/publish-client";
 
 test("deployment discovery updates the generated client without changing its release version", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-deployed-client-"));

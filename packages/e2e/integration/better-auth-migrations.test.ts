@@ -11,7 +11,7 @@ import {
   readMigrations,
   componentNamespace,
   generateProject,
-} from "kello/tooling";
+} from "kello-cli";
 
 test("explicit auth component mounts own native migrations and retain removed plugin tables", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-auth-migrations-"));
@@ -86,7 +86,7 @@ test.skipIf(!connectionString)(
       applyMigrations,
       reconcileComponentNamespaces,
       withMigrationConnection,
-    } = await import("kello/tooling");
+    } = await import("kello-cli");
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const mountPath = `identity_${suffix}`;
     const namespace = componentNamespace(mountPath);

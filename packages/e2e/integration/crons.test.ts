@@ -12,8 +12,8 @@ import {
   bindRpcDatabaseProcedure,
 } from "kello/server";
 import { createNeonTriggers } from "kello/neon";
-import { bootstrapDatabase, defineConfig, prepareNeonScheduleTriggers } from "kello/tooling";
-import type { DeploymentTriggerProvider } from "kello/tooling";
+import { bootstrapDatabase, defineConfig, prepareNeonScheduleTriggers } from "kello-cli";
+import type { DeploymentTriggerProvider } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
 import pg from "pg";

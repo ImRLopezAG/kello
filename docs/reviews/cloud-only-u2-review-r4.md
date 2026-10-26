@@ -10,7 +10,7 @@ One independent gpt-6-astra LOW reviewer context applied correctness, implementa
 
 Intent remains natural function-contract `.live()` authoring with inferred flat output, faithful runtime validation, HTTP issuance/renewal and official Neon delivery with trusted authority. This correction refuses unsupported decoder semantics through the existing generator; it introduces no framework or new transport.
 
-Personally read complete current `apps/kello/src/tooling/codegen/live-query.ts` and `packages/tests/unit/live-procedure.test.ts`, plus their actual HEAD-relative diffs. Inspected relevant installed Zod 4.6.5 schema/check definitions, conversion aggregation/string/number processors and reconstruction source. No `.codegraph/` directory exists. The jobs-storage contract and public Id proof were hash-verified only; their complete-body and generated-client type-chain review credit belongs to R2. R1's 69-path reading and wider authority conclusions are historical, not this reviewer's personal coverage. The inherited integration checkout supplied only the initial working-directory identification; no source there was reviewed or changed.
+Personally read complete current `apps/kello-cli/src/tooling/codegen/live-query.ts` and `packages/tests/unit/live-procedure.test.ts`, plus their actual HEAD-relative diffs. Inspected relevant installed Zod 4.6.5 schema/check definitions, conversion aggregation/string/number processors and reconstruction source. No `.codegraph/` directory exists. The jobs-storage contract and public Id proof were hash-verified only; their complete-body and generated-client type-chain review credit belongs to R2. R1's 69-path reading and wider authority conclusions are historical, not this reviewer's personal coverage. The inherited integration checkout supplied only the initial working-directory identification; no source there was reviewed or changed.
 
 ## Correction assessment
 
@@ -48,7 +48,7 @@ All prior representability and provider limits remain. This bounded pass does no
 All four pins in `/private/tmp/kello-u2-url-correction-pins.json` matched on initial verification and closing verification immediately before writing this report. Branch and HEAD also matched at closing. No pin drift was adopted. Sole writable output: this report. No source/test/generated writes, fixes, Git writes, installs, external runtime, DB/provider or browser operations. A lightweight memory registry search supplied no current-task evidence and was not used for the verdict.
 
 ```text
-9dcd12c527676b02844607f654848cbb545fa881308975f1acb211c0b0bee197  apps/kello/src/tooling/codegen/live-query.ts
+9dcd12c527676b02844607f654848cbb545fa881308975f1acb211c0b0bee197  apps/kello-cli/src/tooling/codegen/live-query.ts
 a0479110867125acc5099f6c209f6bba91db8a445d486ee72a434a0e783f3d9e  packages/tests/unit/live-procedure.test.ts
 e4bdd1b45f37eb8a93a9b3f64e30369adffc8e9d040987d5c9e937182a21cc5b  packages/examples/jobs-storage/kello/contracts/files.ts
 b0b0568084c946783de9078fcafeab361fae565062a0fc556eebb99b53226c69  packages/examples/jobs-storage/types/live.test-d.ts

@@ -1,6 +1,6 @@
 import { startHttpHandlerServer } from "./http-handler-server";
 import { fileURLToPath } from "node:url";
-import { projectRuntimeGraph, applyMigrations, loadProject, projectMigrationScopes } from "kello/tooling";
+import { projectRuntimeGraph, applyMigrations, loadProject, projectMigrationScopes } from "kello-cli";
 import { createJwtVerifier, createRpcRuntime, defineRpcAuth } from "kello/server";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import pg from "pg";

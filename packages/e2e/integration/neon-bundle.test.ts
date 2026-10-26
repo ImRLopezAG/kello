@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { unzipSync } from "fflate";
-import { buildNeonFunctionBundle } from "kello/tooling";
+import { buildNeonFunctionBundle } from "kello-cli";
 
 test("Vite+ creates a standalone Neon Node 24 archive without running application build config", async () => {
   const root = await mkdtemp(join(tmpdir(), "kello-neon-bundle-"));

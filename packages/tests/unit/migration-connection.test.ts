@@ -4,7 +4,7 @@ import {
   assertMigrationConnection,
   withMigrationConnection,
   withBlockingGinTimeout,
-} from "../../../apps/kello/src/tooling/migrations/connection";
+} from "../../../apps/kello-cli/src/tooling/migrations/connection";
 
 test("Neon migration URLs preserve certificate verification before connecting", async () => {
   const clients: pg.Client[] = [];

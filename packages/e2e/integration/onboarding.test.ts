@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { integrateProject, createNeonProject, type OnboardingProvider } from "kello/tooling";
+import { integrateProject, createNeonProject, type OnboardingProvider } from "kello-cli";
 
 test("integration previews and preserves existing frontend configuration", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-integrate-"));

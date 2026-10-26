@@ -11,7 +11,7 @@ import {
 import type { InvocationIdentity } from "kello/server";
 import { call } from "@orpc/server";
 import { Context } from "effect";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";

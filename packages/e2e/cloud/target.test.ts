@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "bun:test";
-import { defineConfig, inspectDeploymentTarget } from "kello/tooling";
+import { defineConfig, inspectDeploymentTarget } from "kello-cli";
 import * as v from "valibot";
 
 const identifier = v.pipe(v.string(), v.regex(/^[a-zA-Z0-9_-]+$/));

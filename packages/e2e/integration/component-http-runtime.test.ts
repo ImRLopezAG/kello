@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import { defineRelations } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { defineComponent } from "../../../apps/kello/src/core/server/components/definition";
 import { readComponentEnvironment } from "../../../apps/kello/src/core/server/components/environment";
 import { defineApplication } from "../../../apps/kello/src/core/server/application/definition";

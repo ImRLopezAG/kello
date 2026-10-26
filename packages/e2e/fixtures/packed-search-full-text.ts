@@ -1,7 +1,7 @@
 // Authored consumer sources: every Kello import resolves through the installed
 // tarball. These are not executed by importing this fixture module.
 export const packedFullTextFiles = {
-  "app/kello.config.ts": `import { defineConfig } from "kello/tooling";
+  "app/kello.config.ts": `import { defineConfig } from "kello-cli";
 export default defineConfig({ database: { namespace: "fts_packed_private_marker" } });
 `,
   "app/kello/schema.ts": `import { defineSchema, defineTable } from "kello/server";
