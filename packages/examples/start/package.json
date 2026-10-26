@@ -13,7 +13,7 @@
     "deploy": "kello deploy"
   },
   "dependencies": {
-    "@neondatabase/auth": "0.6.0-beta",
+    "@neondatabase/auth": "0.7.0-beta",
     "@orpc/client": "2.0.0-beta.46",
     "@orpc/server": "2.0.0-beta.46",
     "@orpc/tanstack-query": "2.0.0-beta.46",

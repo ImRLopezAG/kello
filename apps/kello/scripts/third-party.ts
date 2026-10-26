@@ -25,7 +25,7 @@ const packages = [
     levels: 1,
     patch: "@neon%2Frealtime-drizzle@0.1.0.patch",
   },
-  { name: "zod", version: "4.6.5", entry: "zod", levels: 0 },
+  { name: "zod", version: "4.6.7", entry: "zod", levels: 0 },
 ];
 for (const dependency of packages) {
   let directory = dirname(fileURLToPath(import.meta.resolve(dependency.entry)));
@@ -48,7 +48,7 @@ await writeFile(
   join(destination, "README.md"),
   `# Bundled dependencies
 
-Kello tooling bundles the PostgreSQL API from drizzle-kit 1.0.0-rc.5 (published package license: MIT), @neon/config-runtime 1.10.1 and @neon/config 1.9.2 (Apache-2.0), and their Zod 4.6.5 dependency (MIT). Their package metadata, available upstream license files and Kello's modifications are included here. The source map retains the bundled source; license notices remain in the emitted JavaScript.
+Kello tooling bundles the PostgreSQL API from drizzle-kit 1.0.0-rc.5 (published package license: MIT), @neon/config-runtime 1.10.1 and @neon/config 1.9.2 (Apache-2.0), and their Zod 4.6.7 dependency (MIT). Their package metadata, available upstream license files and Kello's modifications are included here. The source map retains the bundled source; license notices remain in the emitted JavaScript.
 
 The Drizzle patch adds schema-scoped read-only introspection; rename hints use the upstream API. The Neon config patch rejects unknown or missing bucket access levels. The bundled @neon/realtime-drizzle 0.1.0 adapter (Apache-2.0) includes Kello's reviewed Drizzle RC5 and parameter-encoding patch. These changes are pinned and tested; consumers do not apply installation patches. Only these five packages are bundled. The official Realtime SDK remains an external runtime dependency. Kello deploys functions with the application's development-only Vite+ toolchain and fflate ZIP creation, rather than the bundled Neon config runtime's default esbuild/native-package tracing path. Bundling tooling's Zod keeps it independent of the application's Standard Schema choice and avoids splitting Drizzle's type identity through incompatible peer resolutions.
 

@@ -14,7 +14,7 @@
     "@better-auth/core": "1.7.7",
     "@kello/ts-config": "workspace:*",
     "@neon/realtime": "0.1.2",
-    "@neondatabase/auth": "0.6.0-beta",
+    "@neondatabase/auth": "0.7.0-beta",
     "@orpc/client": "2.0.0-beta.46",
     "@orpc/effect": "2.0.0-beta.46",
     "@orpc/server": "2.0.0-beta.46",
@@ -39,6 +39,6 @@
     "typescript": "7.0.2",
     "valibot": "1.5.0",
     "vite-plus": "1.0.0",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   }
 }
