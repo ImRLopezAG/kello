@@ -4,7 +4,7 @@ import pg from "pg";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { createStorageIntents, createStorageCleanup } from "kello/server";
 import { storageProviderFixture } from "../fixtures/storage-provider";
 

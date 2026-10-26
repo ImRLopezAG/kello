@@ -15,7 +15,7 @@ import {
   planRelease,
   applyMigrations,
   validateMigration,
-} from "kello/tooling";
+} from "kello-cli";
 
 const databaseUrl = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
 
@@ -32,7 +32,7 @@ test("public CLI migration assessment uses current policy without changing histo
 export default defineSchema((s) => ({tasks: defineTable({title:s.text().notNull(), body:s.text()}, {
 publicFields:["_id","title"], ${fullText ? 'fullText:{content:{config:"pg_catalog.simple",fields:[{field:"title",weight:"A"},{field:"body",weight:"D"}],version:"1"}}' : ""}
 })}),{namespace:${JSON.stringify(namespace)}});`;
-  const cli = fileURLToPath(new URL("../../../apps/kello/cli.js", import.meta.url));
+  const cli = fileURLToPath(new URL("../../../apps/kello-cli/cli.js", import.meta.url));
   const run = async (args: string[]) => {
     const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
       stdout: "pipe",
@@ -62,14 +62,14 @@ publicFields:["_id","title"], ${fullText ? 'fullText:{content:{config:"pg_catalo
     console.log("U2_CALLER_TARGET", JSON.stringify({ version, database, namespace }));
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm"])
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
       );
     await writeFile(
       join(root, "kello.config.ts"),
-      `import {defineConfig} from "kello/tooling";
+      `import {defineConfig} from "kello-cli";
 export default defineConfig({project:"tasks",database:{namespace:${JSON.stringify(namespace)},metadataNamespace:${JSON.stringify(metadata)}},provider:{projectId:"project",targets:{development:{branchId:"br-developer"}}}});`,
     );
     await writeFile(join(root, "kello/schema.ts"), schema(false));

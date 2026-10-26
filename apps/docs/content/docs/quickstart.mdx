@@ -9,10 +9,10 @@ Use the repository's pinned Bun toolchain and Node 24. From the repository root:
 
 ```sh
 bun install --frozen-lockfile
-bunx turbo run build --filter=kello
+bunx turbo run build --filter=kello-cli
 ```
 
-The examples consume the built `kello` package through public subpath imports such as `kello/server` and `kello/react/neon`. Version `0.0.0` is a workspace evaluation target; these instructions do not assume an npm release exists.
+The examples consume the built `kello` runtime through public subpath imports such as `kello/server` and `kello/react/neon`. Their `kello-cli` development dependency provides the `kello` executable and configuration APIs. For an application outside this workspace, install matching runtime and CLI release versions with `bun add kello` and `bun add --dev kello-cli vite-plus`.
 
 ## Choose an example
 

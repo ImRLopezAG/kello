@@ -402,6 +402,12 @@ test("packed public full-text consumer executes under independently pinned Node 
       30_000,
       packageRoot,
     );
+    await run(
+      "pack-built-cli-package",
+      [bunExecutable, "pm", "pack", "--filename", join(root, "kello-cli.tgz"), "--ignore-scripts"],
+      30_000,
+      fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
+    );
     const bytes = await readFile(tarball);
     packageChecksum = hash(bytes);
     await emit(
@@ -422,6 +428,7 @@ test("packed public full-text consumer executes under independently pinned Node 
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
+          "kello-cli": "file:./kello-cli.tgz",
           "drizzle-orm": "1.0.0-rc.5",
           "@orpc/client": "2.0.0-beta.46",
           "@orpc/server": "2.0.0-beta.46",
@@ -452,7 +459,7 @@ test("packed public full-text consumer executes under independently pinned Node 
     // Explicit Bun runtime for the public CLI's documented Bun shebang.
     await run(
       "public-cli-generate-Bun",
-      [bunExecutable, join(root, "node_modules/kello/cli.js"), "generate", "--cwd", join(root, "app")],
+      [bunExecutable, join(root, "node_modules/kello-cli/cli.js"), "generate", "--cwd", join(root, "app")],
       60_000,
       root,
     );
@@ -500,7 +507,7 @@ test("packed public full-text consumer executes under independently pinned Node 
     assert.equal(consumer.caseCount, 34);
     assert.equal(consumer.cases.length, 34);
     assert.equal(new Set(consumer.cases).size, 34);
-    assert.equal(commands, 6);
+    assert.equal(commands, 7);
     await emit(consumer, errors);
     requireNoErrors(errors, "consumer receipt failed");
     completed = true;

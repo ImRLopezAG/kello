@@ -22,6 +22,23 @@ export async function prepareCloudSearch(root: string, namespace: string) {
     fileURLToPath(new URL("../../../apps/kello/node_modules/", import.meta.url)),
     join(root, "node_modules/kello/node_modules"),
   );
+  await mkdir(join(root, "node_modules/kello-cli"));
+  const cliArchive = join(root, "kello-cli.tgz");
+  const cliPacked = Bun.spawnSync(["bun", "pm", "pack", "--filename", cliArchive, "--ignore-scripts"], {
+    cwd: fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  assert.equal(cliPacked.exitCode, 0, "Public CLI archive failed");
+  const cliUnpacked = Bun.spawnSync(
+    ["tar", "-xzf", cliArchive, "--strip-components=1", "-C", join(root, "node_modules/kello-cli")],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+  assert.equal(cliUnpacked.exitCode, 0, "Public CLI extraction failed");
+  await symlink(
+    fileURLToPath(new URL("../../../apps/kello-cli/node_modules/", import.meta.url)),
+    join(root, "node_modules/kello-cli/node_modules"),
+  );
   for (const name of ["valibot", "effect", "drizzle-orm"])
     await symlink(
       fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url)),

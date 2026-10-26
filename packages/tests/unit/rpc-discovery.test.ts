@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { discoverProcedures } from "kello/tooling";
+import { discoverProcedures } from "kello-cli";
 import { createProjectProcedures, defineSchema } from "kello/server";
 
 const { procedure } = createProjectProcedures(defineSchema(() => ({})));

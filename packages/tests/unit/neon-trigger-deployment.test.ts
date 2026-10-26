@@ -5,13 +5,9 @@ import {
   prepareNeonScheduleTriggers,
   prepareNeonStorageTriggers,
   prepareNeonStorageBuckets,
-} from "kello/tooling";
-import { activateNeonTriggers } from "../../../apps/kello/src/tooling/deploy/neon/triggers";
-import type {
-  DeploymentTriggerProvider,
-  DeploymentStorageProvider,
-  DeploymentStorageTriggerProvider,
-} from "kello/tooling";
+} from "kello-cli";
+import { activateNeonTriggers } from "../../../apps/kello-cli/src/tooling/deploy/neon/triggers";
+import type { DeploymentTriggerProvider, DeploymentStorageProvider, DeploymentStorageTriggerProvider } from "kello-cli";
 
 function fixture() {
   const branch = { id: "br-preview", name: "preview", protected: false, isDefault: false };

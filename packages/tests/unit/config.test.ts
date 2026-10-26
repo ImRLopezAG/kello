@@ -2,7 +2,7 @@ import { expect, test } from "vite-plus/test";
 import { mkdtemp, mkdir, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { defineConfig, resolveProjectPath } from "kello/tooling";
+import { defineConfig, resolveProjectPath } from "kello-cli";
 
 test("configuration has bounded defaults and rejects unknown settings and protected namespaces", () => {
   expect(defineConfig({ project: "tasks" }).database.postgresVersion).toBe(18);

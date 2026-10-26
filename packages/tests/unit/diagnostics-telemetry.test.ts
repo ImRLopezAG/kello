@@ -4,8 +4,8 @@ import { setTimeout } from "node:timers/promises";
 import { Schema } from "effect";
 import type { MetricsData } from "effect/observability/OtlpMetrics";
 import { afterEach, expect, test, vi } from "vite-plus/test";
-import { startDiagnostics } from "../../../apps/kello/src/tooling/diagnostics/session";
-import type { DiagnosticsSession } from "../../../apps/kello/src/tooling/diagnostics/types";
+import { startDiagnostics } from "../../../apps/kello-cli/src/tooling/diagnostics/session";
+import type { DiagnosticsSession } from "../../../apps/kello-cli/src/tooling/diagnostics/types";
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {

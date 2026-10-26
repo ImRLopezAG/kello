@@ -72,6 +72,7 @@ await test("runs build, hosted auth/RPC, actual SDK and mounted browser in order
     assert.equal(run().status, 0);
     assert.deepEqual(readFileSync(env.HOOK_TEST_LOG, "utf8").trim().split("\n"), [
       "run --cwd apps/kello build",
+      "run --cwd apps/kello-cli build",
       "./cloud/run.ts",
       "fixtures/neon-realtime-smoke.ts",
       "fixtures/live-functions-neon.ts --verify",
@@ -87,7 +88,7 @@ await test("first failed provider suite blocks and stops later commands", () =>
   fixture(({ env, run }) => {
     env.HOOK_TEST_FAIL = "./cloud/run.ts";
     assert.equal(run().status, 1);
-    assert.equal(readFileSync(env.HOOK_TEST_LOG, "utf8").trim().split("\n").length, 2);
+    assert.equal(readFileSync(env.HOOK_TEST_LOG, "utf8").trim().split("\n").length, 3);
   }));
 
 await test("source changes during testing invalidate success", () =>

@@ -11,7 +11,7 @@ import { Context, Effect } from "effect";
 import { defineRelations, sql } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import type { ProcedureContext } from "kello/server";
 import { oc } from "kello/contract";
 import {

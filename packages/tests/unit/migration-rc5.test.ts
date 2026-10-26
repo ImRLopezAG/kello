@@ -4,8 +4,8 @@ import { expect, test } from "vite-plus/test";
 import { generateDrizzleJson } from "drizzle-kit/api-postgres";
 import { pgSchema, text } from "drizzle-orm/pg-core";
 import * as v from "valibot";
-import { fromDrizzleSnapshot } from "../../../apps/kello/src/tooling/migrations/snapshot";
-import { planValidator, validateMigration } from "../../../apps/kello/src/tooling/migrations/history";
+import { fromDrizzleSnapshot } from "../../../apps/kello-cli/src/tooling/migrations/snapshot";
+import { planValidator, validateMigration } from "../../../apps/kello-cli/src/tooling/migrations/history";
 
 const examples = resolve(import.meta.dirname, "../../examples");
 

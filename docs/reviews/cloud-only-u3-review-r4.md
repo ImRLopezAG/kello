@@ -48,9 +48,9 @@ U5 bundler changes in apply/index and U4 `runtime-cloud-only.test.ts` are separa
 All four hashes matched the supplied R4 manifest at opening and closing; zero drift. Manifest SHA-256 remained `f863daddfd351e62a8071c6c900a816ca56981b5975cec8ee5d1d00b2a591dcf`.
 
 ```text
-6d05b0c12b0bdafc89fd80dc317bce8c2125c1c54701175630a3458cec645997  apps/kello/src/tooling/migrations/procedure-upgrade.ts
-f2b59fa47b2941a3f60a325d1664105ab1b689cefb666282f1426d59adb63a3e  apps/kello/src/tooling/deploy/neon/activation.ts
-3107dec94d94c227c13c33daa0c35f365e150ba588213f57848c9519e2bb9599  apps/kello/src/tooling/deploy/neon/release.ts
+6d05b0c12b0bdafc89fd80dc317bce8c2125c1c54701175630a3458cec645997  apps/kello-cli/src/tooling/migrations/procedure-upgrade.ts
+f2b59fa47b2941a3f60a325d1664105ab1b689cefb666282f1426d59adb63a3e  apps/kello-cli/src/tooling/deploy/neon/activation.ts
+3107dec94d94c227c13c33daa0c35f365e150ba588213f57848c9519e2bb9599  apps/kello-cli/src/tooling/deploy/neon/release.ts
 6df37927212eabf3cdda92cdb09e36b7e9e3b83db715030487b056ceb62f44dc  packages/tests/unit/deployment-cancellation.test.ts
 ```
 

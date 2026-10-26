@@ -9,7 +9,7 @@ import {
   encodeRpcJobCall,
   createRpcCronDispatcher,
 } from "kello/server";
-import { bootstrapDatabase, defineConfig } from "kello/tooling";
+import { bootstrapDatabase, defineConfig } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
 import pg from "pg";

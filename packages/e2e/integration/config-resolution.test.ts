@@ -10,7 +10,7 @@ import {
   loadProjectConfig,
   writeManagedPublicEnvironment,
   type DiscoveryProvider,
-} from "kello/tooling";
+} from "kello-cli";
 
 function discovery(): DiscoveryProvider {
   return {

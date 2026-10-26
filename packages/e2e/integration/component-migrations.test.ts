@@ -1,17 +1,17 @@
-import { releaseHistoryNeedsRecovery } from "../../../apps/kello/src/tooling/deploy/neon/history-readiness";
+import { releaseHistoryNeedsRecovery } from "../../../apps/kello-cli/src/tooling/deploy/neon/history-readiness";
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pg from "pg";
-import type { DeploymentDatabaseProvider } from "kello/tooling";
+import type { DeploymentDatabaseProvider } from "kello-cli";
 import {
   captureSchemaBaseline,
   establishSchemaBaselines,
-} from "../../../apps/kello/src/tooling/migrations/branch-baseline";
-import { withMigrationConnection as withBaselineConnection } from "../../../apps/kello/src/tooling/migrations/connection";
-import { ormHistoryTable } from "../../../apps/kello/src/tooling/migrations/state";
+} from "../../../apps/kello-cli/src/tooling/migrations/branch-baseline";
+import { withMigrationConnection as withBaselineConnection } from "../../../apps/kello-cli/src/tooling/migrations/connection";
+import { ormHistoryTable } from "../../../apps/kello-cli/src/tooling/migrations/state";
 import { fileURLToPath } from "node:url";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { bindSchemaNamespace, defineSchema } from "kello/server";
@@ -30,7 +30,7 @@ import {
   emptySnapshot,
   planMigration,
   writeMigration,
-} from "kello/tooling";
+} from "kello-cli";
 
 test("component release planning permits pending framework bootstrap but retains history recovery blockers", () => {
   const oldMetadata = {
@@ -75,7 +75,7 @@ test("repeated mounts evaluate authored relations against independent instance t
   try {
     await initializeProject(root, "relations");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "zod", "drizzle-orm"])
+    for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -241,7 +241,7 @@ test.skipIf(!connectionString)(
     try {
       await initializeProject(root, "scopes");
       await mkdir(join(root, "node_modules"));
-      for (const name of ["kello", "valibot", "zod", "drizzle-orm"])
+      for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm"])
         await symlink(
           await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
           join(root, "node_modules", name),
@@ -254,7 +254,7 @@ test.skipIf(!connectionString)(
       );
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify({ project: "scopes", database: { namespace, metadataNamespace }, provider: { projectId: "project", targets: { preview: { branchId: "br-preview" } } } })});`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "scopes", database: { namespace, metadataNamespace }, provider: { projectId: "project", targets: { preview: { branchId: "br-preview" } } } })});`,
       );
       const directory = join(root, "kello/components/catalog");
       await mkdir(directory, { recursive: true });

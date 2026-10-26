@@ -17,7 +17,7 @@ import { defineApplication } from "kello";
 import { defineSchema } from "kello/server";
 import { defineBetterAuth, resolveBetterAuthSchema } from "kello/better-auth";
 import { createNeonRpcService } from "kello/neon";
-import { emptySnapshot, planMigration, writeMigration, applyMigrations } from "kello/tooling";
+import { emptySnapshot, planMigration, writeMigration, applyMigrations } from "kello-cli";
 
 import { appPreferences } from "../fixtures/app-auth-plugin";
 import { appPreferencesClient } from "../fixtures/app-auth-plugin-client";

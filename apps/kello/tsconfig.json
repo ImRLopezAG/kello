@@ -2,7 +2,8 @@
   "extends": "@kello/ts-config/bun.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "types": ["bun", "react"]
+    "types": ["bun", "react"],
+    "paths": {}
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "vite.config.ts"],
   "exclude": ["node_modules", "dist"]

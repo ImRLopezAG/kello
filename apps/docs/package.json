@@ -37,6 +37,7 @@
     "@kello/ts-config": "workspace:*",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "kello-cli": "workspace:*",
     "typescript": "7.0.2"
   }
 }

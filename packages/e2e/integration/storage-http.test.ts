@@ -3,7 +3,7 @@ import { test } from "bun:test";
 import pg from "pg";
 import { defineRelations } from "drizzle-orm";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { createRpcRuntime, createJwtVerifier, defineSchema, defineProcedureStorage } from "kello/server";
 import { createStorageHttpApp } from "kello/neon";
 import { createStorageClient, KelloClientError } from "kello/client";

@@ -9,8 +9,8 @@ import {
   quarantinePreviewDatabase,
   withDeploymentConnection,
   withDeploymentActivationSession,
-} from "kello/tooling";
-import type { DeploymentDatabaseProvider } from "kello/tooling";
+} from "kello-cli";
+import type { DeploymentDatabaseProvider } from "kello-cli";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

@@ -11,14 +11,14 @@ import {
   readMigrations,
   componentNamespace,
   generateProject,
-} from "kello/tooling";
+} from "kello-cli";
 
 test("explicit auth component mounts own native migrations and retain removed plugin tables", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-auth-migrations-"));
   try {
     await initializeProject(root, "auth");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "zod", "drizzle-orm", "better-auth"])
+    for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm", "better-auth"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -86,7 +86,7 @@ test.skipIf(!connectionString)(
       applyMigrations,
       reconcileComponentNamespaces,
       withMigrationConnection,
-    } = await import("kello/tooling");
+    } = await import("kello-cli");
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const mountPath = `identity_${suffix}`;
     const namespace = componentNamespace(mountPath);

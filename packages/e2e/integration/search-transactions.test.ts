@@ -23,7 +23,7 @@ import {
   Invocation,
 } from "kello/server";
 import type { ProcedureContext } from "kello/server";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { createSearchFixture } from "../fixtures/search-schema";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;

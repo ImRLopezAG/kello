@@ -17,7 +17,7 @@ import {
   loadProject,
   reconcileComponentNamespaces,
   withMigrationConnection,
-} from "kello/tooling";
+} from "kello-cli";
 import { callExample } from "../fixtures/rpc-call";
 import { writeSearchComponent } from "../fixtures/search-component";
 
@@ -36,14 +36,14 @@ test.skipIf(!connectionString)(
     try {
       await initializeProject(root, "searchcomponents");
       await mkdir(join(root, "node_modules"));
-      for (const name of ["kello", "valibot", "drizzle-orm", "effect"])
+      for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "effect"])
         await symlink(
           await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
           join(root, "node_modules", name),
         );
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig({ database: { namespace: "search_root_${suffix}", metadataNamespace: "${metadataNamespace}" } });`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig({ database: { namespace: "search_root_${suffix}", metadataNamespace: "${metadataNamespace}" } });`,
       );
       await rm(join(root, "kello/contracts"), { recursive: true });
       await rm(join(root, "kello/functions"), { recursive: true });

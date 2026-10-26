@@ -29,6 +29,10 @@ test("packed generated search infers selected results through native options", a
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
       fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
+    await succeed(
+      ["bun", "pm", "pack", "--filename", join(root, "kello-cli.tgz"), "--ignore-scripts"],
+      fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
+    );
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({
@@ -36,6 +40,7 @@ test("packed generated search infers selected results through native options", a
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
+          "kello-cli": "file:./kello-cli.tgz",
           "@orpc/client": "2.0.0-beta.46",
           "@orpc/server": "2.0.0-beta.46",
           "@orpc/tanstack-query": "2.0.0-beta.46",
@@ -52,7 +57,7 @@ test("packed generated search infers selected results through native options", a
     await succeed(["bun", "install", "--ignore-scripts", "--linker", "isolated"]);
     await writeFile(
       join(root, "initialize.mjs"),
-      `import { initializeProject, saveResolvedProject } from "kello/tooling";
+      `import { initializeProject, saveResolvedProject } from "kello-cli";
 await initializeProject("./app", "search-generated");
 await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: "br-fixture", branchName: "dev", protected: false, isDefault: false, databaseName: "neondb", migrationRole: "neondb_owner", public: { serviceUrl: "https://search.example.test" } });`,
     );
@@ -107,7 +112,7 @@ export default app;`,
     );
     await writeFile(
       join(root, "generate.mjs"),
-      'import { generateProject } from "kello/tooling"; await generateProject("./app");',
+      'import { generateProject } from "kello-cli"; await generateProject("./app");',
     );
     await succeed(["bun", "generate.mjs"]);
     await succeed([join(root, "node_modules/.bin/kello"), "generate", "--cwd", join(root, "app")]);
@@ -178,8 +183,8 @@ os.tasks.ordinary.handler(async ({ context }) => {
       join(root, "full-text.ts"),
       `
 import { defineSchema, defineTable } from "kello/server";
-import { assessMigration } from "kello/tooling";
-import type { MigrationPlan, MigrationAssessment, ApplyMigrationsOptions } from "kello/tooling";
+import { assessMigration } from "kello-cli";
+import type { MigrationPlan, MigrationAssessment, ApplyMigrationsOptions } from "kello-cli";
 const schema = defineSchema((s) => ({ tasks: defineTable({ title: s.text(), status: s.enum(["open", "closed"]) }, {
   fullText: { content: { config: "pg_catalog.simple", fields: [{ field: "title", weight: "A" }, { field: "status", weight: "D" }], version: "1" } },
 }) }));
@@ -233,7 +238,7 @@ void [config, options];
       `
 import assert from "node:assert/strict";
 import { defineSchema, defineTable } from "kello/server";
-import { assessMigration, createSnapshot, emptySnapshot, planMigration, validateMigration } from "kello/tooling";
+import { assessMigration, createSnapshot, emptySnapshot, planMigration, validateMigration } from "kello-cli";
 const initial = defineSchema((s) => ({ tasks: { title: s.text() } }), { namespace: "fts_packed" });
 const target = defineSchema((s) => ({ tasks: defineTable({ title: s.text() }, { fullText: { content: { config: "pg_catalog.simple", fields: [{ field: "title", weight: "A" }], version: "1" } } }) }), { namespace: "fts_packed" });
 const baseline = await createSnapshot(initial);
@@ -320,7 +325,7 @@ console.info(JSON.stringify({ proof: "search-browser-bundle", bytes: Buffer.byte
       join(root, "watch.mjs"),
       `import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
-import { watchDevelopment, generateProject } from "kello/tooling";
+import { watchDevelopment, generateProject } from "kello-cli";
 let generations = 0;
 const watcher = await watchDevelopment("./app", async () => { await generateProject("./app"); generations++; }, { debounceMs: 100 });
 try {

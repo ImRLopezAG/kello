@@ -9,7 +9,7 @@ import type { RouterClient } from "@orpc/server";
 import { defineRelations, sql } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { createRpcHttpApp, createNeonRpcService, createNeonRpcWorker } from "kello/neon";
 import type { RpcRuntimeOptions } from "kello/server";
 import {

@@ -1,6 +1,6 @@
-import { initializeProject } from "kello/tooling";
+import { initializeProject } from "kello-cli";
 import assert from "node:assert/strict";
-import { buildNeonFunctionBundle } from "kello/tooling";
+import { buildNeonFunctionBundle } from "kello-cli";
 import { unzipSync } from "fflate";
 import { expect, test } from "bun:test";
 import {
@@ -12,7 +12,7 @@ import {
   loadProject,
   readMigrations,
   planRelease,
-} from "kello/tooling";
+} from "kello-cli";
 import {
   mkdtemp,
   mkdir,
@@ -60,7 +60,7 @@ test("generated service and worker entries capture runtime configuration and exp
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -216,7 +216,7 @@ test("generation captures explicit authorization and refuses invalid auth module
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -287,7 +287,7 @@ test("generation loads native relations against its own immutable schema", async
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -356,7 +356,7 @@ test("extensionless internal imports capture native cron targets and keep candid
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm", "@orpc/server", "effect"])
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "@orpc/server", "effect"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -454,7 +454,7 @@ test("offline generation is deterministic, detects stale contracts and keeps int
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -528,7 +528,7 @@ client.tasks.secret();
     await rm(join(root, "kello/functions/tasks"), { recursive: true });
     expect((await generateProject(root)).version).toBe(first.version);
 
-    const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
+    const cli = fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url));
     const doctor = Bun.spawn([process.execPath, cli, "doctor", "--cwd", root, "--json"], {
       stdout: "pipe",
       stderr: "pipe",
@@ -607,7 +607,7 @@ client.tasks.secret();
 
 test("CLI produces matching structured/human failures without leaking executable config errors", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-doctor-"));
-  const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
+  const cli = fileURLToPath(new URL("../../../apps/kello-cli/cli.js", import.meta.url));
   try {
     await writeFile(
       join(root, "kello.config.ts"),
@@ -628,13 +628,14 @@ test("CLI produces matching structured/human failures without leaking executable
     expect(outputs.join("")).not.toContain("secret-sentinel");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    await symlink(
-      await realpath(fileURLToPath(new URL("../../tests/node_modules/kello", import.meta.url))),
-      join(root, "node_modules/kello"),
-    );
+    for (const name of ["kello", "kello-cli"])
+      await symlink(
+        await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
+        join(root, "node_modules", name),
+      );
     await writeFile(
       join(root, "kello.config.ts"),
-      `import {ProcedureUpgradeError} from "kello/tooling";
+      `import {ProcedureUpgradeError} from "kello-cli";
 throw new ProcedureUpgradeError([{id:"00000000-0000-4000-8000-000000000001",version:null,reason:"missing-mapping"}]);
 export default {};`,
     );
@@ -671,12 +672,12 @@ test("generation captures storage policies and validates current internal handle
     await initializeProject(root, "tasks");
     await writeFile(
       join(root, "kello.config.ts"),
-      `import { defineConfig } from "kello/tooling";
+      `import { defineConfig } from "kello-cli";
 export default defineConfig({ project: "tasks", jobs: { maxAttempts: 2 } });`,
     );
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
     await mkdir(join(root, "node_modules/@orpc"), { recursive: true });
-    for (const name of ["kello", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm", "@orpc/server", "effect"]) {
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),

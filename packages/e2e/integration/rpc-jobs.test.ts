@@ -6,7 +6,7 @@ import { defineRelations, sql } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";
 import type { RpcScheduler } from "kello/server";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import {
   defineSchema,
   connectDatabase,

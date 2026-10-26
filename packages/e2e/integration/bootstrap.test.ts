@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
-import { bootstrapDatabase, frameworkMigrations } from "../../../apps/kello/src/tooling/migrations/bootstrap";
+import { bootstrapDatabase, frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 import pg from "pg";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
@@ -133,7 +133,7 @@ test.skipIf(!connectionString)(
 test.skipIf(!connectionString)(
   "catalog drift evidence ignores data changes and detects DDL, policies and grants",
   async () => {
-    const { catalogFingerprint } = await import("../../../apps/kello/src/tooling/migrations/drift");
+    const { catalogFingerprint } = await import("../../../apps/kello-cli/src/tooling/migrations/drift");
     const namespace = `loom_drift_${crypto.randomUUID().replaceAll("-", "")}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();

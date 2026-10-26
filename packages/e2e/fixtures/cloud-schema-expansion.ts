@@ -13,7 +13,7 @@ import {
   loadProject,
   readMigrations,
   readNeonFunctionReceipt,
-} from "kello/tooling";
+} from "kello-cli";
 
 /** Exercise the public compatibility bridge before deploying code for an expanded schema. */
 export async function verifyCloudSchemaExpansion(
@@ -87,7 +87,7 @@ export async function verifyCloudSchemaExpansion(
   const command = Bun.spawn(
     [
       "bun",
-      fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url)),
+      fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url)),
       "migrations",
       "declare-compatibility",
       "--release",

@@ -13,7 +13,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import {
   applicationEnvironmentSources,
   resolveReleaseEnvironment,
-} from "../../../apps/kello/src/tooling/deploy/neon/environment";
+} from "../../../apps/kello-cli/src/tooling/deploy/neon/environment";
 import * as v from "valibot";
 import { EncryptJWT, jwtDecrypt } from "jose";
 

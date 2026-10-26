@@ -6,7 +6,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import pg from "pg";
 import * as v from "valibot";
-import { createKelloNeonApi } from "kello/tooling";
+import { createKelloNeonApi } from "kello-cli";
 
 test.skipIf(!process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT)(
   "schema-only Neon branch adopts all component histories without data or work",
@@ -15,8 +15,8 @@ test.skipIf(!process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT)(
       v.object({ passed: v.literal(true), projectId: v.string(), branchId: v.string(), fixtureRoot: v.string() }),
       JSON.parse(await readFile(process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT!, "utf8")),
     );
-    const tooling: typeof import("kello/tooling") = await import(
-      join(source.fixtureRoot, "node_modules/kello/dist/tooling/index.js")
+    const tooling: typeof import("kello-cli") = await import(
+      join(source.fixtureRoot, "node_modules/kello-cli/dist/tooling/index.js")
     );
     const api = createKelloNeonApi();
     const parent = (await api.listBranches(source.projectId)).find((branch) => branch.id === source.branchId);
@@ -32,7 +32,7 @@ test.skipIf(!process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT)(
       initSource: "schema-only",
     };
     await writeFile(join(source.fixtureRoot, "schema-branch.json"), JSON.stringify(declaration));
-    const cli = createRequire(import.meta.resolve("kello/tooling")).resolve("neon/dist/index.js");
+    const cli = createRequire(import.meta.resolve("kello-cli")).resolve("neon/dist/index.js");
     async function neon(args: string[]) {
       const child = Bun.spawn(["node", cli, ...args, "--project-id", source.projectId], {
         stdout: "pipe",

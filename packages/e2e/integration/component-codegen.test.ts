@@ -4,14 +4,14 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject, loadProject } from "kello/tooling";
+import { generateProject, initializeProject, loadProject } from "kello-cli";
 
 test("generation discovers only mounted components and emits isolated current facades", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-components-"));
   try {
     await initializeProject(root, "components");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "zod", "drizzle-orm"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm"]) {
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),
@@ -66,7 +66,7 @@ test("component RPC bindings use component tables and contracts without ambient 
   try {
     await initializeProject(root, "componentrpc");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "zod", "drizzle-orm"]) {
+    for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm"]) {
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),

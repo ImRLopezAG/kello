@@ -33,6 +33,7 @@ try {
   // Existing Neon tooling accepts an API key or the authenticated Neon CLI profile.
   // Existing fixtures validate disposable targets and own their resource cleanup.
   run("bun", ["run", "--cwd", "apps/kello", "build"]);
+  run("bun", ["run", "--cwd", "apps/kello-cli", "build"]);
   run("bun", ["./cloud/run.ts"], {
     cwd: "packages/e2e",
     env: { ...process.env, LOOM_CLOUD_SUITE: "tasks", LOOM_CLOUD_SETUP_AUTH: "1" },

@@ -4,14 +4,14 @@ import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject, loadProject } from "kello/tooling";
+import { generateProject, initializeProject, loadProject } from "kello-cli";
 
 test("generation aggregates scoped cron and storage resources and rejects root collisions", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-component-resources-"));
   try {
     await initializeProject(root, "resources");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "drizzle-orm"])
+    for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),

@@ -9,7 +9,7 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import * as v from "valibot";
-import { bootstrapDatabase, createKelloNeonApi } from "kello/tooling";
+import { bootstrapDatabase, createKelloNeonApi } from "kello-cli";
 import { createStorageIntents } from "kello/server";
 import { createNeonObjectStorage } from "kello/neon";
 
@@ -18,7 +18,7 @@ test.skipIf(process.env.LOOM_CLOUD_STORAGE_BRANCH !== "1")(
   "finalized files remain readable after a Neon branch fork",
   async () => {
     const projectId = v.parse(v.string(), process.env.KELLO_CLOUD_PROJECT_ID);
-    const cli = createRequire(import.meta.resolve("kello/tooling")).resolve("neon/dist/index.js");
+    const cli = createRequire(import.meta.resolve("kello-cli")).resolve("neon/dist/index.js");
     async function neon(args: string[]) {
       try {
         return (

@@ -29,6 +29,7 @@
     "@orpc/tanstack-query": "2.0.0-beta.46",
     "@types/bun": "1.4.4",
     "@types/pg": "8.23.1",
+    "kello-cli": "workspace:*",
     "typescript": "7.0.2"
   }
 }

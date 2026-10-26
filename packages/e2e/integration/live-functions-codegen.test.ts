@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject } from "kello/tooling";
+import { generateProject, initializeProject } from "kello-cli";
 
 test("live functions generate a public React entry and preserve contract inference", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-live-functions-"));
@@ -93,8 +93,8 @@ void verified;`,
 }, 60_000);
 
 test("Next declares a real live read with a generated browser row validator", async () => {
-  const { loadProject } = await import("kello/tooling");
-  const { applicationClientArtifacts } = await import("../../../apps/kello/src/tooling/codegen/application");
+  const { loadProject } = await import("kello-cli");
+  const { applicationClientArtifacts } = await import("../../../apps/kello-cli/src/tooling/codegen/application");
   const root = fileURLToPath(new URL("../../examples/next/", import.meta.url));
   const project = await loadProject(root);
   const artifacts = applicationClientArtifacts(project, join(project.backend, "_generated/current"));

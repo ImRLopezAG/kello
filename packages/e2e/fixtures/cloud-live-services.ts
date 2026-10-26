@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
-import { buildNeonFunctionBundle } from "kello/tooling";
+import { buildNeonFunctionBundle } from "kello-cli";
 import type { NeonApi } from "@neon/config-runtime/v1";
 
 /** Deploy the generated service under independently identified Functions. */

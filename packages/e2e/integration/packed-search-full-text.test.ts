@@ -285,6 +285,10 @@ test("packed generated full-text search preserves native inference and public bo
     const packageRoot = fileURLToPath(new URL("../../../apps/kello/", import.meta.url));
     const tarball = join(root, "kello.tgz");
     await succeed(["bun", "pm", "pack", "--filename", tarball, "--ignore-scripts"], packageRoot);
+    await succeed(
+      ["bun", "pm", "pack", "--filename", join(root, "kello-cli.tgz"), "--ignore-scripts"],
+      fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
+    );
     const bytes = await readFile(tarball);
     console.info(
       JSON.stringify({
@@ -301,6 +305,7 @@ test("packed generated full-text search preserves native inference and public bo
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
+          "kello-cli": "file:./kello-cli.tgz",
           "@orpc/client": "2.0.0-beta.46",
           "@orpc/server": "2.0.0-beta.46",
           "@orpc/tanstack-query": "2.0.0-beta.46",
@@ -324,7 +329,7 @@ test("packed generated full-text search preserves native inference and public bo
     assert.ok(installed.startsWith(root + sep), "consumer must resolve its isolated tarball, not a workspace link");
     await writeFile(
       join(root, "initialize.mjs"),
-      `import { initializeProject, saveResolvedProject } from "kello/tooling";
+      `import { initializeProject, saveResolvedProject } from "kello-cli";
 await initializeProject("./app", "packed-full-text");
 await saveResolvedProject("./app", { format: 1, projectId: "fixture", branchId: "br-fixture", branchName: "dev", protected: false, isDefault: false, databaseName: "neondb", migrationRole: "neondb_owner", public: { serviceUrl: "https://packed-full-text.example.test" } });
 `,

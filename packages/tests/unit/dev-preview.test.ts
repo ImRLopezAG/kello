@@ -71,7 +71,7 @@ const state = vi.hoisted(() => {
   };
   return initial;
 });
-vi.mock("../../../apps/kello/src/tooling/codegen/generate", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/codegen/generate", () => ({
   async generateProject() {
     if (state.generateFailure) throw state.generateFailure;
     return { version: state.version };
@@ -81,7 +81,7 @@ vi.mock("../../../apps/kello/src/tooling/codegen/generate", () => ({
     state.writes.push("generated");
   },
 }));
-vi.mock("../../../apps/kello/src/tooling/deploy/neon/project", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/deploy/neon/project", () => ({
   async readProjectRelease() {
     return {
       project: { config: { linked: true, database: { namespace: "app", metadataNamespace: "meta" } } },
@@ -105,7 +105,7 @@ vi.mock("../../../apps/kello/src/tooling/deploy/neon/project", () => ({
     return state.deploy(root, file, signal);
   },
 }));
-vi.mock("../../../apps/kello/src/tooling/deploy/neon/target", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/deploy/neon/target", () => ({
   async inspectDeploymentTarget(_config: { readonly linked: boolean }, environment: string) {
     if (environment !== "preview") throw new Error("development requires preview");
     await state.targetLookup?.();
@@ -119,7 +119,7 @@ vi.mock("../../../apps/kello/src/tooling/deploy/neon/target", () => ({
     };
   },
 }));
-vi.mock("../../../apps/kello/src/tooling/config/resolve", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/config/resolve", () => ({
   async readResolvedProject() {
     return {
       projectId: state.targetProject,
@@ -134,18 +134,18 @@ vi.mock("../../../apps/kello/src/tooling/config/resolve", () => ({
     state.writes.push("project.json");
   },
 }));
-vi.mock("../../../apps/kello/src/tooling/config/environment-file", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/config/environment-file", () => ({
   async writeManagedPublicEnvironment() {
     state.writes.push(".env.local");
   },
 }));
-vi.mock("../../../apps/kello/src/tooling/project/load", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/project/load", () => ({
   async loadProjectConfig() {
     return { config: { development: { debounceMs: 20 } } };
   },
 }));
-import { startProjectDevelopment } from "../../../apps/kello/src/tooling/dev/project";
-import { publishDeployedClient } from "../../../apps/kello/src/tooling/deploy/neon/publish-client";
+import { startProjectDevelopment } from "../../../apps/kello-cli/src/tooling/dev/project";
+import { publishDeployedClient } from "../../../apps/kello-cli/src/tooling/deploy/neon/publish-client";
 
 let root: string;
 beforeEach(async () => {
@@ -217,8 +217,8 @@ test("a save deploys once to the linked preview and later saves update the same 
 
 test("owned .env.local publication events while publication is pending do not cancel it", async () => {
   const { writeManagedPublicEnvironment } = await vi.importActual<
-    typeof import("../../../apps/kello/src/tooling/config/environment-file")
-  >("../../../apps/kello/src/tooling/config/environment-file");
+    typeof import("../../../apps/kello-cli/src/tooling/config/environment-file")
+  >("../../../apps/kello-cli/src/tooling/config/environment-file");
   state.deploy = async (deployRoot, file, signal) => {
     state.deploys.push({ version: state.version, file, signal });
     // Real publication writer: root ..env.local-<uuid>.tmp then rename to .env.local.

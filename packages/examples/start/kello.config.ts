@@ -1,4 +1,4 @@
-import { defineConfig } from "kello/tooling";
+import { defineConfig } from "kello-cli";
 
 export default defineConfig({
   database: {

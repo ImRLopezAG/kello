@@ -1,16 +1,16 @@
 import { expect, test, vi } from "vite-plus/test";
 import { sql } from "drizzle-orm";
 import { index, pgSchema, text } from "drizzle-orm/pg-core";
-import { assessMigration } from "../../../apps/kello/src/tooling/migrations/assessment";
+import { assessMigration } from "../../../apps/kello-cli/src/tooling/migrations/assessment";
 import * as v from "valibot";
-import type { MigrationPlan } from "../../../apps/kello/src/tooling/migrations/planner";
+import type { MigrationPlan } from "../../../apps/kello-cli/src/tooling/migrations/planner";
 import pg from "pg";
-import { withMigrationConnection } from "../../../apps/kello/src/tooling/migrations/connection";
-import { classifyMigration } from "../../../apps/kello/src/tooling/migrations/classifier";
-import { customSafety } from "../../../apps/kello/src/tooling/migrations/custom";
-import { createSnapshot, emptySnapshot, snapshotHash } from "../../../apps/kello/src/tooling/migrations/adapter";
-import { planMigration, migrationHash } from "../../../apps/kello/src/tooling/migrations/planner";
-import { runnerOptions, applyMigrationsOnConnection } from "../../../apps/kello/src/tooling/migrations/runner";
+import { withMigrationConnection } from "../../../apps/kello-cli/src/tooling/migrations/connection";
+import { classifyMigration } from "../../../apps/kello-cli/src/tooling/migrations/classifier";
+import { customSafety } from "../../../apps/kello-cli/src/tooling/migrations/custom";
+import { createSnapshot, emptySnapshot, snapshotHash } from "../../../apps/kello-cli/src/tooling/migrations/adapter";
+import { planMigration, migrationHash } from "../../../apps/kello-cli/src/tooling/migrations/planner";
+import { runnerOptions, applyMigrationsOnConnection } from "../../../apps/kello-cli/src/tooling/migrations/runner";
 
 function fixture(gin = false, weight = "A") {
   const documents = pgSchema("app").table("documents", { title: text() }, (t) =>
@@ -179,11 +179,11 @@ const routing = vi.hoisted(() => ({
   artifacts: new Array<{ name: string; directory: string; plan: MigrationPlan }>(),
   applied: 0,
 }));
-vi.mock("../../../apps/kello/src/tooling/migrations/history", async (original) => ({
-  ...(await original<typeof import("../../../apps/kello/src/tooling/migrations/history")>()),
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/history", async (original) => ({
+  ...(await original<typeof import("../../../apps/kello-cli/src/tooling/migrations/history")>()),
   readMigrations: async () => routing.artifacts,
 }));
-vi.mock("../../../apps/kello/src/tooling/migrations/state", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/state", () => ({
   inspectHistory: async () => ({
     applied: Array.from({ length: routing.applied }),
     issues: [],
@@ -192,15 +192,17 @@ vi.mock("../../../apps/kello/src/tooling/migrations/state", () => ({
   }),
   ormHistoryTable: () => "orm_history",
 }));
-vi.mock("../../../apps/kello/src/tooling/migrations/bootstrap", () => ({ bootstrapSession: async () => undefined }));
-vi.mock("../../../apps/kello/src/tooling/migrations/runtime-compatibility", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/bootstrap", () => ({
+  bootstrapSession: async () => undefined,
+}));
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/runtime-compatibility", () => ({
   assertRuntimeCompatibility: async () => undefined,
 }));
-vi.mock("../../../apps/kello/src/tooling/migrations/drift", () => ({ catalogFingerprint: async () => "catalog" }));
-vi.mock("../../../apps/kello/src/tooling/migrations/application", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/drift", () => ({ catalogFingerprint: async () => "catalog" }));
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/application", () => ({
   protectApplication: async () => undefined,
 }));
-vi.mock("../../../apps/kello/src/tooling/migrations/status", () => ({
+vi.mock("../../../apps/kello-cli/src/tooling/migrations/status", () => ({
   databaseIdentity: async () => ({ database: "fixture" }),
 }));
 

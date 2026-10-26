@@ -15,7 +15,7 @@ import {
 } from "kello/server";
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

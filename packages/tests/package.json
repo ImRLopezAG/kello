@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "bun check --no-script -p tsconfig.json",
+    "typecheck": "bun check --no-script -p tsconfig.types.json",
     "test": "vp test run"
   },
   "dependencies": {
@@ -33,6 +33,7 @@
     "drizzle-orm": "1.0.0-rc.5",
     "effect": "4.0.6",
     "jose": "6.2.12",
+    "kello-cli": "workspace:*",
     "pg": "8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",

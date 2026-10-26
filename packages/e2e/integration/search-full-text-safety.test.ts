@@ -1,4 +1,4 @@
-import { fromDrizzleSnapshot } from "../../../apps/kello/src/tooling/migrations/snapshot";
+import { fromDrizzleSnapshot } from "../../../apps/kello-cli/src/tooling/migrations/snapshot";
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -11,16 +11,20 @@ import { bigint, index, pgSchema, text, uuid } from "drizzle-orm/pg-core";
 import pg from "pg";
 import { fullTextLocalTarget } from "./full-text-local-target";
 import * as v from "valibot";
-import { emptySnapshot, inspectSnapshot, snapshotHash } from "../../../apps/kello/src/tooling/migrations/adapter";
-import type { MigrationSnapshot } from "../../../apps/kello/src/tooling/migrations/adapter";
-import { assessMigration } from "../../../apps/kello/src/tooling/migrations/assessment";
-import { withMigrationConnection } from "../../../apps/kello/src/tooling/migrations/connection";
-import { catalogFingerprint } from "../../../apps/kello/src/tooling/migrations/drift";
-import { readMigrations, validateMigration, writeMigration } from "../../../apps/kello/src/tooling/migrations/history";
-import { migrationHash, planMigration } from "../../../apps/kello/src/tooling/migrations/planner";
-import type { MigrationPlan } from "../../../apps/kello/src/tooling/migrations/planner";
-import { applyMigrationsOnConnection } from "../../../apps/kello/src/tooling/migrations/runner";
-import { inspectHistory, ormHistoryTable } from "../../../apps/kello/src/tooling/migrations/state";
+import { emptySnapshot, inspectSnapshot, snapshotHash } from "../../../apps/kello-cli/src/tooling/migrations/adapter";
+import type { MigrationSnapshot } from "../../../apps/kello-cli/src/tooling/migrations/adapter";
+import { assessMigration } from "../../../apps/kello-cli/src/tooling/migrations/assessment";
+import { withMigrationConnection } from "../../../apps/kello-cli/src/tooling/migrations/connection";
+import { catalogFingerprint } from "../../../apps/kello-cli/src/tooling/migrations/drift";
+import {
+  readMigrations,
+  validateMigration,
+  writeMigration,
+} from "../../../apps/kello-cli/src/tooling/migrations/history";
+import { migrationHash, planMigration } from "../../../apps/kello-cli/src/tooling/migrations/planner";
+import type { MigrationPlan } from "../../../apps/kello-cli/src/tooling/migrations/planner";
+import { applyMigrationsOnConnection } from "../../../apps/kello-cli/src/tooling/migrations/runner";
+import { inspectHistory, ormHistoryTable } from "../../../apps/kello-cli/src/tooling/migrations/state";
 
 function fixture(
   namespace: string,

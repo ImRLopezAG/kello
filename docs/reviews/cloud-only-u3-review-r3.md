@@ -12,7 +12,7 @@ Read the full root `/Users/angel/dev/loom/AGENTS.md`, plan `docs/plans/2026-10-1
 
 ## R3-F1 — P2: activation's outer transaction suppresses failed rollback after cancellation
 
-**Changed location:** `apps/kello/src/tooling/deploy/neon/activation.ts:174–176` (`rethrowSignalCancellation`). **Actual caller:** `apps/kello/src/tooling/deploy/neon/release.ts:142`. **Cleanup boundary:** `apps/kello/src/tooling/migrations/procedure-upgrade.ts:178–192`, especially line 191.
+**Changed location:** `apps/kello-cli/src/tooling/deploy/neon/activation.ts:174–176` (`rethrowSignalCancellation`). **Actual caller:** `apps/kello-cli/src/tooling/deploy/neon/release.ts:142`. **Cleanup boundary:** `apps/kello-cli/src/tooling/migrations/procedure-upgrade.ts:178–192`, especially line 191.
 
 **Trigger:** a development revision is stopped or superseded while `activateGrant` awaits `requireQuarantineCompleted` inside the real `withProcedureUpgrade` transaction. The query finishes successfully, the check at activation line 166 throws the caller cancellation reason, and the new catch preserves that reason. The enclosing procedure-upgrade owner then attempts `ROLLBACK`, but rollback rejects with a distinct error (including a falsey rejection).
 
@@ -38,12 +38,12 @@ Before this correction, activation replaced cancellation with a distinct safe er
 
 All ten current bodies in `/tmp/kello-u3-review-r3-freeze.json` were read in full:
 
-- `apps/kello/src/tooling/deploy/neon/observe.ts`
-- `apps/kello/src/tooling/deploy/neon/apply.ts`
-- `apps/kello/src/tooling/deploy/neon/health.ts`
-- `apps/kello/src/tooling/deploy/neon/activation.ts`
-- `apps/kello/src/tooling/deploy/neon/triggers.ts`
-- `apps/kello/src/tooling/dev/coordinator.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/observe.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/apply.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/health.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/activation.ts`
+- `apps/kello-cli/src/tooling/deploy/neon/triggers.ts`
+- `apps/kello-cli/src/tooling/dev/coordinator.ts`
 - `packages/tests/unit/deployment-cancellation.test.ts`
 - `packages/tests/unit/neon-trigger-deployment.test.ts`
 - `packages/tests/unit/dev-coordinator.test.ts`
@@ -81,12 +81,12 @@ Supporting migration connection SHA-256: `4b73d5fbf1326415b324521284b64adbdb97d3
 Opening/closing R3 body hashes:
 
 ```text
-cc3cf716ced2e1d83a246ab69f81ca5f096f0baf04241a8e889582101ac52559  apps/kello/src/tooling/deploy/neon/observe.ts
-38b6efc70c0453d04c6f54a2982c9e807215e25d2f984f2b35caa9109073c470  apps/kello/src/tooling/deploy/neon/apply.ts
-d5b30753c5beb1da598246792fd4e318432ea62d4bd661ce92043571982d1ca6  apps/kello/src/tooling/deploy/neon/health.ts
-f0083961b271a44cbef827404fc0e89ed3b68474a33d5ea88e40bc17e2bb1d0c  apps/kello/src/tooling/deploy/neon/activation.ts
-11e852917d6f6630fe3b4b06b6cc672be0f46b47f7b7b9b1a7920a402e8abac5  apps/kello/src/tooling/deploy/neon/triggers.ts
-e0fed59cb204d514976cf161e418fcf3503d785d3e901449771f9b539f66f452  apps/kello/src/tooling/dev/coordinator.ts
+cc3cf716ced2e1d83a246ab69f81ca5f096f0baf04241a8e889582101ac52559  apps/kello-cli/src/tooling/deploy/neon/observe.ts
+38b6efc70c0453d04c6f54a2982c9e807215e25d2f984f2b35caa9109073c470  apps/kello-cli/src/tooling/deploy/neon/apply.ts
+d5b30753c5beb1da598246792fd4e318432ea62d4bd661ce92043571982d1ca6  apps/kello-cli/src/tooling/deploy/neon/health.ts
+f0083961b271a44cbef827404fc0e89ed3b68474a33d5ea88e40bc17e2bb1d0c  apps/kello-cli/src/tooling/deploy/neon/activation.ts
+11e852917d6f6630fe3b4b06b6cc672be0f46b47f7b7b9b1a7920a402e8abac5  apps/kello-cli/src/tooling/deploy/neon/triggers.ts
+e0fed59cb204d514976cf161e418fcf3503d785d3e901449771f9b539f66f452  apps/kello-cli/src/tooling/dev/coordinator.ts
 327db930ffc5ad94ee31a1675d2c989a53539200f58034dca9730ac5da00d735  packages/tests/unit/deployment-cancellation.test.ts
 819388b9c6564f169c779e41ea40a29d8271f5ac0128318bd8f1765f3c590e9b  packages/tests/unit/neon-trigger-deployment.test.ts
 0ee16fc3c25941f534deab6f513738e53df4702f5b5561e642cb4ac65d80b3ef  packages/tests/unit/dev-coordinator.test.ts

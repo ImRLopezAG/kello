@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Effect, Layer } from "effect";
 import { createComponentServiceRegistry, createEffectRuntime } from "kello/server";
-import { generateProject, initializeProject } from "kello/tooling";
+import { generateProject, initializeProject } from "kello-cli";
 
 // Run from the repository with: bun packages/e2e/benchmarks/components.ts
 // This uses the already compiled public package. It does not build or access Neon.
@@ -29,7 +29,7 @@ async function timed<Result>(work: () => Promise<Result>) {
 async function fixture(root: string, count: number) {
   await initializeProject(root, "benchmark");
   await mkdir(join(root, "node_modules"));
-  for (const name of ["kello", "valibot", "zod", "drizzle-orm", "effect"]) {
+  for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm", "effect"]) {
     await symlink(
       await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
       join(root, "node_modules", name),

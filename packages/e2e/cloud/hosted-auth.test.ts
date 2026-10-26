@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
 import pg from "pg";
 import { get } from "node:https";
-import { buildNeonFunctionBundle } from "kello/tooling";
-import { createKelloNeonApi, bootstrapDatabase, inspectDeploymentTarget, defineConfig } from "kello/tooling";
+import { buildNeonFunctionBundle } from "kello-cli";
+import { createKelloNeonApi, bootstrapDatabase, inspectDeploymentTarget, defineConfig } from "kello-cli";
 import { createRpcHttpTransport } from "kello/client";
 
 test.skipIf(process.env.LOOM_CLOUD_HOSTED_AUTH !== "1")(

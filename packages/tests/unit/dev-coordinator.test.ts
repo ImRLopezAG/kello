@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createDevelopmentCoordinator } from "kello/tooling";
+import { createDevelopmentCoordinator } from "kello-cli";
 
 function deferred() {
   let release = () => {};
@@ -98,7 +98,7 @@ test("stop aborts active work, drains cleanup, and cancels debounced edits", asy
   await coordinator.stop();
 });
 
-const source = await import("../../../apps/kello/src/tooling/dev/coordinator");
+const source = await import("../../../apps/kello-cli/src/tooling/dev/coordinator");
 
 for (const [name, rejection] of [
   ["an error", new Error("cleanup-canary")],

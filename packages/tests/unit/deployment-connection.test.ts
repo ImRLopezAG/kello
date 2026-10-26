@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { defineConfig, withDeploymentConnection, prepareDeploymentActivation } from "kello/tooling";
-import type { DeploymentDatabaseProvider } from "kello/tooling";
+import { defineConfig, withDeploymentConnection, prepareDeploymentActivation } from "kello-cli";
+import type { DeploymentDatabaseProvider } from "kello-cli";
 
 const config = defineConfig({
   project: "tasks",

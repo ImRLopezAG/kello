@@ -13,10 +13,10 @@ import {
   type DiscoveryProvider,
   type RealtimeEnableInput,
   type RealtimeProvider,
-} from "kello/tooling";
+} from "kello-cli";
 
-import { realtimeStatusCommand } from "../../../apps/kello/src/commands/realtime";
-import { resolveRealtimeEnvironment } from "../../../apps/kello/src/tooling/deploy/neon/environment";
+import { realtimeStatusCommand } from "../../../apps/kello-cli/src/commands/realtime";
+import { resolveRealtimeEnvironment } from "../../../apps/kello-cli/src/tooling/deploy/neon/environment";
 
 const canary = "nrt_live_1_secret-canary";
 const origins = ["https://app.example.test"];
@@ -503,7 +503,7 @@ test("observed origins compare as normalized sets", async () => {
 
 test("SDK wait timeout resolves for reread while request timeout remains a fixed failure", async () => {
   // Resolve the SDK from its owning package; the e2e workspace does not declare it directly.
-  const sdk = await import(Bun.resolveSync("@neon/sdk", join(import.meta.dir, "../../../apps/kello")));
+  const sdk = await import(Bun.resolveSync("@neon/sdk", join(import.meta.dir, "../../../apps/kello-cli")));
   const wait = new sdk.NeonWaitTimeoutError(canary, { timeoutMs: 1, operations: [] });
   const request = new sdk.NeonRequestTimeoutError(canary, { timeoutMs: 1 });
   for (const cause of [wait, request]) {

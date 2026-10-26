@@ -26,6 +26,10 @@ test("packed generated search-shaped contracts expose the native dependent-outpu
       ["bun", "pm", "pack", "--filename", join(root, "kello.tgz"), "--ignore-scripts"],
       fileURLToPath(new URL("../../../apps/kello/", import.meta.url)),
     );
+    await succeed(
+      ["bun", "pm", "pack", "--filename", join(root, "kello-cli.tgz"), "--ignore-scripts"],
+      fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
+    );
     await writeFile(
       join(root, "package.json"),
       JSON.stringify({
@@ -33,6 +37,7 @@ test("packed generated search-shaped contracts expose the native dependent-outpu
         type: "module",
         dependencies: {
           kello: "file:./kello.tgz",
+          "kello-cli": "file:./kello-cli.tgz",
           "@orpc/tanstack-query": "2.0.0-beta.46",
           "@tanstack/react-query": "5.104.3",
           "drizzle-orm": "1.0.0-rc.5",
@@ -45,7 +50,7 @@ test("packed generated search-shaped contracts expose the native dependent-outpu
     await succeed(["bun", "install", "--ignore-scripts", "--linker", "isolated"]);
     await writeFile(
       join(root, "initialize.mjs"),
-      `import { initializeProject, saveResolvedProject } from "kello/tooling";
+      `import { initializeProject, saveResolvedProject } from "kello-cli";
 await initializeProject("./app", "search-proof");
 await saveResolvedProject("./app", {
   format: 1, projectId: "project-fixture", branchId: "br-fixture", branchName: "dev", protected: false, isDefault: false,
@@ -112,7 +117,7 @@ export default os.tasks.router({
     );
     await writeFile(
       join(root, "generate.mjs"),
-      'import { generateProject } from "kello/tooling"; await generateProject("./app");\n',
+      'import { generateProject } from "kello-cli"; await generateProject("./app");\n',
     );
     await succeed(["bun", "generate.mjs"]);
     await succeed([join(root, "node_modules/.bin/kello"), "generate", "--cwd", join(root, "app")]);

@@ -12,7 +12,7 @@ one owner secret per target. There is no runtime credential fallback. The metada
 namespace is explicit; replace the example with the target's namespace. Cleanup
 is tooling only and must never be exposed through an application route.
 
-`cleanupRateLimits` is exported by built `kello/tooling`. It accepts
+`cleanupRateLimits` is exported by built `kello-cli`. It accepts
 `connectionString`, `metadataNamespace`, optional `batchSize` (default/max 500),
 `maxBatches` (default/max 20), `maxDurationMs` (default/max 30000), and `signal`.
 Budgets must be positive safe integers. The duration includes connecting, SQL,

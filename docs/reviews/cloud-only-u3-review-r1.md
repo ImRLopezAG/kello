@@ -13,7 +13,7 @@
 
 ### F1 — P1: The session pin does not constrain the release's actual mutation target
 
-**Location:** `apps/kello/src/tooling/dev/development.ts:62–68`; downstream `apps/kello/src/tooling/deploy/neon/project.ts:97–121`, `managed-credentials.ts:29–59`.
+**Location:** `apps/kello-cli/src/tooling/dev/development.ts:62–68`; downstream `apps/kello-cli/src/tooling/deploy/neon/project.ts:97–121`, `managed-credentials.ts:29–59`.
 
 The selected/current comparison checks one preflight snapshot, then passes only `root`, `file`, `provider` and `signal` to `deployProjectRelease`. That function rereads the project/declaration and resolves managed credentials from the new values. The credential path independently selects its target, then bootstraps metadata, changes the runtime role and writes deployment secrets. It never receives or compares the watch-session pin. Later release checks compare their own freshly selected identities, not the original watch-session authority.
 
@@ -25,7 +25,7 @@ The selected/current comparison checks one preflight snapshot, then passes only 
 
 ### F2 — P2: Publication can cancel its own revision and repeatedly redeploy the same version
 
-**Location:** `apps/kello/src/tooling/deploy/neon/publish-client.ts:33–39`, `apps/kello/src/tooling/dev/development.ts:60–72`; supporting `dev/watcher.ts:21–31`, `dev/coordinator.ts:87–93`, `deploy/receipt-file.ts:17–37`.
+**Location:** `apps/kello-cli/src/tooling/deploy/neon/publish-client.ts:33–39`, `apps/kello-cli/src/tooling/dev/development.ts:60–72`; supporting `dev/watcher.ts:21–31`, `dev/coordinator.ts:87–93`, `deploy/receipt-file.ts:17–37`.
 
 `writeManagedPublicEnvironment` writes `.env.local` through a root-level temporary file named `..env.local-<uuid>.tmp`, renames it and performs asynchronous sync/cleanup. Neither path is excluded by the watcher. Any delivered event immediately invalidates the coordinator and aborts the revision. The next publication abort check then throws, or the post-release `revision.assertCurrent()` throws. `active` is only assigned afterward.
 
@@ -37,7 +37,7 @@ The selected/current comparison checks one preflight snapshot, then passes only 
 
 ### F3 — P2: Stop silently discards a non-cancellation release/cleanup failure
 
-**Location:** `apps/kello/src/tooling/dev/development.ts:68,92`; supporting `dev/coordinator.ts:54–56,100–106`, `apps/kello/src/commands/dev.ts:61–79`.
+**Location:** `apps/kello-cli/src/tooling/dev/development.ts:68,92`; supporting `dev/coordinator.ts:54–56,100–106`, `apps/kello-cli/src/commands/dev.ts:61–79`.
 
 The new development owner delegates stop entirely to the watcher/coordinator. The coordinator catches every update rejection and records it only when the revision is current, not stopped, and not aborted. After stop or supersession, it discards even a distinct cleanup error. Its `stop()` then resolves. The CLI's careful stop-error propagation cannot observe an error that this layer erased.
 
@@ -65,10 +65,10 @@ The README/barrel bundler hunks, previous job/cron removals, shared fixture/life
 
 ## Exact reviewed source identities
 
-- `apps/kello/src/tooling/dev/development.ts`: `5c26d2b0985aeffaf475398690d5d3162f87ed4a024de7b973fbf7ebbf5eacc8`
-- `apps/kello/src/tooling/dev/watcher.ts`: `036fcddeb24e6ba3fd83fcd286cce04906d291af736326c3c109243dc25dff1e`
-- `apps/kello/src/tooling/dev/coordinator.ts`: `35167f3376a19384e1fea0c94614681fea92194d6ab5dc5184ed857a769490fe`
-- `apps/kello/src/tooling/deploy/neon/project.ts`: `4abbb92090d4e25ac96098b6dd1f0f520b8f89094a61395e79fdfda4ea65100e`
-- `apps/kello/src/tooling/deploy/neon/publish-client.ts`: `78a2b7bed87e4b339968edbb078f19f712cb0029163cbebd6ff91b95bb231d71`
-- `apps/kello/src/commands/dev.ts`: `dce92edef286678e721555eb7477b7644d0949ea7e8e5b6ad0688c4a906c4c4f`
+- `apps/kello-cli/src/tooling/dev/development.ts`: `5c26d2b0985aeffaf475398690d5d3162f87ed4a024de7b973fbf7ebbf5eacc8`
+- `apps/kello-cli/src/tooling/dev/watcher.ts`: `036fcddeb24e6ba3fd83fcd286cce04906d291af736326c3c109243dc25dff1e`
+- `apps/kello-cli/src/tooling/dev/coordinator.ts`: `35167f3376a19384e1fea0c94614681fea92194d6ab5dc5184ed857a769490fe`
+- `apps/kello-cli/src/tooling/deploy/neon/project.ts`: `4abbb92090d4e25ac96098b6dd1f0f520b8f89094a61395e79fdfda4ea65100e`
+- `apps/kello-cli/src/tooling/deploy/neon/publish-client.ts`: `78a2b7bed87e4b339968edbb078f19f712cb0029163cbebd6ff91b95bb231d71`
+- `apps/kello-cli/src/commands/dev.ts`: `dce92edef286678e721555eb7477b7644d0949ea7e8e5b6ad0688c4a906c4c4f`
 - `packages/tests/unit/dev-preview.test.ts`: `20f158e8736dd9f4240e0326ea92ae45fb31a0d8afb487db8065943a88787ffb`

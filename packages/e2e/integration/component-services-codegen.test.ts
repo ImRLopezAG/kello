@@ -4,14 +4,14 @@ import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateProject, initializeProject } from "kello/tooling";
+import { generateProject, initializeProject } from "kello-cli";
 
 test("generated service contexts retain SDK overloads for local and mounted usage", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-service-types-"));
   try {
     await initializeProject(root, "services");
     await mkdir(join(root, "node_modules"));
-    for (const name of ["kello", "valibot", "zod", "drizzle-orm", "effect"])
+    for (const name of ["kello", "kello-cli", "valibot", "zod", "drizzle-orm", "effect"])
       await symlink(
         await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
         join(root, "node_modules", name),

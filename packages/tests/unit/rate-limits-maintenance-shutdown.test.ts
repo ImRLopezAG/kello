@@ -156,7 +156,7 @@ vi.mock("pg", async () => {
       }
       if (text.includes("nspowner")) return { rows: [{ owned: true, framework: true, migrations: true }] };
       if (text.includes("SELECT version,hash")) {
-        const { frameworkMigrations } = await import("../../../apps/kello/src/tooling/migrations/bootstrap");
+        const { frameworkMigrations } = await import("../../../apps/kello-cli/src/tooling/migrations/bootstrap");
         return { rows: frameworkMigrations("loom_shutdown").map(({ version, hash }) => ({ version, hash })) };
       }
       if (text.includes(" AS now")) return { rows: [{ now: "1000" }] };
@@ -182,7 +182,7 @@ vi.mock("pg", async () => {
   return { default: { Client, Connection } };
 });
 
-import { cleanupRateLimits } from "../../../apps/kello/src/tooling/migrations/rate-limits-cleanup";
+import { cleanupRateLimits } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits-cleanup";
 import { cancelDatabaseStatement } from "../../../apps/kello/src/core/server/database/cancel";
 import pg from "pg";
 

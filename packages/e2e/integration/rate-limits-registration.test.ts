@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import pg from "pg";
 import { defineRateLimits } from "../../../apps/kello/src/core/server/rate-limits/policy";
-import { bootstrapSession } from "../../../apps/kello/src/tooling/migrations/bootstrap";
-import { quoteIdentifier } from "../../../apps/kello/src/tooling/migrations/connection";
-import { registerRateLimitPolicies } from "../../../apps/kello/src/tooling/migrations/rate-limits";
-import { componentNamespace } from "../../../apps/kello/src/tooling/project/component-namespace";
+import { bootstrapSession } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
+import { quoteIdentifier } from "../../../apps/kello-cli/src/tooling/migrations/connection";
+import { registerRateLimitPolicies } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits";
+import { componentNamespace } from "../../../apps/kello-cli/src/tooling/project/component-namespace";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 if (!connectionString) throw new Error("Rate limit registration requires LOOM_TEST_DATABASE_URL (local PostgreSQL 18)");

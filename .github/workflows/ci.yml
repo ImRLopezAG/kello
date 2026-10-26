@@ -85,6 +85,7 @@ jobs:
       - name: Typecheck package and integration consumers
         run: |
           bun run --cwd apps/kello typecheck
+          bun run --cwd apps/kello-cli typecheck
           bun run --cwd packages/tests typecheck
           bun run --cwd packages/e2e typecheck
       - name: Build generated docs and example consumers
@@ -95,20 +96,24 @@ jobs:
         run: bun run build
       - name: Formatting and lint checks
         run: |
-          bunx --no-install vp fmt --check apps/kello/src packages/tests packages/e2e scripts .github/workflows CONTRIBUTING.md package.json
+          bunx --no-install vp fmt --check apps/kello/src apps/kello-cli packages/tests packages/e2e scripts .github/workflows CONTRIBUTING.md package.json
           bun run lint
       - name: Pack verified package
         working-directory: apps/kello
         run: |
           mkdir -p "$RUNNER_TEMP/kello-package"
           bun pm pack --ignore-scripts --filename "$RUNNER_TEMP/kello-package/kello.tgz"
+          (cd ../kello-cli && bun pm pack --ignore-scripts --filename "$RUNNER_TEMP/kello-package/kello-cli.tgz")
           node --input-type=module <<'JS'
           import { createHash } from 'node:crypto';
           import { readFileSync, writeFileSync } from 'node:fs';
-          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
           const dir = `${process.env.RUNNER_TEMP}/kello-package`;
-          const sha256 = createHash('sha256').update(readFileSync(`${dir}/kello.tgz`)).digest('hex');
-          writeFileSync(`${dir}/manifest.json`, JSON.stringify({commit: process.env.GITHUB_SHA, name: pkg.name, version: pkg.version, sha256}));
+          for (const name of ['kello', 'kello-cli']) {
+            const pkg = JSON.parse(readFileSync(`../${name}/package.json`, 'utf8'));
+            const sha256 = createHash('sha256').update(readFileSync(`${dir}/${name}.tgz`)).digest('hex');
+            const file = name === 'kello' ? 'manifest.json' : 'cli-manifest.json';
+            writeFileSync(`${dir}/${file}`, JSON.stringify({commit: process.env.GITHUB_SHA, name: pkg.name, version: pkg.version, sha256}));
+          }
           JS
       - name: Retain verified package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

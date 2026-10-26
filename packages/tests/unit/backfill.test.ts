@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createBackfillPlan } from "kello/tooling";
+import { createBackfillPlan } from "kello-cli";
 
 const input = {
   name: "titles",

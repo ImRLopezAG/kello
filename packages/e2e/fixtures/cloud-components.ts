@@ -17,6 +17,15 @@ export async function prepareCloudComponents(root: string) {
     stderr: "pipe",
   });
   assert.equal(packed.exitCode, 0, "Kello package archive creation failed");
+  const cliPacked = Bun.spawnSync(
+    ["bun", "pm", "pack", "--filename", join(root, "kello-cli.tgz"), "--ignore-scripts"],
+    {
+      cwd: fileURLToPath(new URL("../../../apps/kello-cli/", import.meta.url)),
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+  assert.equal(cliPacked.exitCode, 0, "Kello CLI archive creation failed");
   await writeFile(
     join(root, "package.json"),
     JSON.stringify({
@@ -24,10 +33,11 @@ export async function prepareCloudComponents(root: string) {
       type: "module",
       dependencies: {
         kello: "file:./kello.tgz",
+        "kello-cli": "file:./kello-cli.tgz",
         valibot: "1.5.0",
         zod: "4.6.7",
-        effect: "4.0.0",
-        "drizzle-orm": "1.0.0-rc.4",
+        effect: "4.0.6",
+        "drizzle-orm": "1.0.0-rc.5",
       },
       devDependencies: { "vite-plus": "1.0.0" },
     }),

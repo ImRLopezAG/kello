@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRealNeonApi } from "@neon/config-runtime/v1";
-import { planProjectBranchProvision, provisionProjectBranch } from "kello/tooling";
+import { planProjectBranchProvision, provisionProjectBranch } from "kello-cli";
 
 test("branch provisioning CLI uses the pinned SDK HTTP adapter and resumes the acknowledged branch", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-neon-provision-http-"));
@@ -76,7 +76,7 @@ globalThis.fetch = (input, init) => {
 `,
     );
     async function runCli(dryRun: boolean, exitCode: number) {
-      const cli = fileURLToPath(new URL("../../../apps/kello/src/cli.ts", import.meta.url));
+      const cli = fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url));
       const child = Bun.spawn(
         [
           process.execPath,

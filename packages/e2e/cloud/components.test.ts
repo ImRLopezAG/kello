@@ -8,7 +8,7 @@ import pg from "pg";
 import * as v from "valibot";
 import { createORPCClient, type Client } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
-import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello/tooling";
+import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello-cli";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
 import { configureCloudComponents, prepareCloudComponents } from "../fixtures/cloud-components";
 
@@ -86,8 +86,8 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
     let stage = "prepare";
     try {
       await prepareCloudComponents(root);
-      const tooling: typeof import("kello/tooling") = await import(
-        join(root, "node_modules/kello/dist/tooling/index.js")
+      const tooling: typeof import("kello-cli") = await import(
+        join(root, "node_modules/kello-cli/dist/tooling/index.js")
       );
       const {
         applyMigrations,
@@ -104,7 +104,7 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
       const address = new URL(connectionString);
       await writeFile(
         join(root, "kello.config.ts"),
-        `import {defineConfig} from "kello/tooling"; export default defineConfig(${JSON.stringify({ project: "components", openapi: true, provider: { projectId, targets: { preview: { branchId } } }, auth: { origins: [origin], audience: "loom-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] }, deployment: { environment: "preview", deployment: "preview", databaseName: decodeURIComponent(address.pathname.slice(1)), migrationRole: decodeURIComponent(address.username), runtimeRole, quarantine: "preserve" } })});`,
+        `import {defineConfig} from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "components", openapi: true, provider: { projectId, targets: { preview: { branchId } } }, auth: { origins: [origin], audience: "loom-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] }, deployment: { environment: "preview", deployment: "preview", databaseName: decodeURIComponent(address.pathname.slice(1)), migrationRole: decodeURIComponent(address.username), runtimeRole, quarantine: "preserve" } })});`,
       );
       process.env.SIGNING_SECRET = secret;
       process.env.LOOM_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);

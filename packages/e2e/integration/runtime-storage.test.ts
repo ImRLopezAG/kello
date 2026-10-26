@@ -9,7 +9,7 @@ import {
   prepareNeonStorageBuckets,
   prepareNeonStorageTriggers,
   activateNeonTriggers,
-} from "kello/tooling";
+} from "kello-cli";
 import {
   createRpcRuntime,
   defineRpcAuth,

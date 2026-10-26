@@ -16,11 +16,11 @@ import {
   encodeRpcJobCall,
 } from "kello/server";
 import { createNeonActivationVerifier, createNeonIngressVerifier, neonIngressLockKey } from "kello/neon";
-import { bootstrapDatabase, defineConfig } from "kello/tooling";
+import { bootstrapDatabase, defineConfig } from "kello-cli";
 import type { NeonApi } from "@neon/config-runtime/v1";
 import { createRealNeonApi } from "@neon/config-runtime/v1";
-import { withDeploymentConnection } from "../../../apps/kello/src/tooling/deploy/neon/connection";
-import { handoffNeonIngress } from "../../../apps/kello/src/tooling/deploy/neon/ingress";
+import { withDeploymentConnection } from "../../../apps/kello-cli/src/tooling/deploy/neon/connection";
+import { handoffNeonIngress } from "../../../apps/kello-cli/src/tooling/deploy/neon/ingress";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

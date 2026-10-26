@@ -10,7 +10,7 @@ import {
   planRelease,
   prepareProject,
   projectRuntimeGraph,
-} from "kello/tooling";
+} from "kello-cli";
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -216,13 +216,13 @@ test.skipIf(!connectionString)(
         recursive: true,
       });
       await mkdir(join(root, "node_modules/@kello"), { recursive: true });
-      for (const name of ["kello", "@orpc/server", "valibot", "drizzle-orm"]) {
+      for (const name of ["kello", "kello-cli", "@orpc/server", "valibot", "drizzle-orm"]) {
         await mkdir(join(root, "node_modules", name, ".."), { recursive: true });
         await symlink(await realpath(join(source, "node_modules", name)), join(root, "node_modules", name));
       }
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling";
+        `import { defineConfig } from "kello-cli";
       export default defineConfig({ project: "tasks", database: { namespace: "app", migrations: "kello/migrations" },
         provider: { projectId: "local-example", targets: { development: { branchId: "br-local-development" } } } });`,
       );

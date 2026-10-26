@@ -1,4 +1,4 @@
-import { initializeProject } from "kello/tooling";
+import { initializeProject } from "kello-cli";
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { mkdtemp, mkdir, realpath, symlink, writeFile, readFile, rm } from "node:fs/promises";
@@ -15,8 +15,8 @@ import {
   loadProject,
   withNeonReleaseDatabase,
   declareProjectCompatibility,
-} from "kello/tooling";
-import type { DeploymentDatabaseProvider } from "kello/tooling";
+} from "kello-cli";
+import type { DeploymentDatabaseProvider } from "kello-cli";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -49,7 +49,7 @@ test.skipIf(!connectionString)(
     try {
       await initializeProject(root, "release-fixture");
       await mkdir(join(root, "node_modules/@kello"), { recursive: true });
-      for (const name of ["kello", "valibot", "drizzle-orm"])
+      for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
         await symlink(
           await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
           join(root, "node_modules", name),
@@ -61,7 +61,7 @@ test.skipIf(!connectionString)(
       });
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify(config)});`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify(config)});`,
       );
       const schemaFile = join(root, "kello/schema.ts");
       await writeFile(

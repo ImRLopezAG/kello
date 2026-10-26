@@ -2,8 +2,8 @@ import { expect, test, vi } from "vite-plus/test";
 import { channel } from "node:diagnostics_channel";
 
 const startup = vi.hoisted(() => ({ start: vi.fn() }));
-vi.mock("kello/tooling", () => ({ startProjectDevelopment: startup.start }));
-import { devCommand } from "../../../apps/kello/src/commands/dev";
+vi.mock("kello-cli", () => ({ startProjectDevelopment: startup.start }));
+import { devCommand } from "../../../apps/kello-cli/src/commands/dev";
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   for (const doubleFailure of [false, true]) {

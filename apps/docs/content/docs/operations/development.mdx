@@ -25,12 +25,12 @@ The alpha removes local server/runtime/synchronization APIs, local port and conn
 
 ## Programmatic diagnostics
 
-Use the public server-side `kello/tooling` entrypoint under Bun or Node 24. At least one output or telemetry sink is required, and only one session may be active per JavaScript realm, including duplicate package instances. A competing start rejects with `DIAGNOSTICS_ALREADY_ACTIVE`. The API observes its caller's process; it is not a browser API or a remote attach command.
+Use the public server-side `kello-cli` entrypoint under Bun or Node 24. At least one output or telemetry sink is required, and only one session may be active per JavaScript realm, including duplicate package instances. A competing start rejects with `DIAGNOSTICS_ALREADY_ACTIVE`. The API observes its caller's process; it is not a browser API or a remote attach command.
 
 ```ts
 import { open } from "node:fs/promises";
-import { startDiagnostics } from "kello/tooling";
-import type { DiagnosticsOptions, DiagnosticsSession } from "kello/tooling";
+import { startDiagnostics } from "kello-cli";
+import type { DiagnosticsOptions, DiagnosticsSession } from "kello-cli";
 
 const file = await open("./diagnostics.jsonl", "wx", 0o600);
 const options: DiagnosticsOptions = {

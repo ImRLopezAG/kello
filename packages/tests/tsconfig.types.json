@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "kello": ["../../apps/kello/src/index.ts"],
+      "kello/server": ["../../apps/kello/src/core/server/index.ts"],
+      "kello/contract": ["../../apps/kello/src/core/contract/index.ts"],
+      "kello/internal/tooling": ["../../apps/kello/src/internal/tooling.ts"],
+      "kello-cli": ["../../apps/kello-cli/src/tooling/index.ts"],
+      "kello/better-auth": ["../../apps/kello/src/core/better-auth/index.ts"],
+      "kello/client": ["../../apps/kello/src/core/client/index.ts"],
+      "kello/react": ["../../apps/kello/src/core/react/index.ts"],
+      "kello/neon": ["../../apps/kello/src/core/adapters/neon/index.ts"],
+      "kello/react/neon": ["../../apps/kello/src/core/react/neon.ts"]
+    }
+  }
+}

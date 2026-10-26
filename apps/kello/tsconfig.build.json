@@ -4,8 +4,8 @@
     "paths": {
       "kello/*": ["./src/core/*/index.ts"],
       "kello/neon": ["./src/core/adapters/neon/index.ts"],
-      "kello/tooling": ["./src/tooling/index.ts"],
-      "kello": ["./src/index.ts"]
+      "kello": ["./src/index.ts"],
+      "kello/internal/tooling": ["./src/internal/tooling.ts"]
     }
   }
 }

@@ -54,3 +54,6 @@ export function defineSchema<const Entities extends Record<string, EntityDeclara
   schemaBindings.set(schema, (namespace) => defineSchema(() => entities, { namespace }));
   return schema;
 }
+
+/** Erased declaration shape for project loading; retains the runtime package's branded IDs. */
+export interface LoadedSchema extends ReturnType<typeof defineSchema> {}

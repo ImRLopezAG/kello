@@ -13,7 +13,7 @@ import {
   createBackfillPlan,
   runBackfill,
   backfillStatus,
-} from "kello/tooling";
+} from "kello-cli";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

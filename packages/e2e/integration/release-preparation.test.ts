@@ -1,4 +1,4 @@
-import { initializeProject } from "kello/tooling";
+import { initializeProject } from "kello-cli";
 import assert from "node:assert/strict";
 import { test, expect } from "bun:test";
 import { mkdtemp, mkdir, realpath, symlink, writeFile, readFile, rm } from "node:fs/promises";
@@ -14,10 +14,10 @@ import {
   loadProject,
   withNeonReleaseDatabase,
   withNeonReleasePreparation,
-} from "kello/tooling";
+} from "kello-cli";
 
-import { withDeploymentConnection } from "../../../apps/kello/src/tooling/deploy/neon/connection";
-import { handoffNeonIngress, assertReleaseIngress } from "../../../apps/kello/src/tooling/deploy/neon/ingress";
+import { withDeploymentConnection } from "../../../apps/kello-cli/src/tooling/deploy/neon/connection";
+import { handoffNeonIngress, assertReleaseIngress } from "../../../apps/kello-cli/src/tooling/deploy/neon/ingress";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -125,14 +125,14 @@ test.skipIf(!connectionString)(
         'import { defineProcedureStorage } from "kello/server"; export default defineProcedureStorage({ buckets: { uploads: {} } });',
       );
       await mkdir(join(root, "node_modules/@kello"), { recursive: true });
-      for (const name of ["kello", "valibot", "drizzle-orm"])
+      for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
         await symlink(
           await realpath(fileURLToPath(new URL(`../../tests/node_modules/${name}`, import.meta.url))),
           join(root, "node_modules", name),
         );
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello/tooling"; export default defineConfig(${JSON.stringify({ project: "release", database: { namespace, metadataNamespace }, provider: { projectId: "project", targets: { preview: { branchId: "preview" } } } })});`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "release", database: { namespace, metadataNamespace }, provider: { projectId: "project", targets: { preview: { branchId: "preview" } } } })});`,
       );
       const schemaFile = join(root, "kello/schema.ts");
       await writeFile(

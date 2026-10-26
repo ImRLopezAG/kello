@@ -1,0 +1,80 @@
+{
+  "name": "kello-cli",
+  "version": "0.0.1-alpha.4",
+  "description": "Development, migrations and Neon deployment tooling for Kello.",
+  "homepage": "https://github.com/ImRLopezAG/kello#readme",
+  "bugs": {
+    "url": "https://github.com/ImRLopezAG/kello/issues"
+  },
+  "license": "MIT",
+  "author": "Angel Lopez",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ImRLopezAG/kello.git",
+    "directory": "apps/kello-cli"
+  },
+  "bin": {
+    "kello": "cli.js"
+  },
+  "files": [
+    "dist",
+    "cli.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/tooling/index.d.ts",
+      "import": "./dist/tooling/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "alpha"
+  },
+  "scripts": {
+    "build": "vp pack && bun ../kello/scripts/third-party.ts --tooling",
+    "typecheck": "bun check --no-script -p tsconfig.json"
+  },
+  "dependencies": {
+    "@neon/sdk": "7.5.0",
+    "@orpc/contract": "2.0.0-beta.46",
+    "@orpc/server": "2.0.0-beta.46",
+    "@orpc/valibot": "2.0.0-beta.46",
+    "@standard-schema/spec": "1.1.0",
+    "effect": "4.0.6",
+    "fflate": "0.8.3",
+    "libpg-query": "18.1.5",
+    "neon": "8.11.4",
+    "pg": "8.23.1",
+    "valibot": "1.5.0"
+  },
+  "devDependencies": {
+    "@kello/ts-config": "workspace:*",
+    "@neon/config": "1.9.2",
+    "@neon/config-runtime": "1.10.1",
+    "@types/bun": "1.4.4",
+    "@types/node": "24.19.0",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "1.0.0-rc.5",
+    "kello": "workspace:*",
+    "typescript": "7.0.2",
+    "vite-plus": "1.0.0",
+    "zod": "4.6.7"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "1.0.0-rc.5",
+    "kello": "workspace:*",
+    "vite-plus": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite-plus": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "bun": ">=1.4.2"
+  }
+}

@@ -4,7 +4,7 @@ import { mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
-import { buildNeonFunctionBundle, createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello/tooling";
+import { buildNeonFunctionBundle, createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello-cli";
 import * as v from "valibot";
 
 const projectId = "late-moon-69483649";

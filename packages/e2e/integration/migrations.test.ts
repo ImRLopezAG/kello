@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { defineSchema } from "kello/server";
-import { emptySnapshot, planMigration, snapshotHash } from "kello/tooling";
+import { emptySnapshot, planMigration, snapshotHash } from "kello-cli";
 import pg from "pg";
 import { fileURLToPath } from "node:url";
 

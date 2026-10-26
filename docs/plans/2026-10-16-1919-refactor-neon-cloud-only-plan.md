@@ -74,11 +74,11 @@ Local frontend preview, code generation, file watching, credential login, packag
 
 ### Source Grounding
 
-- Local serving: `apps/kello/src/tooling/dev/{development,server,server-generation,runtime,project}.ts` and `src/commands/dev.ts`.
+- Local serving: `apps/kello-cli/src/tooling/dev/{development,server,server-generation,runtime,project}.ts` and `src/commands/dev.ts`.
 - Legacy engine: `apps/kello/src/core/server/rpc-runtime.ts`, `realtime/{coordinator,notifications,revisions,dependencies}.ts`, `rpc/{live-context,live-dependencies,snapshot,snapshot-stream,runtime-graph,database}.ts`, and `core/search/executor.ts`.
-- Revision DDL and baselines: `apps/kello/src/tooling/migrations/{bootstrap,revisions,branch-baseline}.ts`.
-- Public target and client generation: `apps/kello/src/tooling/config/{define-config,resolve,development}.ts`, `tooling/codegen/application.ts`.
-- Existing deployment: `apps/kello/src/tooling/deploy/neon/{plan-release,prepare-release,release,apply,bundle}.ts` and `commands/deploy.ts`.
+- Revision DDL and baselines: `apps/kello-cli/src/tooling/migrations/{bootstrap,revisions,branch-baseline}.ts`.
+- Public target and client generation: `apps/kello-cli/src/tooling/config/{define-config,resolve,development}.ts`, `tooling/codegen/application.ts`.
+- Existing deployment: `apps/kello-cli/src/tooling/deploy/neon/{plan-release,prepare-release,release,apply,bundle}.ts` and `commands/deploy.ts`.
 - Official [Realtime overview](https://neon.com/docs/realtime/overview), checked 2026-10-16: enablement is per branch, queries must be read-only/deterministic, and Realtime does not currently support RLS. Therefore authorization must remain in issued SQL; transaction-local identity settings cannot replace it.
 
 ## Implementation Units
@@ -87,7 +87,7 @@ Local frontend preview, code generation, file watching, credential login, packag
 
 **Delivers:** R3, R5. **Dependencies:** none.
 
-**Files:** `apps/kello/src/cli.ts`; new `src/commands/realtime.ts`; `src/tooling/neon/api.ts`; `src/tooling/config/resolve.ts`; project discovery and existing deployment environment/secret preparation; generated public config types.
+**Files:** `apps/kello-cli/src/cli.ts`; new `src/commands/realtime.ts`; `src/tooling/neon/api.ts`; `src/tooling/config/resolve.ts`; project discovery and existing deployment environment/secret preparation; generated public config types.
 
 **Approach:** Add status/enable using the installed official SDK signatures. Bind project, branch, database, and public URL consistently. Validate explicit overrides against the selected target. Enable reports disabled/pending/ready or a fixed actionable provider error. A bounded wait that expires reports pending, not ready. Configure allowed frontend origins explicitly; never add a wildcard to fix a browser failure. Reuse protected credential storage and secret injection. Reject protected/default targets where the existing mutation policy requires explicit authorization. Realtime readiness is required for applications declaring live functions; ordinary HTTP-only applications remain deployable without it.
 
@@ -97,7 +97,7 @@ Local frontend preview, code generation, file watching, credential login, packag
 
 **Delivers:** R4–R6. **Dependencies:** U1.
 
-**Files:** `apps/kello/src/tooling/codegen/application.ts`; `core/server/application/definition.ts`; current `core/server/realtime/{neon,procedure}.ts`, `core/client/realtime.ts`, `core/react/realtime.ts` only where needed; `packages/examples/{tasks,components,integrations,next,jobs-storage}` contracts/functions/consumers.
+**Files:** `apps/kello-cli/src/tooling/codegen/application.ts`; `core/server/application/definition.ts`; current `core/server/realtime/{neon,procedure}.ts`, `core/client/realtime.ts`, `core/react/realtime.ts` only where needed; `packages/examples/{tasks,components,integrations,next,jobs-storage}` contracts/functions/consumers.
 
 **Approach:** Preserve `.live()` on function contracts and its inferred generated client/React API. Generate one HTTP client for ordinary RPC and `.live()` issuance/renewal, plus the official Neon live client when declarations require it. Remove any dependency of `.live()` on Kello WS/tickets, legacy iterator wrappers, and revision/snapshot reevaluation. Use discovered Realtime configuration. Convert app-owned `context.live` and generated watch consumers into declared deterministic SELECTs with explicit SQL access predicates. Keep function-folder contracts, input validation, stable ordering, supported page inputs, and trusted HTTP login/session resolution. New page/input/identity means a new bound subscription; dispose the old one. Multi-query/nested search handlers that cannot be represented safely remain ordinary explicit reads, with their unsupported live API removed and documented—no covert polling replacement.
 
@@ -107,7 +107,7 @@ Local frontend preview, code generation, file watching, credential login, packag
 
 **Delivers:** R1, R2, R6. **Dependencies:** U1, U2.
 
-**Files:** `apps/kello/src/commands/dev.ts`; `tooling/dev/{development,project,watcher,coordinator}.ts`; existing deployment release functions; config validators and CLI help. Remove local-only `server.ts`, `server-generation.ts`, `runtime.ts`, and local quarantine helpers after checking callers.
+**Files:** `apps/kello-cli/src/commands/dev.ts`; `tooling/dev/{development,project,watcher,coordinator}.ts`; existing deployment release functions; config validators and CLI help. Remove local-only `server.ts`, `server-generation.ts`, `runtime.ts`, and local quarantine helpers after checking callers.
 
 **Approach:** Retain file watching/debounce and reuse the existing deployment plan/apply path. Serialize deployments, coalesce saves while one runs, and generate clients from the successful remote target. Reuse one configured preview target; do not provision per save. A failed build leaves the last remote release usable. Stop watching on cancellation and settle an already-started deployment through existing release cleanup/receipts; do not tear down the shared preview branch on Ctrl-C. Remove port/maxConnections/local-serving options and local diagnostics attachment. Keep deployment and cloud runtime diagnostics.
 
@@ -117,7 +117,7 @@ Local frontend preview, code generation, file watching, credential login, packag
 
 **Delivers:** R6, R7. **Dependencies:** U2, U3.
 
-**Files:** Legacy engine and migration paths listed in Source Grounding; server/client export indices; `apps/kello/src/core/server/config.ts`; application definition/runtime graph; old WS/ticket adapters and generated search watch surfaces whose callers are now gone; notify-mode validation in `apps/kello/src/tooling/deploy/neon/prepare-release.ts`.
+**Files:** Legacy engine and migration paths listed in Source Grounding; server/client export indices; `apps/kello/src/core/server/config.ts`; application definition/runtime graph; old WS/ticket adapters and generated search watch surfaces whose callers are now gone; notify-mode validation in `apps/kello-cli/src/tooling/deploy/neon/prepare-release.ts`.
 
 **Approach:** Remove coordinator construction, revision reads, LISTEN connections, dependency instrumentation, snapshot reevaluation, and polling/notify configuration, including the old direct-connection requirement during release preparation. Preserve ordinary transaction middleware, commit/replay behavior, cloud queue wakeups, and user-authored async iterators as ordinary HTTP streaming. Delete live-specific iterator wrappers without removing ordinary streaming cancellation, error propagation, or iterator finalization. Remove revision trigger installation and baseline assumptions in current migration generation. Add a forward metadata migration that validates and removes only Kello's revision triggers/function/table for the selected namespace. Apply this cleanup in the normal migration path. Do not add deployment inventory, drain detection, or a separate retirement command; no old deployment compatibility is required. Preserve historical bootstrap bodies, application rows, unrelated triggers, and cloud jobs. Document the breaking removal; the old engine is no longer supported.
 

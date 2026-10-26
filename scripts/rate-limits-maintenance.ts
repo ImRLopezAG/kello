@@ -1,7 +1,7 @@
 /// <reference types="../apps/kello/node_modules/@types/node" />
 import { createRequire } from "node:module";
 
-const require = createRequire(new URL("../apps/kello/package.json", import.meta.url));
+const require = createRequire(new URL("../apps/kello-cli/package.json", import.meta.url));
 
 interface MaintenanceOutput {
   status: "RATE_LIMIT_CLEANUP_FAILED" | "RATE_LIMIT_CLEANUP_BACKLOG" | "RATE_LIMIT_CLEANUP_OK";
@@ -46,9 +46,9 @@ async function main(): Promise<void> {
     const url = new URL(connectionString);
     if (!["postgres:", "postgresql:"].includes(url.protocol)) throw new Error();
     // The root workspace intentionally has no runtime package dependency. Resolve
-    // the public built kello/tooling export from the package's own scope.
+    // the public built kello-cli export from the package's own scope.
     const { cleanupRateLimits } = await import(
-      import.meta.resolve("kello/tooling", new URL("../apps/kello/package.json", import.meta.url).href)
+      import.meta.resolve("kello-cli", new URL("../apps/kello-cli/package.json", import.meta.url).href)
     );
     const result = await cleanupRateLimits({
       connectionString,

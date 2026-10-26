@@ -25,8 +25,8 @@ test.skipIf(!connectionString)(
       await control.query(`CREATE DATABASE "${databaseName}"`);
       await database.connect();
       await prepareCloudComponents(root);
-      const tooling: typeof import("kello/tooling") = await import(
-        join(root, "node_modules/kello/dist/tooling/index.js")
+      const tooling: typeof import("kello-cli") = await import(
+        join(root, "node_modules/kello-cli/dist/tooling/index.js")
       );
       const server: typeof import("kello/server") = await import(
         join(root, "node_modules/kello/dist/core/server/index.js")
@@ -36,7 +36,7 @@ test.skipIf(!connectionString)(
       );
       await writeFile(
         join(root, "kello.config.ts"),
-        'import {defineConfig} from "kello/tooling"; export default defineConfig({project:"components"});',
+        'import {defineConfig} from "kello-cli"; export default defineConfig({project:"components"});',
       );
       await tooling.generateRelease(root, "initial");
       const project = await tooling.loadProject(root);

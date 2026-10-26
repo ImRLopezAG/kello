@@ -6,12 +6,12 @@ import { join } from "node:path";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { defineSchema } from "kello/server";
-import { applyMigrations, emptySnapshot, planMigration, writeMigration, inspectReleaseSchema } from "kello/tooling";
-import { withMigrationConnection } from "../../../apps/kello/src/tooling/migrations/connection";
+import { applyMigrations, emptySnapshot, planMigration, writeMigration, inspectReleaseSchema } from "kello-cli";
+import { withMigrationConnection } from "../../../apps/kello-cli/src/tooling/migrations/connection";
 import {
   recordRuntimeCompatibility,
   assertRuntimeCompatibility,
-} from "../../../apps/kello/src/tooling/migrations/runtime-compatibility";
+} from "../../../apps/kello-cli/src/tooling/migrations/runtime-compatibility";
 
 const connectionString = process.env.LOOM_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "bun:test";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { bootstrapDatabase } from "kello/tooling";
+import { bootstrapDatabase } from "kello-cli";
 import { createStorageIntents } from "kello/server";
 import { storageProviderFixture } from "../fixtures/storage-provider";
 
