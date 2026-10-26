@@ -1,6 +1,6 @@
 {
   "name": "kello-cli",
-  "version": "0.0.1-alpha.3",
+  "version": "0.0.1-alpha.4",
   "description": "Development, migrations and Neon deployment tooling for Kello.",
   "homepage": "https://github.com/ImRLopezAG/kello#readme",
   "bugs": {
