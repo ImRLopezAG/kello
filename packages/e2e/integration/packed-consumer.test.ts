@@ -126,10 +126,10 @@ assert.throws(() => import.meta.resolve("kello/tooling"), { code: "ERR_PACKAGE_P
         dependencies: {
           kello: "file:./kello.tgz",
           "kello-cli": "file:./kello-cli.tgz",
-          "@orpc/server": "2.0.0-beta.46",
-          "@orpc/tanstack-query": "2.0.0-beta.46",
+          "@orpc/server": "2.0.0-beta.49",
+          "@orpc/tanstack-query": "2.0.0-beta.49",
           "drizzle-orm": "1.0.0-rc.5",
-          effect: "4.0.6",
+          effect: "4.1.2",
           valibot: "1.5.0",
           zod: "4.6.7",
         },
@@ -333,7 +333,7 @@ await import("kello/server");
       "neon-config.LICENSE",
       "neon-config-runtime.LICENSE",
       "drizzle-kit@1.0.0-rc.5.patch",
-      "@neon%2Fconfig@1.9.2.patch",
+      "@neon%2Fconfig@1.13.0.patch",
     ]) {
       assert((await readFile(join(root, "node_modules/kello-cli/dist/third-party", name), "utf8")).length > 0);
     }

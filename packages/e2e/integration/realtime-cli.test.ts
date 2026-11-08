@@ -17,6 +17,7 @@ import {
 
 import { realtimeStatusCommand } from "../../../apps/kello-cli/src/commands/realtime";
 import { resolveRealtimeEnvironment } from "../../../apps/kello-cli/src/tooling/deploy/neon/environment";
+import { waitForRealtimeProxyOrigins } from "../../../apps/kello-cli/src/tooling/neon/api";
 
 const canary = "nrt_live_1_secret-canary";
 const origins = ["https://app.example.test"];
@@ -566,4 +567,111 @@ test("live deployments fresh-check Realtime and route the SDK secret only throug
   });
   expect(await provider.secret("project-test", "br-test")).toBe(canary);
   expect(reads).toEqual([{ projectId: "project-test", branchId: "br-test" }]);
+});
+
+function proxy(statuses: number[]) {
+  const handshakes: { url: string; origin: string }[] = [];
+  const sleeps: number[] = [];
+  const waiting: string[] = [];
+  let clock = 0;
+  return {
+    handshakes,
+    sleeps,
+    waiting,
+    options: {
+      handshake: async (url: URL, origin: string) => {
+        handshakes.push({ url: url.href, origin });
+        return statuses[Math.min(handshakes.length - 1, statuses.length - 1)]!;
+      },
+      now: () => clock,
+      sleep: async (ms: number) => {
+        sleeps.push(ms);
+        clock += ms;
+      },
+      onWaiting: (origin: string) => waiting.push(origin),
+    },
+  };
+}
+
+test("the proxy wait retries 403 and network failures until the handshake upgrades", async () => {
+  const fake = proxy([403, 0, 403, 101]);
+  await waitForRealtimeProxyOrigins("https://realtime.example.test/br-test", origins, fake.options);
+  expect(fake.handshakes).toEqual(
+    Array.from({ length: 4 }, () => ({
+      url: "wss://realtime.example.test/br-test",
+      origin: "https://app.example.test",
+    })),
+  );
+  expect(fake.sleeps).toEqual([2_000, 2_000, 2_000]);
+  expect(fake.waiting).toEqual(origins);
+});
+
+test("the proxy wait fails at once on any refusal other than 403", async () => {
+  const fake = proxy([500]);
+  await assert.rejects(waitForRealtimeProxyOrigins("wss://realtime.example.test", origins, fake.options), {
+    code: "REALTIME_PROVIDER_FAILED",
+    message: /refused a handshake from https:\/\/app\.example\.test with HTTP 500/,
+  });
+  expect(fake.handshakes).toHaveLength(1);
+  expect(fake.sleeps).toEqual([]);
+});
+
+test("a persistent 403 times out saying the allowlist is saved but not yet enforced", async () => {
+  const fake = proxy([403]);
+  await assert.rejects(
+    waitForRealtimeProxyOrigins("wss://realtime.example.test", origins, { ...fake.options, timeoutMs: 10_000 }),
+    {
+      code: "REALTIME_PROXY_PENDING",
+      message:
+        "The Realtime allowlist is saved, but the Realtime proxy does not accept https://app.example.test yet. Wait a minute, then connect again or run kello realtime status.",
+    },
+  );
+  expect(fake.handshakes).toHaveLength(6);
+  expect(fake.sleeps).toEqual(Array.from({ length: 5 }, () => 2_000));
+});
+
+test("enable waits on the proxy only for newly added origins", async () => {
+  const root = await project();
+  try {
+    const added = "https://new.example.test";
+    let allowed = origins;
+    const fake = proxy([403, 101]);
+    const enables: unknown[] = [];
+    const provider = createRealtimeProvider(
+      {
+        realtime: {
+          get: async () => ({
+            enabled: true,
+            pending: false,
+            invocation_url: "https://realtime.example.test/br-test",
+            allowed_origins: allowed,
+          }),
+          enable: async (params) => {
+            enables.push(params);
+            allowed = params.allowed_origins ?? [];
+          },
+          secret: async () => ({ secret: canary, pending: false }),
+        },
+        postgres: { endpoints: { listByBranch: async () => [{}] } },
+      },
+      fake.options,
+    );
+    const enable = (allowedOrigins: string[]) =>
+      enableRealtime(root, defineConfig({}), { allowedOrigins, timeoutMs: 1 }, discovery(), provider);
+
+    expect((await enable([...origins, added])).state).toBe("ready");
+    expect(enables).toHaveLength(1);
+    expect(fake.handshakes).toEqual([
+      { url: "wss://realtime.example.test/br-test", origin: added },
+      { url: "wss://realtime.example.test/br-test", origin: added },
+    ]);
+
+    // Unchanged origins and removed origins add nothing for the proxy to admit.
+    expect((await enable([...origins, added])).state).toBe("ready");
+    expect((await enable([added])).state).toBe("ready");
+    expect(enables).toHaveLength(2);
+    expect(fake.handshakes).toHaveLength(2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

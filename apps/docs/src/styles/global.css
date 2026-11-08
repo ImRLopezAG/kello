@@ -174,3 +174,15 @@ html.dark .astro-code span {
     @apply font-sans;
   }
 }
+
+/*
+ * fumadocs-ui 16.18 animates the registered --fd-sidebar-col property on the docs grid.
+ * Crossing from the desktop to the mobile breakpoint then leaves a 150ms frame where the
+ * stale 268px sidebar column still exists and the page overflows horizontally. The sidebar
+ * is an off-canvas drawer below md, so there is nothing to animate there.
+ */
+@media (width < 48rem) {
+  #nd-notebook-layout {
+    transition: none;
+  }
+}

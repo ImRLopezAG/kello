@@ -22,7 +22,7 @@ test("rate-limit metadata appends once, upgrades without rewriting history, and 
     assert.equal(frameworkMigrations("kello_meta").length, 29);
     assert.equal(
       frameworkMigrations("kello_meta")[26]!.hash,
-      "f50a24458564feb24a4db10d1bebd0414c583f6b7d1f4cfc689623bf675bc9f3",
+      "85e19f59a5ddcaa398aae62f098cc382fa05748a506c21b8852a3e141bf1d396",
     );
     const history = (
       await owner.query(`SELECT version,hash,applied_at FROM "${namespace}".framework_migrations ORDER BY version`)

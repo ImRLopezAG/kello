@@ -36,10 +36,10 @@ export async function prepareCloudComponents(root: string) {
         "kello-cli": "file:./kello-cli.tgz",
         valibot: "1.5.0",
         zod: "4.6.7",
-        effect: "4.0.6",
+        effect: "4.1.2",
         "drizzle-orm": "1.0.0-rc.5",
       },
-      devDependencies: { "vite-plus": "1.0.0" },
+      devDependencies: { "vite-plus": "1.5.0" },
     }),
   );
   const installed = Bun.spawnSync(["bun", "install", "--linker", "isolated", "--ignore-scripts"], {

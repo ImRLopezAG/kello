@@ -16,9 +16,8 @@ import {
 } from "kello/server";
 import { createRpcHttpApp } from "kello/neon";
 import { initializeProject, generateProject, loadProject, createKelloNeonApi } from "kello-cli";
-import { createKelloNeonClient } from "../../../apps/kello-cli/src/tooling/neon/api";
+import { createKelloNeonClient, waitForRealtimeProxyOrigins } from "../../../apps/kello-cli/src/tooling/neon/api";
 import * as v from "valibot";
-import WebSocket from "ws";
 
 const projectId = "late-moon-69483649";
 const branchId = "br-dark-block-awbbt60w";
@@ -53,31 +52,6 @@ const verifyBrowser = process.argv.includes("--verify");
 let browser: Browser | undefined;
 let connection: Awaited<ReturnType<typeof connectDatabase>> | undefined;
 let server: ReturnType<typeof Bun.serve> | undefined;
-/** Resolves once the Realtime proxy upgrades a handshake carrying `origin`; 403 means not yet admitted. */
-async function waitForProxyOrigin(invocationUrl: string, origin: string) {
-  const url = new URL(invocationUrl);
-  url.protocol = "wss:";
-  const deadline = Date.now() + 120_000;
-  for (;;) {
-    const status = await new Promise<number>((resolve) => {
-      const socket = new WebSocket(url, "neon.realtime.v2", { origin, handshakeTimeout: 10_000 });
-      socket.once("upgrade", () => {
-        resolve(101);
-        socket.close();
-      });
-      socket.once("unexpected-response", (_request, response) => {
-        resolve(response.statusCode ?? 0);
-        socket.terminate();
-      });
-      socket.once("error", () => resolve(0));
-    });
-    if (status === 101) return;
-    if (status !== 403 && status !== 0) throw new Error("Realtime proxy rejected the admitted origin");
-    if (Date.now() > deadline) throw new Error("Realtime proxy did not admit the origin");
-    await Bun.sleep(2_000);
-  }
-}
-
 let allocated = false;
 let restoreOrigins: (() => Promise<void>) | undefined;
 let stage = "admission";
@@ -315,7 +289,7 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
   );
   // The control plane reports `pending: false` before the proxy enforces the new allowlist
   // (observed ~55s), so wait until a handshake from this exact origin is upgraded.
-  await waitForProxyOrigin(realtime.invocation_url, server.url.origin);
+  await waitForRealtimeProxyOrigins(realtime.invocation_url, [server.url.origin]);
   report.status = "ready";
   await writeFile(reportFile, JSON.stringify(report, null, 2), { mode: 0o600 });
   console.log(JSON.stringify({ status: "READY", port: server.port, run, reportFile }));

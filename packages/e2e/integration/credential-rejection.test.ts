@@ -24,12 +24,12 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-function serve(handler: (method: string, path: string) => Response | undefined) {
+function serve(handler: (method: string, path: string, url: URL) => Response | undefined) {
   globalThis.fetch = Object.assign(
     async (input: string | URL | Request, init?: RequestInit) => {
       const request = input instanceof Request ? input : new Request(input.toString(), init);
       const url = new URL(request.url);
-      const response = handler(request.method, url.pathname.replace(/^\/api\/v2/, ""));
+      const response = handler(request.method, url.pathname.replace(/^\/api\/v2/, ""), url);
       if (!response) throw new Error(`Unexpected fixture request ${request.method} ${url.pathname}`);
       return response;
     },
@@ -49,8 +49,9 @@ function operation(
     action: "create_branch",
     status,
     failures_count: 0,
-    created_at: "2026-11-08T00:00:00Z",
-    updated_at: "2026-11-08T00:00:00Z",
+    // Served operations belong to the create just sent, so they start now, after its cutoff.
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     total_duration_ms: 1,
   };
 }
@@ -270,4 +271,72 @@ test("readiness waits on in-progress operations of the target branch only", asyn
   });
   await waitForProvisioning(createKelloNeonClient(), "project", "br-target");
   expect(polled).toEqual(["/projects/project/operations/op-target"]);
+});
+
+test("readiness pages past the newest operations to the create's in-progress operation", async () => {
+  const polled: string[] = [];
+  const cursors: (string | null)[] = [];
+  const since = Date.now();
+  serve((method, path, url) => {
+    if (method === "GET" && path === "/projects/project/operations") {
+      const cursor = url.searchParams.get("cursor");
+      cursors.push(cursor);
+      if (cursor === null)
+        return Response.json({
+          operations: [
+            { ...operation("project", "br-other", "running"), id: "op-busy" },
+            { ...operation("project", "br-target", "failed"), id: "op-failed" },
+          ],
+          pagination: { cursor: "page-2" },
+        });
+      if (cursor === "page-2")
+        return Response.json({
+          operations: [
+            { ...operation("project", "br-target", "running"), id: "op-create" },
+            // Began before the create, beyond the skew allowance, so it is not this create's.
+            {
+              ...operation("project", "br-target", "running"),
+              id: "op-stale",
+              created_at: new Date(since - 120_000).toISOString(),
+            },
+          ],
+          pagination: { cursor: "page-3" },
+        });
+      return Response.json({ operations: [], pagination: { cursor: "page-4" } });
+    }
+    if (method === "GET" && path.startsWith("/projects/project/operations/")) {
+      polled.push(path);
+      const id = path.split("/").at(-1) ?? "";
+      return Response.json({ operation: { ...operation("project", "br-target", "finished"), id } });
+    }
+    return undefined;
+  });
+  await waitForProvisioning(createKelloNeonClient(), "project", "br-target", since);
+  expect(polled).toEqual(["/projects/project/operations/op-create"]);
+  // The empty page ends the walk even though Neon still returned a cursor.
+  expect(cursors).toEqual([null, "page-2", "page-3"]);
+});
+
+test("readiness stops paging at the page cap and waits on what it found", async () => {
+  const polled: string[] = [];
+  let pages = 0;
+  serve((method, path) => {
+    if (method === "GET" && path === "/projects/project/operations") {
+      pages += 1;
+      const status = pages === 1 ? "running" : "finished";
+      return Response.json({
+        operations: [{ ...operation("project", "br-target", status), id: `op-${pages}` }],
+        pagination: { cursor: `page-${pages + 1}` },
+      });
+    }
+    if (method === "GET" && path.startsWith("/projects/project/operations/")) {
+      polled.push(path);
+      const id = path.split("/").at(-1) ?? "";
+      return Response.json({ operation: { ...operation("project", "br-target", "finished"), id } });
+    }
+    return undefined;
+  });
+  await waitForProvisioning(createKelloNeonClient(), "project", undefined, Date.now());
+  expect(pages).toBe(20);
+  expect(polled).toEqual(["/projects/project/operations/op-1"]);
 });

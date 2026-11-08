@@ -82,25 +82,30 @@ function providerOrDefault(provider?: NeonBranchProvisionProvider): NeonBranchPr
   if (provider) return provider;
   const api = createKelloNeonApi();
   const client = createKelloNeonClient();
+  // Recorded just before the create POST so readiness can skip operations that predate it.
+  let createdSince: number | undefined;
   return {
     getProject: (projectId) => api.getProject(projectId),
     listBranches: (projectId) => api.listBranches(projectId),
     listEndpoints: (projectId) => api.listEndpoints(projectId),
-    createBranch: async (projectId, options) => ({
-      branch: await neonCall(
-        client.branches.create(
-          {
-            projectId,
-            name: options.name,
-            parent_id: options.parentId,
-            protected: options.protected,
-            init_source: options.initSource ?? "parent-data",
-          },
-          { waitForReadiness: false },
+    createBranch: async (projectId, options) => {
+      createdSince = Date.now();
+      return {
+        branch: await neonCall(
+          client.branches.create(
+            {
+              projectId,
+              name: options.name,
+              parent_id: options.parentId,
+              protected: options.protected,
+              init_source: options.initSource ?? "parent-data",
+            },
+            { waitForReadiness: false },
+          ),
         ),
-      ),
-    }),
-    ready: (projectId, branchId) => waitForProvisioning(client, projectId, branchId),
+      };
+    },
+    ready: (projectId, branchId) => waitForProvisioning(client, projectId, branchId, createdSince),
   };
 }
 

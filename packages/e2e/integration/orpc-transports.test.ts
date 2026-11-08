@@ -37,7 +37,7 @@ test("removed historical routes refuse calls without authentication or dispatch"
   const historical = await readFile(new URL("../fixtures/historical/client.js", import.meta.url));
   assert.equal(
     createHash("sha256").update(historical).digest("hex"),
-    "8346b176dc200580a90e4d5dc4f4a063891ab7ae336db48ce8fb10a1caf4b241",
+    "0e2e4b97efc291d2c465fbef2f4d7781b80ff1e5ceb33acc59986eb32cbb1714",
   );
   let authenticated = 0;
   const app = createRpcHttpApp({

@@ -40,6 +40,8 @@ export class OnboardingError extends Error {
 }
 export function createOnboardingProvider(): OnboardingProvider {
   const client = createKelloNeonClient();
+  // Recorded just before the create POST so readiness can skip operations that predate it.
+  let createdSince: number | undefined;
   return {
     organizations: () => neonCall(client.user.organizations()),
     projects: async (orgId) =>
@@ -48,12 +50,14 @@ export function createOnboardingProvider(): OnboardingProvider {
         name,
         orgId: org_id ?? "",
       })),
-    create: ({ name, orgId, region }) =>
+    create: ({ name, orgId, region }) => {
+      createdSince = Date.now();
       // Only the POST: its result is recorded before readiness is awaited separately.
-      neonCall(
+      return neonCall(
         client.projects.create({ name, org_id: orgId, region_id: region, pg_version: 18 }, { waitForReadiness: false }),
-      ),
-    ready: (projectId) => waitForProvisioning(client, projectId),
+      );
+    },
+    ready: (projectId) => waitForProvisioning(client, projectId, undefined, createdSince),
     rename: async (projectId, name) => {
       await neonCall(client.projects.update({ projectId, name }));
     },
