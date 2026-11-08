@@ -3,7 +3,7 @@ import type { SchemaMetadata } from "./compile";
 /** Bootstrap statements run by migration credentials, never on request startup. */
 export function systemFieldSql(metadata: SchemaMetadata): readonly string[] {
   const namespace = quoteIdentifier(metadata.namespace);
-  const functionName = `${namespace}."loom_protect_system_fields"`;
+  const functionName = `${namespace}."kello_protect_system_fields"`;
   return [
     `CREATE OR REPLACE FUNCTION ${functionName}() RETURNS trigger LANGUAGE plpgsql
       SET search_path = pg_catalog AS $kello$
@@ -17,8 +17,8 @@ export function systemFieldSql(metadata: SchemaMetadata): readonly string[] {
     ...metadata.entities.flatMap((entity) => {
       const table = `${namespace}.${quoteIdentifier(entity.sqlName)}`;
       return [
-        `DROP TRIGGER IF EXISTS "loom_protect_system_fields" ON ${table}`,
-        `CREATE TRIGGER "loom_protect_system_fields" BEFORE UPDATE ON ${table}
+        `DROP TRIGGER IF EXISTS "kello_protect_system_fields" ON ${table}`,
+        `CREATE TRIGGER "kello_protect_system_fields" BEFORE UPDATE ON ${table}
          FOR EACH ROW EXECUTE FUNCTION ${functionName}()`,
       ];
     }),

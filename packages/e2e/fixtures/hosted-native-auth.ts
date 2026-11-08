@@ -19,7 +19,7 @@ export function nativeAuth(
       appPreferences({ modelName: "customerPreferences", maxLength: 20 }),
       bearer({ requireSignature: true }),
       jwt({
-        jwt: { issuer: baseURL, audience: "loom-test", expirationTime: "5m" },
+        jwt: { issuer: baseURL, audience: "kello-test", expirationTime: "5m" },
         jwks: { keyPairConfig: { alg: "EdDSA" } },
       }),
       organization({ teams: { enabled: true } }),

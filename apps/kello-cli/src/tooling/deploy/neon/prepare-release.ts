@@ -91,9 +91,9 @@ export async function withNeonReleasePreparation<T>(
   const reserved = [
     ...neonInjectedVariables,
     "NEON_API_KEY",
-    "LOOM_ACTIVATION_TOKEN",
-    "LOOM_SEARCH_CURSOR_KEY",
-    "LOOM_REALTIME_SECRET",
+    "KELLO_ACTIVATION_TOKEN",
+    "KELLO_SEARCH_CURSOR_KEY",
+    "KELLO_REALTIME_SECRET",
     project.config.database.migrationUrlEnv,
   ];
   if (
@@ -137,7 +137,7 @@ export async function withNeonReleasePreparation<T>(
       const context = { config: project.config, environment: databaseOptions.environment };
       const cursorEnvironment = searchProcedures.some((entry) => searchContractDescriptor(entry.definition))
         ? {
-            LOOM_SEARCH_CURSOR_KEY: await provisionSearchCursorKey(session.client, {
+            KELLO_SEARCH_CURSOR_KEY: await provisionSearchCursorKey(session.client, {
               metadataNamespace: database.metadataNamespace,
               projectId: database.target.projectId,
               branchId: database.target.branchId,
@@ -151,7 +151,7 @@ export async function withNeonReleasePreparation<T>(
           ...variables,
           ...cursorEnvironment,
           ...realtimeEnvironment,
-          LOOM_ACTIVATION_TOKEN: databaseOptions.activationToken,
+          KELLO_ACTIVATION_TOKEN: databaseOptions.activationToken,
         },
         signal,
       };

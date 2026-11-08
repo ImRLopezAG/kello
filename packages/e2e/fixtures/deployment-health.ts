@@ -37,7 +37,7 @@ const server = createServer({ cert: await readFile(certificate), key: await read
     response.end("unexpected");
     return;
   }
-  assert.match(request.url ?? "", /^\/(service|worker)\/_loom\/deployment\/health$/);
+  assert.match(request.url ?? "", /^\/(service|worker)\/_kello\/deployment\/health$/);
   if (behavior === "redirect") {
     response.writeHead(307, { location: "/redirect-target" });
     response.end();

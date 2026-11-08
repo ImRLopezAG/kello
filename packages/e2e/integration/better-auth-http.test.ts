@@ -22,16 +22,16 @@ import { emptySnapshot, planMigration, writeMigration, applyMigrations } from "k
 import { appPreferences } from "../fixtures/app-auth-plugin";
 import { appPreferencesClient } from "../fixtures/app-auth-plugin-client";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "native plugin clients and routes use the assembled Kello server and real Neon tables",
   async () => {
     assert(connectionString);
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `auth_http_${suffix}`;
-    const metadataNamespace = `loom_auth_http_${suffix}`;
+    const metadataNamespace = `kello_auth_http_${suffix}`;
     const runtimeRole = `auth_http_role_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-auth-http-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-auth-http-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     let service: Awaited<ReturnType<typeof createNeonRpcService>> | undefined;
@@ -45,7 +45,7 @@ test.skipIf(!connectionString)(
           emailAndPassword: { enabled: true },
           plugins: [
             jwt({
-              jwt: { issuer: "https://api.test", audience: "loom-test", expirationTime: "5m" },
+              jwt: { issuer: "https://api.test", audience: "kello-test", expirationTime: "5m" },
               jwks: { keyPairConfig: { alg: "EdDSA" } },
             }),
             organization({ teams: { enabled: true } }),
@@ -92,7 +92,7 @@ test.skipIf(!connectionString)(
               {
                 issuer: "https://api.test",
                 jwksUrl: "https://api.test/api/auth/jwks",
-                audience: "loom-test",
+                audience: "kello-test",
                 algorithms: ["EdDSA"],
               },
             ],
@@ -192,7 +192,7 @@ test.skipIf(!connectionString)(
       const keys = await (await running.fetch(new Request("https://api.test/api/auth/jwks"))).json();
       const verified = await jwtVerify(token.data.token, createLocalJWKSet(keys), {
         issuer: "https://api.test",
-        audience: "loom-test",
+        audience: "kello-test",
         algorithms: ["EdDSA"],
       });
       assert.equal(verified.payload.sub, signup.data.user.id);
@@ -210,7 +210,7 @@ test.skipIf(!connectionString)(
       for (const credential of [token.data.token, rotated.data.token]) {
         const result = await jwtVerify(credential, createLocalJWKSet(rotatedKeys), {
           issuer: "https://api.test",
-          audience: "loom-test",
+          audience: "kello-test",
           algorithms: ["EdDSA"],
         });
         assert.equal(result.payload.sub, signup.data.user.id);

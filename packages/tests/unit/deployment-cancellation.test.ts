@@ -39,7 +39,7 @@ for (const rollbackFails of [false, true])
       const operation = prepareGrant(
         client,
         {
-          metadataNamespace: "loom_meta",
+          metadataNamespace: "kello_meta",
           deployment: "preview",
           version: "a".repeat(64),
           projectId: "project",
@@ -67,7 +67,7 @@ for (const rollback of ["success", "error", "falsey"] as const)
     test(`outer activation rollback ${rollback}, successful successor ${successor}`, async () => {
       const client = new pg.Client();
       const binding = {
-        metadataNamespace: "loom_meta",
+        metadataNamespace: "kello_meta",
         deployment: "preview",
         version: "a".repeat(64),
         projectId: "project",
@@ -110,7 +110,7 @@ for (const rollback of ["success", "error", "falsey"] as const)
             client,
             {
               ...binding,
-              protocol: "loom-legacy-1",
+              protocol: "kello-legacy-1",
               procedures: [],
               migrations: [],
               signal: revision.signal,

@@ -2,7 +2,7 @@
 
 **Verdict: REVISE.** One P1 and two P2 findings below. This is a source/API/security/lifecycle review of the uncommitted U3 candidate, not cloud acceptance or full CE shipping completion. Coverage is bounded and incomplete for some peripheral/deleted test bodies; the findings do not depend on those unread bodies.
 
-- Canonical checkout: `/Users/angel/.t3/worktrees/loom/release-kello-001-002-alpha`
+- Canonical checkout: `/Users/angel/.t3/worktrees/kello/release-kello-001-002-alpha`
 - Branch: `refactor/neon-cloud-tooling`
 - HEAD/base: `623a764820e972aa896dd12d1d88586ef95b384c`
 - Frozen manifest: `/tmp/kello-u3-removal-frozen-sha256.txt`
@@ -17,7 +17,7 @@
 
 The selected/current comparison checks one preflight snapshot, then passes only `root`, `file`, `provider` and `signal` to `deployProjectRelease`. That function rereads the project/declaration and resolves managed credentials from the new values. The credential path independently selects its target, then bootstraps metadata, changes the runtime role and writes deployment secrets. It never receives or compares the watch-session pin. Later release checks compare their own freshly selected identities, not the original watch-session authority.
 
-**Trigger:** after the last preview assertion, change the saved target before the release reread, or change the provider's writable endpoint before credential resolution. A saved-link update under `.loom` is ignored by the watcher; a provider endpoint change generates no filesystem event at all. Even with authored-config changes, asynchronous watcher cancellation is not a mutation authorization check. A consistent new target can pass the downstream checks. `assertGeneratedVersion` reloads source and compares it with the release's reread version; it does not compare with the candidate version or session pin.
+**Trigger:** after the last preview assertion, change the saved target before the release reread, or change the provider's writable endpoint before credential resolution. A saved-link update under `.kello` is ignored by the watcher; a provider endpoint change generates no filesystem event at all. Even with authored-config changes, asynchronous watcher cancellation is not a mutation authorization check. A consistent new target can pass the downstream checks. `assertGeneratedVersion` reloads source and compares it with the release's reread version; it does not compare with the candidate version or session pin.
 
 **Effect:** a running watch session can perform privileged database preparation against an authority it did not pin, and downstream release work has no session-bound rejection. A later rejection cannot undo already committed credential preparation. This breaks the stated restart-to-retarget security contract.
 

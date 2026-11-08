@@ -5,7 +5,7 @@ description: Watch author files and deploy releases to a linked Neon preview bra
 
 ## Select a preview target
 
-Run `kello login`, then `kello link --project-id <id> --branch <branch-id>` for an unprotected, nondefault PostgreSQL 18 branch. `kello dev` requires the saved link and the preview deployment target to identify the same project and branch. Production targets are refused.
+Run `kello login`, then `kello link --project-id <id> --branch <branch-id>` for an unprotected, nondefault PostgreSQL 18 branch. Login stores a personal Neon API key at `~/.config/kello/credentials.json`; select another stored identity with `--profile <name>` or `KELLO_PROFILE`, and list them with `kello profile list`. `kello dev` requires the saved link and the preview deployment target to identify the same project and branch. Production targets are refused.
 
 Normal linked projects discover deployment credentials and settings. Explicit overrides belong in `kello.config.ts`: `deployment.environment` must be `"preview"`, and `provider.targets.preview` selects that branch. Optional `development` settings select `databaseName`, `migrationRole`, `runtimeRole` and `debounceMs` (75 milliseconds by default). They do not start a local database or server.
 

@@ -15,12 +15,12 @@ import {
   Invocation,
 } from "kello/server";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "different relation graphs share one owned transaction and rollback on caught child failure",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
-    const namespace = `loom_component_tx_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_component_tx_${crypto.randomUUID().replaceAll("-", "")}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const appSchema = defineSchema(() => ({}));

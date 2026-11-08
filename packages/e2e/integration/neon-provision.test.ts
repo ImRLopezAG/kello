@@ -8,7 +8,7 @@ import { createRealNeonApi } from "@neon/config-runtime/v1";
 import { planProjectBranchProvision, provisionProjectBranch } from "kello-cli";
 
 test("branch provisioning CLI uses the pinned SDK HTTP adapter and resumes the acknowledged branch", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-neon-provision-http-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-neon-provision-http-"));
   const input = {
     key: "a".repeat(64),
     projectId: "project",
@@ -45,6 +45,7 @@ test("branch provisioning CLI uses the pinned SDK HTTP adapter and resumes the a
               ]
             : [],
         });
+      if (request.method === "GET" && path === "/projects/project/operations") return Response.json({ operations: [] });
       if (request.method === "POST" && path === "/projects/project/branches") {
         assert.equal(creates, 0);
         assert.deepEqual(await request.json(), {

@@ -31,7 +31,7 @@ export async function publishDeployedClient(
   await saveResolvedProject(root, resolved);
   signal?.throwIfAborted();
   await writeManagedPublicEnvironment(root, {
-    LOOM_URL: resolved.public.serviceUrl,
+    KELLO_URL: resolved.public.serviceUrl,
     NEON_AUTH_URL: resolved.public.authUrl ?? null,
   });
   signal?.throwIfAborted();

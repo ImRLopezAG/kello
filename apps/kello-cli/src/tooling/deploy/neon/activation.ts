@@ -154,7 +154,7 @@ export async function activateGrant(
         metadataNamespace: binding.metadataNamespace,
         deployment: binding.deployment,
         version: binding.version,
-        protocol: "loom-legacy-1",
+        protocol: "kello-legacy-1",
         procedures: [],
         migrations: [],
         signal,

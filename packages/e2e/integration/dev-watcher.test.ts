@@ -55,7 +55,7 @@ async function prepareMigrationDirectory(root: string): Promise<void> {
 }
 
 test("development watcher observes edits and stops and restarts cleanly", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-watch-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-watch-"));
   const source = join(root, "schema.ts");
   const output = join(root, "kello", "_generated");
   await mkdir(output, { recursive: true });
@@ -92,7 +92,7 @@ test("development watcher observes edits and stops and restarts cleanly", async 
 });
 
 test("development watcher ignores artifact directories while observing source files", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-watch-artifacts-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-watch-artifacts-"));
   await prepareMigrationDirectory(root);
   const artifacts = [
     ".git",
@@ -138,7 +138,7 @@ test("development watcher ignores artifact directories while observing source fi
 });
 
 test("development watcher observes migration history files", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-watch-migrations-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-watch-migrations-"));
   await prepareMigrationDirectory(root);
   let updates = 0;
   const watcher = await watchDevelopment(
@@ -161,7 +161,7 @@ test("development watcher observes migration history files", async () => {
 });
 
 test("watching a consumer preserves generated contracts through a failed edit and recovers on save", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-watch-consumer-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-watch-consumer-"));
   await initializeProject(root, "tasks");
   await mkdir(join(root, "node_modules/@kello"), { recursive: true });
   for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"]) {

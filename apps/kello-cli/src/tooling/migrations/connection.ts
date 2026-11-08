@@ -49,7 +49,7 @@ export async function withMigrationConnection<T>(
   const client = new pg.Client({
     connectionString: url.href,
     connectionTimeoutMillis: 5000,
-    application_name: "loom-migrations",
+    application_name: "kello-migrations",
   });
   let result: T;
   try {

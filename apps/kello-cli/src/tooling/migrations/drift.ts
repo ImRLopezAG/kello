@@ -67,7 +67,7 @@ export async function catalogFingerprint(
     [namespace, excludedIndexes, mode === "schema-copy"],
   );
   return createHash("sha256")
-    .update(mode === "exact" ? "loom-catalog-v1\0" : "loom-schema-copy-catalog-v1\0")
+    .update(mode === "exact" ? "kello-catalog-v1\0" : "kello-schema-copy-catalog-v1\0")
     .update(JSON.stringify(result.rows.map((row) => row.definition)))
     .digest("hex");
 }

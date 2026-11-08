@@ -5,14 +5,14 @@ import { bootstrapDatabase, defineConfig } from "kello-cli";
 import type { DeploymentDatabaseProvider } from "kello-cli";
 import { resolveManagedDeploymentCredentials } from "../../../apps/kello-cli/src/tooling/deploy/neon/managed-credentials";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "managed deployment credentials survive retries and remain inaccessible to runtime roles",
   async () => {
     assert(connectionString);
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_managed_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_managed_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const runtimePassword = crypto.randomUUID().replaceAll("-", "").repeat(2);
     const address = new URL(connectionString);
     const admin = new pg.Client({ connectionString });

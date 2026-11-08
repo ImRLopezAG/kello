@@ -36,7 +36,7 @@ bunx --no-install kello link --project-id YOUR_PROJECT_ID --branch YOUR_BRANCH_I
 bunx --no-install kello doctor --json
 ```
 
-Kello uses the official Neon credential profile and discovers the database and migration owner. Choose an unprotected, nondefault development branch. CI can use `NEON_API_KEY`; do not put provider credentials in browser variables. A normal linked project does not need `kello.config.ts`. Examples may retain namespace overrides.
+`kello login` opens a one-time Neon browser sign-in, uses it to create a personal Neon API key, and stores that key at `~/.config/kello/credentials.json` (mode 0600). The browser session is discarded. `kello logout` revokes the key and removes it. Linking discovers the database and migration owner. Choose an unprotected, nondefault development branch. CI sets `NEON_API_KEY` instead; do not put provider credentials in browser variables. A normal linked project does not need `kello.config.ts`. Examples may retain namespace overrides.
 
 Copy the example's `.env.example` to `.env` and configure its application values. Managed Neon auth also requires branch auth setup and the correct allowed frontend origin. Backend auth secrets belong on the Kello service, never in a `NEXT_PUBLIC_*` or `VITE_*` variable.
 

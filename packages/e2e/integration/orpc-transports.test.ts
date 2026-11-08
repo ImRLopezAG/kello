@@ -16,7 +16,12 @@ import { createRpcHttpApp, createRpcOpenApiApp } from "kello/neon";
 
 const version = "a".repeat(64);
 const origin = "https://app.example.test";
-const headers = { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version, origin, authorization: "Bearer valid" };
+const headers = {
+  "x-kello-protocol": "kello-orpc-2",
+  "x-kello-version": version,
+  origin,
+  authorization: "Bearer valid",
+};
 const { procedure } = createProjectProcedures(defineSchema(() => ({})));
 const router = {
   values: procedure.handler(() => ({ absent: undefined, date: new Date("2026-09-24T00:00:00Z"), count: 9n })),
@@ -133,8 +138,8 @@ test("native HTTP authenticates before dispatch and protects protocol, origin an
   for (const [patch, status] of [
     [{ origin: "https://evil.example.test" }, 403],
     [{ authorization: "Bearer forged" }, 401],
-    [{ "x-loom-version": "b".repeat(64) }, 409],
-    [{ "x-loom-protocol": "loom-legacy-1" }, 409],
+    [{ "x-kello-version": "b".repeat(64) }, 409],
+    [{ "x-kello-protocol": "kello-legacy-1" }, 409],
   ] as const) {
     const response = await app.fetch(
       new Request("https://service.example.test/api/kello/rpc/echo", {
@@ -188,7 +193,7 @@ test("HTTP operation intent is validated per call and cannot replace authenticat
       new RPCLink({
         origin: "https://service.example.test",
         url: "/api/kello/rpc",
-        headers: { ...headers, "x-loom-operation": operation },
+        headers: { ...headers, "x-kello-operation": operation },
         fetch: (request, init) => app.fetch(new Request(request, init)),
       }),
     );
@@ -198,7 +203,7 @@ test("HTTP operation intent is validated per call and cannot replace authenticat
     const response = await app.fetch(
       new Request("https://service.example.test/api/kello/rpc/inspect", {
         method: "POST",
-        headers: { ...headers, "x-loom-operation": operation },
+        headers: { ...headers, "x-kello-operation": operation },
       }),
     );
     expect(response.status).toBe(400);
@@ -206,7 +211,7 @@ test("HTTP operation intent is validated per call and cannot replace authenticat
   const forged = await app.fetch(
     new Request("https://service.example.test/api/kello/rpc/inspect", {
       method: "POST",
-      headers: { ...headers, authorization: "Bearer forged", "x-loom-operation": "mutation" },
+      headers: { ...headers, authorization: "Bearer forged", "x-kello-operation": "mutation" },
     }),
   );
   expect(forged.status).toBe(401);

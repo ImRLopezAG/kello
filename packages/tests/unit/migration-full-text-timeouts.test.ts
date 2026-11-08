@@ -315,7 +315,7 @@ test("runner routes only the selected artifact's whole native migrator through t
     expect(receipt.applied).toEqual([first.hash, second.hash]);
     const builds = queries.filter(({ sql }) => sql.startsWith("CREATE INDEX"));
     expect(builds.map(({ timeout }) => timeout)).toEqual(["120000ms", "60s"]);
-    const nativeInserts = queries.filter(({ sql }) => sql.startsWith('insert into "loom_meta"."orm_history"'));
+    const nativeInserts = queries.filter(({ sql }) => sql.startsWith('insert into "kello_meta"."orm_history"'));
     expect(nativeInserts.map(({ timeout }) => timeout)).toEqual(["120000ms", "60s"]);
     const nativeSetup = queries.filter(({ sql }) => sql.startsWith("CREATE SCHEMA IF NOT EXISTS"));
     expect(nativeSetup.map(({ timeout }) => timeout)).toEqual(["120000ms", "60s"]);

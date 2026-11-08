@@ -82,7 +82,7 @@ test("assembled service contexts preserve SDK objects, mount configuration and a
     },
     database: {
       connection: { db, pool, transaction: db.transaction.bind(db), close: () => pool.end() },
-      replay: { metadataNamespace: "loom_meta", deployment: "test" },
+      replay: { metadataNamespace: "kello_meta", deployment: "test" },
       authorize: async () => {},
     },
   });
@@ -126,7 +126,7 @@ function serviceHarness(
     authorize: async () => {},
     database: {
       connection: { db, pool, transaction: db.transaction.bind(db), close: () => pool.end() },
-      replay: { metadataNamespace: "loom_meta", deployment: "test" },
+      replay: { metadataNamespace: "kello_meta", deployment: "test" },
       authorize: async () => {},
     },
   });
@@ -288,7 +288,7 @@ import { connectDatabase } from "../../../apps/kello/src/core/server/database/co
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import type { RouterClient } from "@orpc/server";
 
-const serviceDatabaseUrl = process.env.LOOM_TEST_DATABASE_URL;
+const serviceDatabaseUrl = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!serviceDatabaseUrl)("warmed SDKs reject explicit retryable and nested service access", async () => {
   if (!serviceDatabaseUrl) throw new Error("Missing database URL");
   let acquired = 0;
@@ -347,7 +347,7 @@ test.skipIf(!serviceDatabaseUrl)("warmed SDKs reject explicit retryable and nest
     ],
     database: {
       connection,
-      replay: { metadataNamespace: "loom_meta", deployment: "service-test" },
+      replay: { metadataNamespace: "kello_meta", deployment: "service-test" },
       authorize: async () => {},
     },
   });

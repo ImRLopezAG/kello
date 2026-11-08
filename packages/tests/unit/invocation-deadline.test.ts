@@ -144,8 +144,8 @@ for (const sessionMs of [10, 10_000]) {
         headers: {
           authorization: "Bearer token",
           "content-type": "application/json",
-          "x-loom-protocol": "loom-orpc-2",
-          "x-loom-version": version,
+          "x-kello-protocol": "kello-orpc-2",
+          "x-kello-version": version,
         },
         body: JSON.stringify({ json: null }),
       }),
@@ -292,7 +292,7 @@ function middlewareFixture(kind: MiddlewareKind, observe: (value: MiddlewareObse
     entries: [{ path: ["read"], visibility: "public", procedure: leaf }],
     database: {
       connection,
-      replay: { deployment: version, metadataNamespace: "loom_deadline" },
+      replay: { deployment: version, metadataNamespace: "kello_deadline" },
       authorize: async () => {},
     },
     effects,
@@ -339,8 +339,8 @@ for (const kind of middlewareKinds) {
             headers: {
               authorization: "Bearer token",
               "content-type": "application/json",
-              "x-loom-protocol": "loom-orpc-2",
-              "x-loom-version": version,
+              "x-kello-protocol": "kello-orpc-2",
+              "x-kello-version": version,
             },
             body: JSON.stringify({ json: null }),
           }),

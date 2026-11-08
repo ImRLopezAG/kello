@@ -168,7 +168,7 @@ beforeEach(async () => {
   // Mirrors ordinary publication: a successful release rewrites .env.local in the watched root.
   state.deploy = async (deployRoot, file, signal) => {
     state.deploys.push({ version: state.version, file, signal });
-    await writeFile(join(deployRoot, ".env.local"), `LOOM_URL="https://service.example.test/"\n`);
+    await writeFile(join(deployRoot, ".env.local"), `KELLO_URL="https://service.example.test/"\n`);
     return { identity: { version: state.version, target: { branchId: "br-preview" } } };
   };
 });
@@ -223,7 +223,7 @@ test("owned .env.local publication events while publication is pending do not ca
     state.deploys.push({ version: state.version, file, signal });
     // Real publication writer: root ..env.local-<uuid>.tmp then rename to .env.local.
     await writeManagedPublicEnvironment(deployRoot, {
-      LOOM_URL: `https://service.example.test/${state.deploys.length}`,
+      KELLO_URL: `https://service.example.test/${state.deploys.length}`,
     });
     // Publication remains pending well past the debounce while its events are delivered.
     await new Promise((resolve) => setTimeout(resolve, 200));

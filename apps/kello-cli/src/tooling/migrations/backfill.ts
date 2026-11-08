@@ -43,7 +43,7 @@ export async function createBackfillPlan(input: v.InferInput<typeof inputValidat
   const content = { format: 1 as const, ...config };
   return {
     ...content,
-    hash: createHash("sha256").update("loom-backfill-v1\0").update(JSON.stringify(content)).digest("hex"),
+    hash: createHash("sha256").update("kello-backfill-v1\0").update(JSON.stringify(content)).digest("hex"),
   };
 }
 
@@ -52,7 +52,7 @@ const runValidator = v.strictObject({
   root: v.string(),
   migrations: v.string(),
   namespace: databaseIdentifier,
-  metadataNamespace: v.optional(v.pipe(databaseIdentifier, v.regex(/^loom_/)), "loom_meta"),
+  metadataNamespace: v.optional(v.pipe(databaseIdentifier, v.regex(/^kello_/)), "kello_meta"),
   runtimeRole: databaseIdentifier,
   plan: backfillPlanValidator,
   reviewedHash: hash,
@@ -114,7 +114,7 @@ export async function backfillStatus(options: BackfillStatusOptions): Promise<Ba
   const plan = await validateBackfillPlan(config.plan);
   if (plan.namespace !== config.namespace) throw new Error("Backfill namespace differs from target");
   return withMigrationConnection(config.connectionString, async (client) => {
-    await acquireMigrationLock(client, `loom:migrations:${config.namespace}`, true);
+    await acquireMigrationLock(client, `kello:migrations:${config.namespace}`, true);
     const metadata = quoteIdentifier(config.metadataNamespace);
     const exists = await client.query<{ present: boolean }>("SELECT to_regclass($1) IS NOT NULL AS present", [
       `${metadata}.backfills`,
@@ -136,7 +136,7 @@ export async function runBackfill(options: RunBackfillOptions): Promise<Backfill
   if (plan.namespace !== config.namespace) throw new Error("Backfill namespace differs from target");
   signal?.throwIfAborted();
   return withMigrationConnection(config.connectionString, async (client) => {
-    await acquireMigrationLock(client, `loom:migrations:${config.namespace}`, false, signal);
+    await acquireMigrationLock(client, `kello:migrations:${config.namespace}`, false, signal);
     if (config.sourceVersion) await assertGeneratedVersion(config.root, config.sourceVersion);
     await bootstrapSession(client, config.metadataNamespace, config.runtimeRole);
     const artifacts = await readMigrations(config.root, config.migrations);

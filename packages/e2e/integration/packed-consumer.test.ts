@@ -10,7 +10,7 @@ test("fresh workspace installation links the CLI before compiled output exists",
   const manifest = await Bun.file(join(source, "package.json")).json();
   const workspaceLock = await readFile(new URL("../../../bun.lock", import.meta.url), "utf8");
   assert.match(workspaceLock, /"bin":\s*\{\s*"kello": "cli\.js"/);
-  const root = await mkdtemp(join(tmpdir(), "loom-workspace-bin-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-workspace-bin-"));
   try {
     await mkdir(join(root, "apps/kello-cli"), { recursive: true });
     await writeFile(
@@ -51,7 +51,7 @@ test("packed tooling preserves migration and bucket privacy patches without cons
   assert.match(publicManifest.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
   assert.equal(publicManifest.bin.kello, "cli.js");
   assert(!Object.keys(publicManifest.dependencies).some((name) => name.startsWith("@kello/")));
-  const root = await mkdtemp(join(tmpdir(), "loom-packed-consumer-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-packed-consumer-"));
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, { cwd, stdout: "pipe", stderr: "pipe", timeout: 60000 });
     const [stdout, stderr, code] = await Promise.all([
@@ -405,23 +405,19 @@ try {
     });
     assert.equal(await login.exited, 6);
     assert.equal(JSON.parse(await new Response(login.stderr).text()).error.code, "NEON_LOGIN_REQUIRED");
-    const worker = Bun.spawn(["bun", join(root, "node_modules/kello-cli/dist/tooling/neon/credential-worker.js")], {
-      cwd: root,
-      env: {
-        ...process.env,
-        CI: "true",
-        DEBUG: "",
-        LOOM_NEON_CREDENTIAL_REQUEST: JSON.stringify({
-          profile: "DEFAULT",
-          configDir: join(root, "empty-neon-profile"),
-        }),
-      },
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    assert.equal(await worker.exited, 0);
-    assert.deepEqual(JSON.parse(await new Response(worker.stdout).text()), { code: "NEON_LOGIN_REQUIRED" });
+    const profiles = Bun.spawn(
+      [
+        join(root, "node_modules/.bin/kello"),
+        "profile",
+        "list",
+        "--json",
+        "--config-dir",
+        join(root, "empty-kello-profile"),
+      ],
+      { cwd: root, env: { ...process.env, CI: "true" }, stdin: "ignore", stdout: "pipe", stderr: "pipe" },
+    );
+    assert.equal(await profiles.exited, 0);
+    assert.deepEqual(JSON.parse(await new Response(profiles.stdout).text()).profiles, []);
     await writeFile(
       join(root, "generate-native.mjs"),
       `import assert from "node:assert/strict";
@@ -432,7 +428,7 @@ await saveResolvedProject("./native", {
   databaseName: "neondb", migrationRole: "neondb_owner", public: { serviceUrl: "https://functions.example.test/service", authUrl: "https://auth.example.test/auth" },
 });
 const result = await generateProject("./native");
-assert.equal(result.protocol, "loom-orpc-2");
+assert.equal(result.protocol, "kello-orpc-2");
 const { configuration } = await import("./native/kello/_generated/api.js");
 assert.deepEqual(configuration, { serviceUrl: "https://functions.example.test/service", authUrl: "https://auth.example.test/auth" });
 await saveResolvedProject("./native", {

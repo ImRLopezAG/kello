@@ -1,12 +1,13 @@
 import * as v from "valibot";
 const tokenSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(3800), v.regex(/^[A-Za-z0-9._-]+$/));
+const sessionCookiePrefix = "kello_session=";
 export function readToken(request: Request) {
   const value = request.headers
     .get("cookie")
     ?.split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith("loom_session="))
-    ?.slice(13);
+    .find((part) => part.startsWith(sessionCookiePrefix))
+    ?.slice(sessionCookiePrefix.length);
   const parsed = v.safeParse(tokenSchema, value);
   return parsed.success ? parsed.output : null;
 }
@@ -23,9 +24,9 @@ export function createCookieSessionHandler(options: {
   return async function session(request: Request) {
     const headers = { "cache-control": "no-store", vary: "Cookie" };
     if (request.method === "GET") {
-      if (request.headers.get("x-loom-session") !== "1") return new Response(null, { status: 403, headers });
+      if (request.headers.get("x-kello-session") !== "1") return new Response(null, { status: 403, headers });
       const token = readToken(request);
-      if (!token || request.headers.get("x-loom-session-id") !== (await sessionFingerprint(token)))
+      if (!token || request.headers.get("x-kello-session-id") !== (await sessionFingerprint(token)))
         return new Response(null, { status: 401, headers });
       return Response.json({ token }, { headers });
     }
@@ -35,7 +36,7 @@ export function createCookieSessionHandler(options: {
     if (request.method === "DELETE")
       return new Response(null, {
         status: 204,
-        headers: { ...headers, "set-cookie": `loom_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}` },
+        headers: { ...headers, "set-cookie": `kello_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}` },
       });
     if (request.method !== "POST") return new Response(null, { status: 405, headers });
     const reader = request.body?.getReader();
@@ -65,7 +66,7 @@ export function createCookieSessionHandler(options: {
         status: 204,
         headers: {
           ...headers,
-          "set-cookie": `loom_session=${input.output}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${secure}`,
+          "set-cookie": `kello_session=${input.output}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${secure}`,
         },
       });
     } catch {

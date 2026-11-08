@@ -22,7 +22,7 @@ import * as v from "valibot";
 test("tasks example loads its schema, relations, authorization and registered functions", async () => {
   const root = fileURLToPath(new URL("../../examples/tasks/", import.meta.url));
   const project = await loadProject(root);
-  if (project.protocol !== "loom-orpc-2") throw new Error("Expected native fixture");
+  if (project.protocol !== "kello-orpc-2") throw new Error("Expected native fixture");
   assert.equal(project.config.database.namespace, "app");
   assert.deepEqual(project.schema.metadata.entities.map((entry) => entry.name).sort(), [
     "labels",
@@ -36,14 +36,14 @@ test("tasks example loads its schema, relations, authorization and registered fu
   );
 });
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "tasks example replays committed migrations and enforces ownership on PostgreSQL",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const project = await loadProject(fileURLToPath(new URL("../../examples/tasks/", import.meta.url)));
-    if (project.protocol !== "loom-orpc-2") throw new Error("Expected native fixture");
-    const database = `loom_example_${crypto.randomUUID().replaceAll("-", "")}`;
+    if (project.protocol !== "kello-orpc-2") throw new Error("Expected native fixture");
+    const database = `kello_example_${crypto.randomUUID().replaceAll("-", "")}`;
     const runtimeRole = `${database}_runtime`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
@@ -62,9 +62,9 @@ test.skipIf(!connectionString)(
       const applied = await applyMigrations(options);
       assert.equal(applied.applied.length, 2, "example must replay its initial and many-to-many search migrations");
       assert.deepEqual((await applyMigrations(options)).applied, []);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const connection = await connectDatabase({
         schema: project.schema,
         relations: project.relations,
@@ -79,7 +79,7 @@ test.skipIf(!connectionString)(
           connectionString: address.href,
           version: project.version,
           branchId: "br-local-example",
-          environment: { LOOM_SEARCH_CURSOR_KEY: "09".repeat(32) },
+          environment: { KELLO_SEARCH_CURSOR_KEY: "09".repeat(32) },
           ...projectRuntimeGraph(project),
           auth: defineRpcAuth({ authorize: project.auth.authorize, allowAnonymous: project.auth.allowAnonymous }),
           deployment: "tasks-example",
@@ -192,13 +192,13 @@ test.skipIf(!connectionString)(
   "tasks release schema evolution preserves data and replays into a fresh database",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
-    const root = await mkdtemp(join(tmpdir(), "loom-tasks-evolution-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-tasks-evolution-"));
     const source = fileURLToPath(new URL("../../examples/tasks/", import.meta.url));
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const developmentDatabase = `loom_evolve_${suffix}`;
-    const releaseDatabase = `loom_replay_${suffix}`;
-    const runtimeRole = `loom_evolve_role_${suffix}`;
-    const releaseRole = `loom_replay_role_${suffix}`;
+    const developmentDatabase = `kello_evolve_${suffix}`;
+    const releaseDatabase = `kello_replay_${suffix}`;
+    const runtimeRole = `kello_evolve_role_${suffix}`;
+    const releaseRole = `kello_replay_role_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const address = new URL(connectionString);
@@ -231,7 +231,7 @@ test.skipIf(!connectionString)(
       await development.connect();
       await release.connect();
       const project = await loadProject(root);
-      if (project.protocol !== "loom-orpc-2") throw new Error("Expected native fixture");
+      if (project.protocol !== "kello-orpc-2") throw new Error("Expected native fixture");
       const migrationOptions = {
         root,
         migrations: project.config.database.migrations,

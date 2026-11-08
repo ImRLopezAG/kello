@@ -33,8 +33,8 @@ const expiresAt = () => Math.floor(Date.now() / 1000) + 3600;
 const login = (id = "login-A"): TrustedLogin => ({ ...identity, id, expiresAt: expiresAt() });
 const headers = (token: string) => ({
   authorization: `Bearer ${token}`,
-  "x-loom-version": version,
-  "x-loom-protocol": "loom-orpc-2",
+  "x-kello-version": version,
+  "x-kello-protocol": "kello-orpc-2",
 });
 async function credentials(expiration = expiresAt()) {
   const key = await generateKeyPair("ES256");
@@ -157,7 +157,7 @@ test("native verified HTTP mounts typed issuance/update; refresh keeps generatio
     connection: { db, pool, transaction, close: () => pool.end() },
     database: "db",
     deployment: "deployment",
-    metadataNamespace: "loom_test",
+    metadataNamespace: "kello_test",
     secret: "nrt_live_1" + Buffer.alloc(32, 1).toString("base64url"),
   });
   let current = login();
@@ -410,7 +410,7 @@ test("example-style managed live HTTP binds the fresh provider cookie session to
   const secret = "nrt_live_1" + Buffer.alloc(32, 2).toString("base64url");
   const prepared = await prepareApplicationEnvironment(
     application,
-    { LOOM_REALTIME_SECRET: secret },
+    { KELLO_REALTIME_SECRET: secret },
     { database: "neondb", deployment: "example" },
   );
   const configured = prepared.liveQueries!;
@@ -505,7 +505,7 @@ test("example-style managed live HTTP binds the fresh provider cookie session to
         headers: {
           origin: "https://frontend.test",
           "access-control-request-method": "POST",
-          "access-control-request-headers": "authorization,x-loom-version,x-loom-protocol",
+          "access-control-request-headers": "authorization,x-kello-version,x-kello-protocol",
         },
       }),
     );

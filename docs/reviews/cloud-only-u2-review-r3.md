@@ -6,7 +6,7 @@ One gpt-6-astra LOW reviewer context. No delegates, independent persona pipeline
 
 ## Scope and intent
 
-Canonical checkout: `/Users/angel/.t3/worktrees/loom/release-kello-001-002-alpha`; branch `refactor/neon-cloud-tooling`; HEAD `586e87791735da2282d2dc120f8e084a13764dca`.
+Canonical checkout: `/Users/angel/.t3/worktrees/kello/release-kello-001-002-alpha`; branch `refactor/neon-cloud-tooling`; HEAD `586e87791735da2282d2dc120f8e084a13764dca`.
 
 Read `/Users/angel/dev/loom/AGENTS.md`, the governing plan `docs/plans/2026-10-16-1919-refactor-neon-cloud-only-plan.md` (especially R4-R6, KTD2 and U2), both prior reports, and actual parent response in `docs/tasks/cloud-only-current.md`. Intent remains natural generated function/React contracts with faithful runtime row validation, authorized Neon issuance/renewal over HTTP, and ordinary HTTP streaming preserved. No new subsystem or arbitrary-handler conversion is requested.
 

@@ -23,14 +23,14 @@ const identity = {
     endpointHost: "ep-preview.example",
     databaseName: "neondb",
     namespace: "app",
-    metadataNamespace: "loom_meta",
+    metadataNamespace: "kello_meta",
   },
   schema: { minimum: "d".repeat(64), maximum: "e".repeat(64), target: "e".repeat(64) },
   migrationHashes: ["f".repeat(64)],
 };
 
 test("release receipt persists ordered acknowledgements and rejects changed inputs or progress", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-release-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-release-"));
   const metrics = channel("kello.deployment.metric");
   const events: string[] = [];
   const capture: Parameters<typeof metrics.subscribe>[0] = (event) => events.push(JSON.stringify(event));
@@ -86,15 +86,15 @@ test("release receipt persists ordered acknowledgements and rejects changed inpu
 });
 
 test("release receipts bind final functions and enabled triggers to prepared resources", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-release-stages-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-release-stages-"));
   const functions = [
-    { role: "service" as const, functionId: "service-id", deploymentId: 1, slug: "loomservice" },
-    { role: "worker" as const, functionId: "worker-id", deploymentId: 2, slug: "loomworker" },
+    { role: "service" as const, functionId: "service-id", deploymentId: 1, slug: "kelloservice" },
+    { role: "worker" as const, functionId: "worker-id", deploymentId: 2, slug: "kelloworker" },
   ] satisfies Extract<NeonReleaseStage, { stage: "bootstrap" }>["functions"];
   const trigger = {
     triggerId: "wake",
     name: "wake",
-    functionSlug: "loomworker",
+    functionSlug: "kelloworker",
     functionPath: "/api/kello/triggers",
     enabled: false,
     inherited: false,
@@ -153,7 +153,7 @@ test("release receipts bind final functions and enabled triggers to prepared res
 });
 
 test("failed receipt writes require reopening and release the local lock", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-release-write-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-release-write-"));
   const directory = join(root, ".kello/releases", key);
   const path = join(directory, "release.json");
   const saved = join(directory, "saved.json");

@@ -1295,20 +1295,20 @@ I would adopt cvx-kit’s **single declaration with derived boundaries**, preser
 
 > which name you recommend for the framework?
 
-My recommendation is **Loom**.
+My recommendation is **Kello**.
 
 It fits what we’re building: one schema declaration woven into database tables, validation, typed functions, and reactive queries. It’s short, easy to pronounce, and independent of Neon or Drizzle.
 
 The developer experience reads naturally:
 
 ```bash
-loom init
-loom dev
-loom deploy
+kello init
+kello dev
+kello deploy
 ```
 
 ```ts
-import { defineSchema } from "@loom/server";
+import { defineSchema } from "@kello/server";
 
 export default defineSchema((s) => ({
   projects: {
@@ -1326,7 +1326,7 @@ Other names I’d consider:
 | **Forma** | Emphasizes schemas, structure, and defining applications through code |
 | **Relay** | Suggests reactive updates and coordination between clients and the database |
 
-**Loom for the strongest overall identity; Trellis as my second choice.** These are creative candidates—package, domain, and trademark availability still need checking.
+**Kello for the strongest overall identity; Trellis as my second choice.** These are creative candidates—package, domain, and trademark availability still need checking.
 
 > [https://turborepo.dev/docs/crafting-your-repository](https://turborepo.dev/docs/crafting-your-repository)
 >
@@ -1335,7 +1335,7 @@ Other names I’d consider:
 > configure a monorepo with turborepo and bun with&#x20;
 >
 > apps/
-> &#x20; loom/
+> &#x20; kello/
 > &#x20; docs(astro integration of [https://www.fumadocs.dev/docs/manual-installation/astro](https://www.fumadocs.dev/docs/manual-installation/astro))/
 > /packages
 > &#x20; ts-config/
@@ -1355,8 +1355,8 @@ Other names I’d consider:
 >
 > <details><summary>Explored a search, 2 lists</summary>
 >
-> - Listed files in `loom`
-> - Listed files in `loom`
+> - Listed files in `kello`
+> - Listed files in `kello`
 > - Searched for `Turborepo|Fumadocs|Astro` in `MEMORY.md`
 >
 > </details>
@@ -1395,7 +1395,7 @@ Other names I’d consider:
 
 I’ll plan the Bun/Turborepo workspace, Astro + Fumadocs site, shared TypeScript configuration, independent unit/E2E test packages, and example apps.
 
-The plan will also preserve our Loom direction: filesystem conventions, its own CLI/configuration, Drizzle schemas and Relations v2, Standard Schema compatibility, automatic development schema updates, programmatic migrations, and Neon deployment.
+The plan will also preserve our Kello direction: filesystem conventions, its own CLI/configuration, Drizzle schemas and Relations v2, Standard Schema compatibility, automatic development schema updates, programmatic migrations, and Neon deployment.
 
 One scope choice before I proceed:
 
@@ -1518,7 +1518,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > </details>
 >
-> I’m organizing the plan around a thin CLI in `apps/loom`, reusable framework and tooling packages, and the docs/test/example folders you requested. For subscriptions, the first implementation will favor reliable table-level invalidation over complex query tracking, with explicit limits on its guarantees and scale.
+> I’m organizing the plan around a thin CLI in `apps/kello`, reusable framework and tooling packages, and the docs/test/example folders you requested. For subscriptions, the first implementation will favor reliable table-level invalidation over complex query tracking, with explicit limits on its guarantees and scale.
 >
 > <details><summary>Explored a file, ran a command</summary>
 >
@@ -1528,7 +1528,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 > from datetime import datetime
 > root=Path('/Users/angel/dev/loom/docs/plans')
 > stamp=datetime.now().astimezone()
-> base=stamp.strftime('%Y-%m-%d-%H%M')+'-feat-loom-full-framework-plan'
+> base=stamp.strftime('%Y-%m-%d-%H%M')+'-feat-kello-full-framework-plan'
 > p=root/(base+'.md')
 > i=2
 > while True:
@@ -1538,7 +1538,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >     except FileExistsError:
 >         p=root/(base+'-'+str(i)+'.md'); i+=1
 > body=r'''---
-> title: Loom Full Framework - Plan
+> title: Kello Full Framework - Plan
 > type: feat
 > date: DATE_TOKEN
 > artifact_contract: ce-unified-plan/v1
@@ -1546,12 +1546,12 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 > execution: code
 > ---
 >
-> # Loom Full Framework - Plan
+> # Kello Full Framework - Plan
 >
 > ## Goal Capsule
 >
 > - **Objective:** Developers can create, evolve, test, and deploy a typed reactive backend from a filesystem project, with relational data they can inspect and manage in PostgreSQL.
-> - **Means:** Bun/Turborepo development, a Loom schema and CLI, Drizzle Relations v2, and Neon Functions/Postgres (KTD1-KTD4).
+> - **Means:** Bun/Turborepo development, a Kello schema and CLI, Drizzle Relations v2, and Neon Functions/Postgres (KTD1-KTD4).
 > - **Authority:** Requirements own product behavior. Technical decisions own mechanisms within those requirements. Implementation units and examples do not override either.
 > - **Execution profile:** Phased implementation of the complete framework. Start with workspace and compatibility work, then deliver the application lifecycle and production hardening.
 > - **Stop conditions:** Stop the affected unit on an unsupported provider capability, unsafe migration ambiguity, broken authorization boundary, or incompatible dependency combination. Report the failing contract rather than silently changing it.
@@ -1563,11 +1563,11 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > ### Summary
 >
-> Build Loom as a schema-first TypeScript backend framework with its own CLI, generated client, live queries, durable jobs, and a Neon deployment adapter. Deliver it in a Bun/Turborepo monorepo with Astro/Fumadocs documentation, separate unit and end-to-end test packages, and runnable examples.
+> Build Kello as a schema-first TypeScript backend framework with its own CLI, generated client, live queries, durable jobs, and a Neon deployment adapter. Deliver it in a Bun/Turborepo monorepo with Astro/Fumadocs documentation, separate unit and end-to-end test packages, and runnable examples.
 >
 > ### Problem Frame
 >
-> Neon supplies database and execution primitives. Those primitives do not provide the development workflow, schema ownership, typed function registry, migration lifecycle, or subscription semantics developers expect from a Convex-like framework. Loom must own those contracts instead of exposing a collection of unrelated provider commands.
+> Neon supplies database and execution primitives. Those primitives do not provide the development workflow, schema ownership, typed function registry, migration lifecycle, or subscription semantics developers expect from a Convex-like framework. Kello must own those contracts instead of exposing a collection of unrelated provider commands.
 >
 > The existing repository is a Bun starter: `package.json`, `bun.lock`, `index.ts`, `tsconfig.json`, and `CLAUDE.md`. There are no framework modules or tests to extend. The starter declares TypeScript `^7` and Bun types `latest`; neither declaration establishes a verified compatibility matrix. No Git repository was present during inspection.
 >
@@ -1581,7 +1581,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > **Workspace and documentation**
 >
-> - R1. Use Bun workspaces and Turborepo with `apps/loom`, `apps/docs`, `packages/ts-config`, `packages/tests`, `packages/e2e`, and example applications under `packages/examples`.
+> - R1. Use Bun workspaces and Turborepo with `apps/kello`, `apps/docs`, `packages/ts-config`, `packages/tests`, `packages/e2e`, and example applications under `packages/examples`.
 > - R2. Build the public documentation with Astro and the documented Fumadocs React-island integration.
 > - R3. Keep unit tests in an independent package and end-to-end tests in a separate package, with a reproducible locked dependency graph.
 >
@@ -1598,7 +1598,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > **Developer and release lifecycle**
 >
-> - R12. Loom provides filesystem discovery, configuration, initialization, code generation, development, migration, deployment, and diagnostic commands through its own CLI.
+> - R12. Kello provides filesystem discovery, configuration, initialization, code generation, development, migration, deployment, and diagnostic commands through its own CLI.
 > - R13. Saving a valid schema automatically applies safe changes to an isolated development database and refreshes generated artifacts and the local runtime.
 > - R14. Destructive or ambiguous schema changes stop automatic application with an actionable diff; production uses committed migration artifacts.
 > - R15. Migration generation and application run through programmatic adapters, without spawning the Drizzle CLI.
@@ -1647,9 +1647,9 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > #### Deferred to Follow-Up Work
 >
-> - Exact Convex compatibility, cross-query globally synchronized snapshots, offline writes, automatic optimistic updates, and a Convex-to-Loom migration product.
+> - Exact Convex compatibility, cross-query globally synchronized snapshots, offline writes, automatic optimistic updates, and a Convex-to-Kello migration product.
 > - Fine-grained row/range dependency tracking, logical replication, external brokers, and a horizontally partitioned invalidation service.
-> - A hosted Loom control plane or visual administration dashboard.
+> - A hosted Kello control plane or visual administration dashboard.
 > - Arbitrary database dialects, arbitrary raw-SQL subscription inference, and automatic conversion of any validator into relational storage.
 > - Sub-minute scheduling guarantees under cold starts, durable multi-step workflow orchestration, and exactly-once external effects.
 > - General Drizzle view/materialized-view modeling and advanced PostgreSQL types beyond the first supported schema vocabulary. Reviewed custom migrations remain an escape hatch.
@@ -1662,7 +1662,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > #### Workspace and runtime boundaries
 >
-> - KTD1. **A CLI application plus two reusable library packages.** `apps/loom` is the executable composition root. `packages/core` contains schema and runtime APIs with separate server, client, React, and Neon subpath exports. `packages/tooling` contains configuration, code generation, migrations, and deployment adapters. Browser exports must not import server or tooling code. This preserves R1 while avoiding dependencies on an application package. Package names are private placeholders until a publishable namespace is chosen. [Turborepo structure](https://turborepo.dev/docs/crafting-your-repository/structuring-a-repository)
+> - KTD1. **A CLI application plus two reusable library packages.** `apps/kello` is the executable composition root. `packages/core` contains schema and runtime APIs with separate server, client, React, and Neon subpath exports. `packages/tooling` contains configuration, code generation, migrations, and deployment adapters. Browser exports must not import server or tooling code. This preserves R1 while avoiding dependencies on an application package. Package names are private placeholders until a publishable namespace is chosen. [Turborepo structure](https://turborepo.dev/docs/crafting-your-repository/structuring-a-repository)
 > - KTD2. **Examples are a grouping directory, not a parent package.** Declare workspace globs for `apps/*`, `packages/*`, and `packages/examples/*`; do not create `packages/examples/package.json`. This avoids nested packages while preserving the requested location. Every example has its own manifest and consumes explicit package exports. [Workspace grouping](https://turborepo.dev/docs/crafting-your-repository/structuring-a-repository#specifying-packages-in-a-monorepo)
 > - KTD3. **Separate Bun tooling from Node-compatible application code.** Use Bun for installation, scripts, unit tests, and the CLI. Compile runtime libraries to ESM and declarations for Node 24 and browser consumers. Use the Node PostgreSQL adapter for deployed functions; do not ship Bun-only APIs there. Narrow the starter's Bun-only instructions in `CLAUDE.md` to allow Astro/Vite and the Node provider boundary required by R2 and R17. [Neon runtime](https://neon.com/docs/compute/functions/reference/runtime-limits)
 > - KTD4. **Pin a tested compatibility matrix before building on unstable APIs.** Record exact Bun, Turbo, TypeScript, Drizzle ORM/Kit, Astro, React, Fumadocs, Hono, and Neon package versions after U2. Relations v2 documentation currently directs users to the RC channel; do not use floating RC tags in committed manifests. Bun starter versions are inputs to verify, not a mandate to retain incompatible versions. [Relations v2](https://orm.drizzle.team/docs/relations)
@@ -1670,12 +1670,12 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > #### Schema and configuration
 >
-> - KTD6. **Loom owns structural metadata and compiles native Drizzle objects.** Keep table names, storage types, constraints, references, indexes, and field policies in an immutable internal representation. Resolve entity identities before resolving references so forward and circular references work. Compile this representation to native table objects used by Drizzle Relations v2. The first vocabulary covers text, boolean, integer, bigint, numeric, UUID, timestamp, JSON, enums, references, indexes, and uniqueness. Unknown types fail explicitly. Preserve `_id` and `_createdAt` SQL names; use a fixed camel-to-snake policy for ordinary fields and reject collisions. [Drizzle declaration](https://orm.drizzle.team/docs/sql-schema-declaration)
-> - KTD7. **Standard Schema validates values, while Loom describes storage.** Accept Standard Schema v1 at field and function boundaries and expose derived Loom validators through that interface. Validate normalized outputs before encoding to SQL or the wire. A whole-object validator is usable as an explicit function validator, but cannot be generically decomposed into columns or projected masks. Cross-field constraints need separately declared insert/patch validation. This fulfills R7 without claiming structural introspection the standard does not offer. [Standard Schema](https://standardschema.dev/)
+> - KTD6. **Kello owns structural metadata and compiles native Drizzle objects.** Keep table names, storage types, constraints, references, indexes, and field policies in an immutable internal representation. Resolve entity identities before resolving references so forward and circular references work. Compile this representation to native table objects used by Drizzle Relations v2. The first vocabulary covers text, boolean, integer, bigint, numeric, UUID, timestamp, JSON, enums, references, indexes, and uniqueness. Unknown types fail explicitly. Preserve `_id` and `_createdAt` SQL names; use a fixed camel-to-snake policy for ordinary fields and reject collisions. [Drizzle declaration](https://orm.drizzle.team/docs/sql-schema-declaration)
+> - KTD7. **Standard Schema validates values, while Kello describes storage.** Accept Standard Schema v1 at field and function boundaries and expose derived Kello validators through that interface. Validate normalized outputs before encoding to SQL or the wire. A whole-object validator is usable as an explicit function validator, but cannot be generically decomposed into columns or projected masks. Cross-field constraints need separately declared insert/patch validation. This fulfills R7 without claiming structural introspection the standard does not offer. [Standard Schema](https://standardschema.dev/)
 > - KTD8. **Derive field boundaries from one table declaration.** Support a shorthand fields object and an extended table form with `serverFields`, `commandFields`, and `publicFields`. Reserve system fields automatically. Insert and patch exclude server-owned fields; command schemas use their own allowlist; public DTOs project only their explicit allowlist. Empty public/command declarations grant no fields. Nullable columns follow Drizzle conventions, and `.notNull()` makes them required. Patch absence means unchanged; explicit null is distinct. Adapt cvx-kit's derivation idea, not its Convex validators or extra timestamp fields. [Pinned cvx-kit implementation](https://github.com/ImRLopezAG/cvx-kit/blob/7cbf5c008bb09535c139092ad046bf7003414c55/src/zod-table.ts)
 > - KTD9. **Require PostgreSQL 18 for the initial database adapter.** Use native database UUIDv7 defaults and database-generated millisecond timestamps stored as bigint. Decode `_createdAt` into a range-checked safe JavaScript integer. Database triggers reject ordinary updates to system fields; import/backfill privileges are separately controlled. References target `_id`, default to restricted deletion, and produce branded TypeScript IDs without treating a brand as authorization. Target preflight must establish PostgreSQL 18 availability before provisioning or adopting a branch. Supporting older versions requires a separate tested UUIDv7 adapter, not a silent UUIDv4 fallback. [PostgreSQL UUID functions](https://www.postgresql.org/docs/18/functions-uuid.html)
 >
-> Configuration belongs in a consumer's `loom.config.ts`. It describes paths, provider target selection, and operational policy; the schema belongs in `backend/schema.ts`. Optional `backend/relations.ts`, `backend/auth.ts`, `backend/crons.ts`, and `backend/storage.ts` define their respective capabilities. Function modules live below `backend/functions/` and generated artifacts below `backend/_generated/`.
+> Configuration belongs in a consumer's `kello.config.ts`. It describes paths, provider target selection, and operational policy; the schema belongs in `backend/schema.ts`. Optional `backend/relations.ts`, `backend/auth.ts`, `backend/crons.ts`, and `backend/storage.ts` define their respective capabilities. Function modules live below `backend/functions/` and generated artifacts below `backend/_generated/`.
 >
 > | Configuration area | Initial decision | Validation boundary |
 > |---|---|---|
@@ -1690,7 +1690,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 > | Jobs | Retry policy, maximum attempts, leases, retention | Bound work and report exhausted retries |
 > | Environment | Named secret references resolved when needed | Redact values; no client-side export by default |
 >
-> Pure schema inspection, type generation, and documentation builds must work without cloud credentials. Keep resolved local target state under ignored `.loom/`; commit schema, configuration, migration SQL, and migration snapshots. TypeScript configuration files are trusted executable project code, not a sandbox for untrusted input.
+> Pure schema inspection, type generation, and documentation builds must work without cloud credentials. Keep resolved local target state under ignored `.kello/`; commit schema, configuration, migration SQL, and migration snapshots. TypeScript configuration files are trusted executable project code, not a sandbox for untrusted input.
 >
 > #### Runtime, subscriptions, and jobs
 >
@@ -1703,11 +1703,11 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > #### Data authority, migrations, and deployment
 >
-> - KTD16. **Separate application, runtime metadata, and migration authority.** Use an application schema plus a Loom-owned metadata schema. A migration role owns DDL; the runtime role receives only necessary DML/function grants. Use a pinned Node PostgreSQL driver with small pooled connections for ordinary work and a dedicated session for migration locks. Identity is derived from verified requests and placed in transaction-local context. Optional RLS must run under a non-owner, non-BYPASSRLS role. All raw SQL escape hatches remain trusted server operations. [PostgreSQL row security](https://www.postgresql.org/docs/18/ddl-rowsecurity.html)
+> - KTD16. **Separate application, runtime metadata, and migration authority.** Use an application schema plus a Kello-owned metadata schema. A migration role owns DDL; the runtime role receives only necessary DML/function grants. Use a pinned Node PostgreSQL driver with small pooled connections for ordinary work and a dedicated session for migration locks. Identity is derived from verified requests and placed in transaction-local context. Optional RLS must run under a non-owner, non-BYPASSRLS role. All raw SQL escape hatches remain trusted server operations. [PostgreSQL row security](https://www.postgresql.org/docs/18/ddl-rowsecurity.html)
 > - KTD17. **Wrap Drizzle's programmatic migration surface behind one adapter.** Separate snapshot generation, diff planning, SQL classification, and execution. Verify the selected ORM/Kit pair against U2 fixtures, including rename hints and ambiguous create/delete changes. The ORM migrator applies artifacts; it does not produce a schema diff. A reported v1 programmatic ambiguity bug makes this a release gate. If the public API cannot meet R15, report the blocker before adopting a pinned, licensed patch/fork. Do not replace it with a subprocess or an unreviewed SQL diff engine. [Migration modes](https://orm.drizzle.team/docs/migrations), [Reported programmatic ambiguity](https://github.com/drizzle-team/drizzle-orm/issues/6053)
 > - KTD18. **Development sync and release history use different baselines.** Development diffs against the live isolated database. Release generation diffs against the last committed schema snapshot even after development sync. Explicit rename metadata resolves identity changes. Classify additive nullable/defaulted changes separately from required-column backfills, constraint validation, narrowing types, and deletion. Take an advisory lock before applying; recheck the source fingerprint under the lock. Record artifact hashes and drift evidence. Never run migrations in function startup. [Drizzle generation](https://orm.drizzle.team/docs/drizzle-kit-generate)
 > - KTD19. **Recoverable deployment stages replace cross-service atomicity.** A deploy receipt ties source/build hash, schema compatibility range, migration hashes, provider target IDs, and completed stages together. Apply expand migrations before compatible code, complete backfills with resumable checkpoints, and contract only in a later compatible release. Migration transactions exclude operations PostgreSQL forbids inside them, such as concurrent index creation; those have separate idempotent checks and recovery steps. On failure retain the expanded schema and resume or roll back code to a compatible build. [Concurrent indexes](https://www.postgresql.org/docs/18/sql-createindex.html)
-> - KTD20. **Use the programmatic Neon configuration runtime.** Resolve IDs and credentials in Loom tooling, then use inspect/plan/apply and branch operations. Keep provider bundling dependencies out of runtime/browser imports. Branch identity is bound into runtime configuration and checked against metadata before running work. A cloned branch must be quarantined, have copied jobs disabled, and receive environment-specific secrets before any worker or trigger is activated. A copied activation row is not proof of authorization. [Neon configuration runtime](https://neon.com/docs/reference/config-runtime), [Configuration](https://neon.com/docs/reference/neon-ts)
+> - KTD20. **Use the programmatic Neon configuration runtime.** Resolve IDs and credentials in Kello tooling, then use inspect/plan/apply and branch operations. Keep provider bundling dependencies out of runtime/browser imports. Branch identity is bound into runtime configuration and checked against metadata before running work. A cloned branch must be quarantined, have copied jobs disabled, and receive environment-specific secrets before any worker or trigger is activated. A copied activation row is not proof of authorization. [Neon configuration runtime](https://neon.com/docs/reference/config-runtime), [Configuration](https://neon.com/docs/reference/neon-ts)
 >
 > ### High-Level Technical Design
 >
@@ -1715,7 +1715,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > ```mermaid
 > flowchart TB
->   Author[Developer project] --> CLI[apps/loom CLI]
+>   Author[Developer project] --> CLI[apps/kello CLI]
 >   CLI --> Tooling[packages/tooling]
 >   Tooling --> Core[packages/core schema compiler]
 >   Tooling --> Artifacts[Registry, client types, migrations, bundles]
@@ -1723,7 +1723,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >   Artifacts --> API[Neon HTTP and WebSocket service]
 >   Artifacts --> Worker[Neon job worker]
 >   Browser[Browser client and React hooks] --> API
->   API --> DB[(PostgreSQL application and Loom metadata)]
+>   API --> DB[(PostgreSQL application and Kello metadata)]
 >   Worker --> DB
 >   Trigger[Schedule and object triggers] --> Worker
 >   API --> Objects[Object storage]
@@ -1827,7 +1827,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > ```text
 > apps/
->   loom/
+>   kello/
 >     package.json
 >     src/cli.ts
 >     src/commands/
@@ -1875,13 +1875,13 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >   examples/
 >     tasks/
 >       package.json
->       loom.config.ts
+>       kello.config.ts
 >       backend/
 >       migrations/
 >       src/
 >     jobs-storage/
 >       package.json
->       loom.config.ts
+>       kello.config.ts
 >       backend/
 >       migrations/
 >       src/
@@ -1942,7 +1942,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 > | U3 | Schema metadata and compiler | `packages/core/src/schema` | U2 |
 > | U4 | Validation and field policies | `packages/core/src/validation` | U3 |
 > | U5 | Drizzle Relations v2 integration | `packages/core/src/server/database` | U3-U4 |
-> | U6 | Configuration, CLI, and codegen | `apps/loom`; `packages/tooling/src/config` | U3-U5 |
+> | U6 | Configuration, CLI, and codegen | `apps/kello`; `packages/tooling/src/config` | U3-U5 |
 > | U7 | Programmatic migrations | `packages/tooling/src/migrations` | U2-U6 |
 > | U8 | Development watcher | `packages/tooling/src/dev` | U6-U7 |
 > | U9 | Function runtime and transactions | `packages/core/src/server` | U5-U7 |
@@ -2034,7 +2034,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > ### U5. Integrate Relations v2 and database access
 >
-> **Goal:** Preserve native Drizzle querying through Loom's schema and transaction context.
+> **Goal:** Preserve native Drizzle querying through Kello's schema and transaction context.
 >
 > **Requirements:** R6, R9, R18. **Dependencies:** U3-U4.
 >
@@ -2057,7 +2057,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > **Requirements:** R12, R17, R23. **Dependencies:** U3-U5.
 >
-> **Files:** `apps/loom/src/cli.ts`, `apps/loom/src/commands/`; `packages/tooling/src/config/`; `packages/tooling/src/codegen/`; `packages/tests/unit/config.test.ts`; `packages/tests/unit/registry.test.ts`; `packages/e2e/integration/cli.test.ts`.
+> **Files:** `apps/kello/src/cli.ts`, `apps/kello/src/commands/`; `packages/tooling/src/config/`; `packages/tooling/src/codegen/`; `packages/tests/unit/config.test.ts`; `packages/tests/unit/registry.test.ts`; `packages/e2e/integration/cli.test.ts`.
 >
 > **Approach:** Use the configuration table and KTD10. Provide initialize, development, generation, schema inspection/diff, migration generation/application/status, deployment plan/application/status, and diagnostics command families. Commands delegate to programmatic tooling services. Generate types and manifests atomically, with deterministic names and hashes. Include structured output, target identity, exit classes, and noninteractive failure for missing required values.
 >
@@ -2097,7 +2097,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > **Requirements:** R12-R15. **Dependencies:** U6-U7.
 >
-> **Files:** `packages/tooling/src/dev/{watcher,coordinator,generation}.ts`; `apps/loom/src/commands/dev.ts`; `packages/tests/unit/dev-coordinator.test.ts`; `packages/e2e/integration/dev.test.ts`.
+> **Files:** `packages/tooling/src/dev/{watcher,coordinator,generation}.ts`; `apps/kello/src/commands/dev.ts`; `packages/tests/unit/dev-coordinator.test.ts`; `packages/e2e/integration/dev.test.ts`.
 >
 > **Approach:** Implement F2 and KTD18. Debounce edits, serialize application, discard stale compilations, and ignore generated-file events. Build candidate artifacts before DDL. Retain the last working runtime on compile failure; after compatible DDL succeeds, a runtime-start failure is reported without attempting a destructive schema rollback.
 >
@@ -2214,11 +2214,11 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > ### U14. Implement the Neon provision and deploy adapter
 >
-> **Goal:** Deploy the compiled framework through Loom's own tooling.
+> **Goal:** Deploy the compiled framework through Kello's own tooling.
 >
 > **Requirements:** R12, R16-R17, R21, R23. **Dependencies:** U6-U10, U12-U13.
 >
-> **Files:** `packages/tooling/src/deploy/neon/{target,plan,apply,bundle,triggers}.ts`; `apps/loom/src/commands/deploy.ts`; `packages/tests/unit/neon-plan.test.ts`; `packages/e2e/cloud/deploy.test.ts`.
+> **Files:** `packages/tooling/src/deploy/neon/{target,plan,apply,bundle,triggers}.ts`; `apps/kello/src/commands/deploy.ts`; `packages/tests/unit/neon-plan.test.ts`; `packages/e2e/cloud/deploy.test.ts`.
 >
 > **Approach:** Apply KTD19-KTD20. Use the Neon programmatic runtime and, where its typed surface lacks a needed trigger operation, a narrow documented Neon API adapter. Compile separate API and worker entry points. Verify runtime-compatible driver and WebSocket wiring. Persist provider resource IDs and redact deployment environment values.
 >
@@ -2294,7 +2294,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > ### U18. Build the Astro and Fumadocs documentation site
 >
-> **Goal:** Publish a usable authoring and operating guide for Loom.
+> **Goal:** Publish a usable authoring and operating guide for Kello.
 >
 > **Requirements:** R2, R24. **Dependencies:** U1-U2; relevant feature units for final content.
 >
@@ -2461,7 +2461,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 > <details><summary>Explored 2 files</summary>
 >
 > - Read `~/.codex/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.0/skills/ce-doc-review/references/modes.md`
-> - Read `~/dev/loom/docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md`
+> - Read `~/dev/loom/docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md`
 >
 > </details>
 >
@@ -2473,7 +2473,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > <details><summary>Explored a search</summary>
 >
-> - Searched for `KTD11|KTD12|KTD14|U9\.|U13\.|U16\.|Remaining|Open|Unresolved` in `2026-09-22-1141-feat-loom-full-framework-plan.md`
+> - Searched for `KTD11|KTD12|KTD14|U9\.|U13\.|U16\.|Remaining|Open|Unresolved` in `2026-09-22-1141-feat-kello-full-framework-plan.md`
 >
 > </details>
 >
@@ -2482,7 +2482,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 > <details><summary>Explored 4 files</summary>
 >
 > - Read `~/.codex/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.0/skills/ce-doc-review/references/cross-model-review.md`
-> - Read `~/dev/loom/docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md`
+> - Read `~/dev/loom/docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md`
 > - Read `~/.codex/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.0/skills/ce-doc-review/references/synthesis-and-presentation.md`
 > - Read `~/.codex/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.0/skills/ce-doc-review/references/personas/scope-guardian-reviewer.md`
 >
@@ -2498,7 +2498,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >
 > - Ran `python3 - <<'PY'
 > from pathlib import Path
-> p=Path('/Users/angel/dev/loom/docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md')
+> p=Path('/Users/angel/dev/loom/docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md')
 > s=p.read_text()
 > s=s.replace('date: 2026-09-22\n','date: 2026-09-22\ndeepened: 2026-09-22\n',1)
 > s=s.replace('Persist idempotency keys and request fingerprints with committed mutation results.','Validate and encode mutation results before commit; failure rolls back application writes, scheduled jobs, and the idempotency record together. Persist idempotency keys and request fingerprints with committed mutation results. Scope keys by deployment, authenticated principal/tenant, and function contract version. Reauthorize before replaying a saved result; a previous successful call does not grant continuing access. Publish a retention window and reject expired retries rather than silently promising deduplication forever.')
@@ -2522,7 +2522,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 > - Ran ````python3 - <<'PY'
 > from pathlib import Path
 > import re,json,hashlib
-> p=Path('/Users/angel/dev/loom/docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md'); s=p.read_text()
+> p=Path('/Users/angel/dev/loom/docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md'); s=p.read_text()
 > units=re.findall(r'^### U(\d+)\.',s,re.M)
 > assert units==[str(i) for i in range(1,21)],units
 > assert s.count('```')%2==0
@@ -2530,7 +2530,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 >  refs=[int(x) for x in re.findall(r'\b'+prefix+r'(\d+)\b',s)]
 >  assert all(1<=n<=maximum for n in refs),(prefix,refs)
 > report={'document':str(p),'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'mode':'non-interactive','coverage':'Sequential inline lenses per user AGENTS instructions; no independent corroboration or cross-model delegation. Coherence, feasibility, security, scope, adversarial, product, developer-flow review.','confidence_pass':{'selected':['transaction boundaries','subscription dependency boundaries','job retry recovery'],'reason':'High-risk architecture with external dependencies and minimal existing implementation'},'applied':[{'claim':'Output validation after commit could persist a mutation reported as failed','evidence':'U9 previously required outputs only before response; R18 promises atomic mutations','fix':'Validate and encode output before commit; rollback coverage','disposition':'applied under planning edit authority'},{'claim':'Saved mutation results could outlive caller authorization or collide across identities','evidence':'KTD11 persisted keys/results without scoping, while R20 requires authorization every invocation','fix':'Scope keys, reauthorize replay, define retention semantics','disposition':'applied under planning edit authority'},{'claim':'External state cannot invalidate database-only subscriptions','evidence':'KTD12 only tracks database revisions; R19 requires convergence for supported subscriptions','fix':'Explicit reactive dependency eligibility and auth dependencies','disposition':'applied under planning edit authority'},{'claim':'Lease acknowledgement fencing does not deduplicate a committed mutation after worker crash','evidence':'KTD14 executes outside claim transaction and permits lease recovery','fix':'Stable logical job idempotency keys and crash-after-commit coverage','disposition':'applied under planning edit authority'}],'proposed_fixes_count':0,'decisions_count':0,'fyi_count':0,'remaining_execution_gates':['U2 must verify exact Drizzle programmatic migration and Relations v2 compatibility','U2 must verify PostgreSQL18/provider capability before downstream implementation'],'status':'Review complete'}
-> out=Path('/tmp/loom-plan-review-resolved.json');out.write_text(json.dumps(report,indent=2)+'\n')
+> out=Path('/tmp/kello-plan-review-resolved.json');out.write_text(json.dumps(report,indent=2)+'\n')
 > print('Verified 20 implementation units, reference bounds, and closed code fences.')
 > print('Resolved review saved:',out)
 > print('Plan bytes:',p.stat().st_size)
@@ -2544,7 +2544,7 @@ The invoked [ce-plan skill](~/.codex/plugins/cache/compound-engineering-plugin/c
 > </details>
 </details>
 
-Saved the [full Loom framework plan](~/dev/loom/docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md).
+Saved the [full Kello framework plan](~/dev/loom/docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md).
 
 It includes 20 implementation units covering the monorepo, schemas, Drizzle v2, migrations, CLI/configuration, Neon runtime, subscriptions, jobs, authentication, documentation, and tests—with documentation references.
 

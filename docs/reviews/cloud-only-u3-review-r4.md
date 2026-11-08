@@ -4,7 +4,7 @@
 
 ## Authority and intent
 
-Reviewed only in `/Users/angel/.t3/worktrees/loom/release-kello-001-002-alpha`, branch `refactor/neon-cloud-tooling`, HEAD `623a764820e972aa896dd12d1d88586ef95b384c`. Branch and HEAD matched at opening and closing. The four-file authority is `/tmp/kello-u3-review-r4-freeze.json`; no drift was adopted or repinned.
+Reviewed only in `/Users/angel/.t3/worktrees/kello/release-kello-001-002-alpha`, branch `refactor/neon-cloud-tooling`, HEAD `623a764820e972aa896dd12d1d88586ef95b384c`. Branch and HEAD matched at opening and closing. The four-file authority is `/tmp/kello-u3-review-r4-freeze.json`; no drift was adopted or repinned.
 
 The governing mission remains cloud-only Neon execution with natural typed `.live()` through the official SDK; local author watching/codegen/build, but no local backend/jobs/database. U3 must serialize/coalesce pinned preview deployments, retain last good state, and report genuine cancellation-drain failures. This pass evaluates the exact outer rollback correction, not a new framework or exhaustive historical review.
 

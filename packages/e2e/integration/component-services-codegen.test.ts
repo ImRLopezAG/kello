@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { generateProject, initializeProject } from "kello-cli";
 
 test("generated service contexts retain SDK overloads for local and mounted usage", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-service-types-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-service-types-"));
   try {
     await initializeProject(root, "services");
     await mkdir(join(root, "node_modules"));

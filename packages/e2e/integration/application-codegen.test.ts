@@ -8,7 +8,7 @@ import { generateProject, initializeProject, loadProject } from "kello-cli";
 import { readProjectRelease } from "../../../apps/kello-cli/src/tooling/deploy/neon/project";
 
 test("contract-first generation bootstraps typed builders and a native browser client without secrets", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-application-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-application-"));
   try {
     await initializeProject(root, "application");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
@@ -96,11 +96,14 @@ export default os.tasks.router({
         schema: { minimum: "b".repeat(64), maximum: "b".repeat(64), target: "b".repeat(64) },
         slugs: { service: "service", worker: "worker" },
         activationTokenEnv: "DEPLOY_TOKEN",
-        variables: { LOOM_DATABASE_URL: "RUNTIME_URL" },
+        variables: { KELLO_DATABASE_URL: "RUNTIME_URL" },
       }),
     );
     const release = await readProjectRelease(root, "release.json");
-    expect(release.declaration.variables).toEqual({ PRIVATE_TOKEN: "PRIVATE_TOKEN", LOOM_DATABASE_URL: "RUNTIME_URL" });
+    expect(release.declaration.variables).toEqual({
+      PRIVATE_TOKEN: "PRIVATE_TOKEN",
+      KELLO_DATABASE_URL: "RUNTIME_URL",
+    });
     await writeFile(
       join(root, "kello/client-types.ts"),
       `import { createClient } from "./_generated/api";

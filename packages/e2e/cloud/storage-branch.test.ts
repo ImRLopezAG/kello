@@ -14,7 +14,7 @@ import { createStorageIntents } from "kello/server";
 import { createNeonObjectStorage } from "kello/neon";
 
 /** Live provider regression: each test owns both branches and revokes its credentials. */
-test.skipIf(process.env.LOOM_CLOUD_STORAGE_BRANCH !== "1")(
+test.skipIf(process.env.KELLO_CLOUD_STORAGE_BRANCH !== "1")(
   "finalized files remain readable after a Neon branch fork",
   async () => {
     const projectId = v.parse(v.string(), process.env.KELLO_CLOUD_PROJECT_ID);
@@ -73,7 +73,7 @@ test.skipIf(process.env.LOOM_CLOUD_STORAGE_BRANCH !== "1")(
           "--scope",
           "storage:write",
           "--name",
-          "loom-branch-acceptance",
+          "kello-branch-acceptance",
         ]),
       );
       const credential = v.parse(v.object({ token_id: v.string(), s3_secret_access_key: v.string() }), raw);
@@ -138,7 +138,7 @@ test.skipIf(process.env.LOOM_CLOUD_STORAGE_BRANCH !== "1")(
       connections.push(pool);
       return { branchId, connectionString, pool, s3, storage };
     }
-    const metadataNamespace = `loom_files_${crypto.randomUUID().replaceAll("-", "")}`;
+    const metadataNamespace = `kello_files_${crypto.randomUUID().replaceAll("-", "")}`;
     const identity = { issuer: "https://acceptance.test", subject: "alice" };
     const bucket = "branch-files";
     const body = "finalized on parent";
@@ -162,7 +162,7 @@ test.skipIf(process.env.LOOM_CLOUD_STORAGE_BRANCH !== "1")(
         authorize: () => {},
       });
     try {
-      const parentId = await fork(main.id, "loom-acceptance-storage");
+      const parentId = await fork(main.id, "kello-acceptance-storage");
       await api.createBranchBucket(projectId, parentId, { name: bucket, accessLevel: "private" });
       const parent = await setup(parentId);
       await bootstrapDatabase({
@@ -183,7 +183,7 @@ test.skipIf(process.env.LOOM_CLOUD_STORAGE_BRANCH !== "1")(
       const key = new URL(parentDownload.url).pathname.slice(`/${bucket}/`.length);
       checks.push("parent-finalized");
       stage = "fork and provider inheritance";
-      const childId = await fork(parentId, "loom-acceptance-storage-child");
+      const childId = await fork(parentId, "kello-acceptance-storage-child");
       const child = await setup(childId);
       const inherited = await child.s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
       assert.equal(await inherited.Body?.transformToString(), body);
@@ -196,7 +196,7 @@ test.skipIf(process.env.LOOM_CLOUD_STORAGE_BRANCH !== "1")(
       await assert.rejects(childFiles.signDownload({ ...identity, subject: "bob" }, ready.id));
       await assert.rejects(childFiles.signUpload(identity, pending.id));
       await assert.rejects(childFiles.finalize(identity, pending.id));
-      checks.push("loom-inherited-owner-read", "cross-owner-denied", "inherited-pending-denied");
+      checks.push("kello-inherited-owner-read", "cross-owner-denied", "inherited-pending-denied");
       const newPending = await childFiles.create(identity, upload, "pending");
       assert.notEqual(newPending.id, pending.id);
       stage = "copy-on-write delete";
@@ -239,9 +239,9 @@ test.skipIf(process.env.LOOM_CLOUD_STORAGE_BRANCH !== "1")(
       } catch {
         cleanupFailures.push("branch discovery");
       }
-      if (process.env.LOOM_CLOUD_STORAGE_RECEIPT)
+      if (process.env.KELLO_CLOUD_STORAGE_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_STORAGE_RECEIPT,
+          process.env.KELLO_CLOUD_STORAGE_RECEIPT,
           JSON.stringify(
             {
               projectId,

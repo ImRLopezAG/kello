@@ -8,12 +8,12 @@ import { registerRateLimitPolicies } from "../../../apps/kello-cli/src/tooling/m
 import { cleanupRateLimits } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits-cleanup";
 import { defineRateLimits } from "../../../apps/kello/src/core/server/rate-limits/policy";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
-const pooledConnectionString = process.env.LOOM_TEST_POOLED_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
+const pooledConnectionString = process.env.KELLO_TEST_POOLED_DATABASE_URL;
 function requireMaintenanceProfiles(): void {
-  if (!connectionString) throw new Error("LOOM_TEST_DATABASE_URL is required for native cleanup tests");
+  if (!connectionString) throw new Error("KELLO_TEST_DATABASE_URL is required for native cleanup tests");
   if (!pooledConnectionString)
-    throw new Error("LOOM_TEST_POOLED_DATABASE_URL is required for transaction-pooler cleanup tests");
+    throw new Error("KELLO_TEST_POOLED_DATABASE_URL is required for transaction-pooler cleanup tests");
 }
 
 // Test harness causes remain private: assertions keep their original identity,
@@ -137,7 +137,7 @@ async function fixture(
 ) {
   requireMaintenanceProfiles();
   const suffix = randomUUID().replaceAll("-", "");
-  const metadataNamespace = `loom_u3_cleanup_${suffix}`;
+  const metadataNamespace = `kello_u3_cleanup_${suffix}`;
   const runtimeRole = `u3_cleanup_${suffix}`;
   const admin = new pg.Client({ connectionString });
   const table = `"${metadataNamespace}".rate_limit_buckets`;
@@ -368,7 +368,7 @@ describe("native cleanup", () => {
       await expect(
         cleanupRateLimits({
           connectionString: connectionString!,
-          metadataNamespace: "loom_u3_cleanup_invalid",
+          metadataNamespace: "kello_u3_cleanup_invalid",
           ...invalid,
         }),
       ).rejects.toThrow("Invalid rate limit cleanup input");
@@ -377,7 +377,7 @@ describe("native cleanup", () => {
     await expect(
       cleanupRateLimits({
         connectionString: connectionString!,
-        metadataNamespace: "loom_u3_cleanup_invalid",
+        metadataNamespace: "kello_u3_cleanup_invalid",
         signal: controller.signal,
       }),
     ).rejects.toThrow("Rate limit cleanup failed");
@@ -547,7 +547,7 @@ describe("built maintenance script (host build required)", () => {
             "--max-duration-ms",
             failure === "timeout" ? "2000" : "30000",
           ],
-          { env: { ...process.env, LOOM_MIGRATION_DATABASE_URL: connectionString! }, stdout: "pipe", stderr: "pipe" },
+          { env: { ...process.env, KELLO_MIGRATION_DATABASE_URL: connectionString! }, stdout: "pipe", stderr: "pipe" },
         );
         const [code, stdout, stderr] = await readMaintenanceChild(child);
         expect(code).toBe(1);
@@ -566,8 +566,8 @@ describe("built maintenance script (host build required)", () => {
       const script = fileURLToPath(new URL("../../../scripts/rate-limits-maintenance.ts", import.meta.url));
       async function invoke(credential: string | undefined, extra: string[] = []) {
         const env = { ...process.env };
-        delete env.LOOM_MIGRATION_DATABASE_URL;
-        if (credential !== undefined) env.LOOM_MIGRATION_DATABASE_URL = credential;
+        delete env.KELLO_MIGRATION_DATABASE_URL;
+        if (credential !== undefined) env.KELLO_MIGRATION_DATABASE_URL = credential;
         const child = Bun.spawn(
           ["bun", script, "--metadata-namespace", metadataNamespace, "--max-batches", "1", ...extra],
           { env, stdout: "pipe", stderr: "pipe" },

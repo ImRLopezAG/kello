@@ -9,7 +9,7 @@ function rejectInitializationQuery(): never {
 }
 
 const planningDatabase = createAdapterFactory({
-  config: { adapterId: "loom-schema-planning", supportsNumericIds: true },
+  config: { adapterId: "kello-schema-planning", supportsNumericIds: true },
   adapter: () => ({
     create: rejectInitializationQuery,
     findOne: rejectInitializationQuery,

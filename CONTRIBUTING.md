@@ -19,7 +19,7 @@ Source imports are extensionless (`from "./module"`) with TypeScript bundler res
 Database integration requires a disposable PostgreSQL 18 database:
 
 ```sh
-LOOM_TEST_DATABASE_URL=postgresql://user:password@localhost:5432/loom_test bun run test:integration
+KELLO_TEST_DATABASE_URL=postgresql://user:password@localhost:5432/kello_test bun run test:integration
 ```
 
 Tests create and clean up their own schemas, databases and roles. Missing database configuration is reported as skipped. Run browser checks with the same connection and `bun run test:browser` after installing Chromium with `bunx --no-install playwright install chromium` from `packages/e2e`.
@@ -32,13 +32,13 @@ Tests create and clean up their own schemas, databases and roles. Missing databa
 `prepare` script. Existing checkouts can run `bun run hooks:install`. The installer
 refuses to overwrite a different hooks configuration.
 
-Before committing, stage your source changes, authenticate with the Neon CLI (or supply `NEON_API_KEY`), and set
-`KELLO_CLOUD_PROJECT_ID=late-moon-69483649` and `LOOM_CLOUD_BRANCH_ID` privately in
+Before committing, stage your source changes, authenticate with `kello login` or supply `NEON_API_KEY`, and set
+`KELLO_CLOUD_PROJECT_ID=late-moon-69483649` and `KELLO_CLOUD_BRANCH_ID` privately in
 your shell. The branch must be an explicitly selected disposable, unprotected
-`loom-acceptance-*` child. Install Playwright Chromium beforehand. The hook builds
+`kello-acceptance-*` child. Install Playwright Chromium beforehand. The hook builds
 Kello, runs hosted tasks/Auth/RPC acceptance, then the real SDK, generated live
 browser, Function/job/storage and cloud preview fixtures. Other example profiles
-remain available locally through `LOOM_CLOUD_SUITE` and `bun run test:cloud`;
+remain available locally through `KELLO_CLOUD_SUITE` and `bun run test:cloud`;
 use a separate disposable branch for each profile. These use disposable
 Neon resources and can take several minutes. The Realtime fixtures use their
 existing admitted disposable branch with UUID-isolated resources; coordinate

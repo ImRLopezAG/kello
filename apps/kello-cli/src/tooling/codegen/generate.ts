@@ -30,7 +30,7 @@ export interface ProcedureManifest {
   readonly project: string;
   readonly version: string;
   readonly schemaFingerprint: string;
-  readonly protocol: "loom-orpc-2";
+  readonly protocol: "kello-orpc-2";
   readonly procedures: readonly { readonly path: readonly string[]; readonly visibility: "public" | "internal" }[];
 }
 
@@ -69,7 +69,7 @@ async function writeGeneration(project: LoadedProject): Promise<ProcedureManifes
     project: project.config.project,
     version: project.version,
     schemaFingerprint: project.schema.fingerprint,
-    protocol: "loom-orpc-2",
+    protocol: "kello-orpc-2",
     procedures: project.procedures.map(({ path, visibility }) => ({ path, visibility })),
   };
   const artifacts = {

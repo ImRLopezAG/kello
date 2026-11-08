@@ -130,7 +130,7 @@ export async function withDeploymentConnection<T>(
   const database = validateConnection(credentials.uri, target, databaseName, roleName);
   signal?.throwIfAborted();
   return withMigrationConnection(credentials.uri, async (client) => {
-    await acquireMigrationLock(client, `loom:deployment:${config.database.metadataNamespace}`, false, options.signal);
+    await acquireMigrationLock(client, `kello:deployment:${config.database.metadataNamespace}`, false, options.signal);
     signal?.throwIfAborted();
     const current = await inspectDeploymentTarget(config, environment, api);
     if (

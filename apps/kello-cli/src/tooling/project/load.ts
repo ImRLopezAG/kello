@@ -168,8 +168,8 @@ export async function loadProjectConfig(projectRoot: string, options: { readOnly
   const publicConfiguration = await readPublicProjectConfiguration(root, authored);
   const saved = await readResolvedProject(root);
   const runtimeRole =
-    authored.database.metadataNamespace === "loom_meta"
-      ? "loom_runtime"
+    authored.database.metadataNamespace === "kello_meta"
+      ? "kello_runtime"
       : `${authored.database.metadataNamespace}_runtime`;
   const defaults = saved
     ? {
@@ -208,7 +208,7 @@ export async function loadProjectConfig(projectRoot: string, options: { readOnly
     config,
     publicConfiguration,
     hash: createHash("sha256")
-      .update(loadedConfig?.hash ?? "loom-default-config-v1")
+      .update(loadedConfig?.hash ?? "kello-default-config-v1")
       .update(JSON.stringify(config))
       .digest("hex"),
   };
@@ -335,7 +335,7 @@ export const builders = Object.keys(createApplicationRpc(app, { schema, relation
     ],
   );
   const hash = createHash("sha256")
-    .update("loom-contract-37\0")
+    .update("kello-contract-38\0")
     .update(configHash)
     .update(JSON.stringify(config))
     .update(loaded.hash);
@@ -544,7 +544,7 @@ export const builders = Object.keys(createApplicationRpc(app, { schema, relation
   }
   return {
     ...common,
-    protocol: "loom-orpc-2" as const,
+    protocol: "kello-orpc-2" as const,
     auth,
     storage,
     rateLimits,

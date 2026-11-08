@@ -3,14 +3,23 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { resolveProjectPath } from "../config/paths";
 import { withProjectConfigurationLock } from "../config/environment-file";
-import { createKelloNeonClient } from "../neon/api";
+import { createKelloNeonClient, neonCall, resolveNeonApiKey } from "../neon/api";
 import type { ResolvedNeonProject } from "../config/resolve";
 
-/** Neon owns the context format; write a checked selection through its pinned CLI without pulling secrets. */
-export async function writeNeonLink(root: string, project: ResolvedNeonProject): Promise<void> {
-  const remote = await createKelloNeonClient().projects.get({ projectId: project.projectId });
+/**
+ * Neon owns the context format; write a checked selection through its pinned CLI without pulling secrets.
+ * The resolved key reaches the child only through `NEON_API_KEY`, never argv or a Neon CLI profile.
+ */
+export async function writeNeonLink(
+  root: string,
+  project: ResolvedNeonProject,
+  cli: string = fileURLToPath(import.meta.resolve("neon/cli")),
+): Promise<void> {
+  const remote = await neonCall(createKelloNeonClient().projects.get({ projectId: project.projectId }));
   const orgId = remote.org_id;
   if (!orgId) throw new Error("Neon project organization is unavailable");
+  const apiKey = await resolveNeonApiKey();
+  const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "NEON_PROFILE"));
   await withProjectConfigurationLock(root, async () => {
     const target = join(root, ".neon");
     const state = await lstat(target).catch((cause: unknown) => {
@@ -24,7 +33,7 @@ export async function writeNeonLink(root: string, project: ResolvedNeonProject):
       const child = Bun.spawn(
         [
           process.execPath,
-          fileURLToPath(import.meta.resolve("neon/cli")),
+          cli,
           "link",
           "--no-checks",
           "--no-env-pull",
@@ -44,7 +53,7 @@ export async function writeNeonLink(root: string, project: ResolvedNeonProject):
           stdin: "ignore",
           stdout: "ignore",
           stderr: "ignore",
-          env: { ...process.env, CI: "true", DEBUG: "" },
+          env: { ...environment, NEON_API_KEY: apiKey, CI: "true", DEBUG: "" },
           timeout: 30_000,
         },
       );

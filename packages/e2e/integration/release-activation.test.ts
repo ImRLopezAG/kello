@@ -5,10 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-test.skipIf(!process.env.LOOM_TEST_DATABASE_URL)(
+test.skipIf(!process.env.KELLO_TEST_DATABASE_URL)(
   "release health and activation recover with packed runtimes over HTTPS",
   async () => {
-    const root = await mkdtemp(join(tmpdir(), "loom-release-activation-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-release-activation-"));
     try {
       const config = join(root, "openssl.cnf");
       const certificate = join(root, "certificate.pem");

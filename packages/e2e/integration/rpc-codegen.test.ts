@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { generateProject, initializeProject, loadProject } from "kello-cli";
 
 test("native generation bootstraps, isolates internal routes, and atomically replaces bounded artifacts", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-rpc-codegen-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-rpc-codegen-"));
   try {
     await initializeProject(root, "rpc");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
@@ -33,12 +33,12 @@ test("native generation bootstraps, isolates internal routes, and atomically rep
     await assert.rejects(loadProject(root), /Move existing migrations from kello\/migrations/);
     await rm(join(root, "kello.config.ts"));
     await rm(join(root, "kello/migrations"), { recursive: true });
-    expect(initialized.protocol).toBe("loom-orpc-2");
+    expect(initialized.protocol).toBe("kello-orpc-2");
     expect(initialized.procedures).toEqual([{ path: ["tasks", "list"], visibility: "public" }]);
     const initialLink = await readlink(join(root, "kello/_generated/current"));
     expect(initialLink).toBe("../../.kello/generations/" + initialized.version);
     expect(await readFile(join(root, "kello/_generated/.kello-generated"), "utf8")).toBe("kello-generated-v1\n");
-    expect(await readdir(root)).not.toContain(".loom");
+    expect(await readdir(root)).toContain(".kello");
     const generatedClientImport = join(root, "kello/functions/recursive.ts");
     await writeFile(generatedClientImport, 'export { createClient } from "../_generated/api";');
     await assert.rejects(generateProject(root), /[Bb]undl(?:e|ing) failed/);
@@ -77,12 +77,12 @@ export const helper = () => "PRIVATE_HELPER_SENTINEL";
 import { defineJobMigration } from "kello/server";
 import router from "./internal/admin";
 export default [defineJobMigration({
-  from: { protocol: "loom-legacy-1", version: "${"1".repeat(64)}", name: "admin:inspect", kind: "action" },
+  from: { protocol: "kello-legacy-1", version: "${"1".repeat(64)}", name: "admin:inspect", kind: "action" },
   input: v.null(), to: router.inspect, transform: () => undefined,
 })];`,
     );
     const first = await generateProject(root);
-    expect(first.protocol).toBe("loom-orpc-2");
+    expect(first.protocol).toBe("kello-orpc-2");
     expect(first.procedures).toEqual([
       { path: ["admin", "inspect"], visibility: "internal" },
       { path: ["tasks", "list"], visibility: "public" },
@@ -197,7 +197,7 @@ rpc.tasks.renamed.liveOptions({ onSuccess: () => {} });
     await rm(join(root, "kello/internal/admin.ts"));
     await rm(join(root, "kello/contracts/internal/admin.ts"));
     const empty = await generateProject(root);
-    expect(empty.protocol).toBe("loom-orpc-2");
+    expect(empty.protocol).toBe("kello-orpc-2");
     expect(empty.procedures).toEqual([]);
     const retainedContracts = join(root, "user-contracts");
     await mkdir(retainedContracts);
@@ -220,7 +220,7 @@ rpc.tasks.renamed.liveOptions({ onSuccess: () => {} });
 }, 30000);
 
 test("native capability modules resolve internal objects and reject invalid target changes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-rpc-capabilities-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-rpc-capabilities-"));
   try {
     await initializeProject(root, "capabilities");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
@@ -268,7 +268,7 @@ export default defineProcedureStorage({ buckets: { uploads: { onObjectCreated: p
     );
     const generated = await generateProject(root);
     const project = await loadProject(root);
-    if (project.protocol !== "loom-orpc-2") throw new Error("Expected native project");
+    if (project.protocol !== "kello-orpc-2") throw new Error("Expected native project");
     expect(project.auth.allowAnonymous).toBe(true);
     expect(project.crons.minute?.call.path).toEqual(["jobs", "tick"]);
     const runtime = await import(pathToFileURL(join(root, ".kello/generations", generated.version, "runtime.js")).href);

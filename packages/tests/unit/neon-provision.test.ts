@@ -74,7 +74,7 @@ function fixture() {
 }
 
 test("branch provisioning plans explicit PG18 parents and resumes acknowledged creation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-"));
   const f = fixture();
   try {
     expect(await planNeonBranchProvision(input, f.api)).toMatchObject({
@@ -124,7 +124,7 @@ test("branch provisioning refuses unsupported, missing and occupied targets befo
       f.branches.push({ id: "occupied", name: input.branchName, protected: false, isDefault: false });
     },
   ]) {
-    const root = await mkdtemp(join(tmpdir(), "loom-provision-refused-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-provision-refused-"));
     const f = fixture();
     change(f);
     try {
@@ -137,7 +137,7 @@ test("branch provisioning refuses unsupported, missing and occupied targets befo
 });
 
 test("lost branch create responses remain uncertain and cannot adopt matching names", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-uncertain-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-uncertain-"));
   const f = fixture();
   f.loseResponse();
   try {
@@ -153,7 +153,7 @@ test("lost branch create responses remain uncertain and cannot adopt matching na
 });
 
 test("provisioning awaits in-flight creation on cancellation and rejects concurrent writers", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-cancel-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-cancel-"));
   const f = fixture();
   const controller = new AbortController();
   try {
@@ -176,8 +176,8 @@ test("provisioning awaits in-flight creation on cancellation and rejects concurr
 });
 
 test("provisioning refuses escaped or corrupt receipts without provider mutation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-files-"));
-  const outside = await mkdtemp(join(tmpdir(), "loom-provision-outside-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-files-"));
+  const outside = await mkdtemp(join(tmpdir(), "kello-provision-outside-"));
   const f = fixture();
   try {
     const directory = join(root, ".kello/provision", input.key);
@@ -200,7 +200,7 @@ test("provisioning refuses escaped or corrupt receipts without provider mutation
 });
 
 test("provisioning redacts provider observation failures", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-redaction-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-redaction-"));
   const f = fixture();
   try {
     const unreadable = {
@@ -231,7 +231,7 @@ test("provisioning redacts provider observation failures", async () => {
 });
 
 test("production branch creation requests protection and checks it on retry", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-production-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-production-"));
   const f = fixture();
   const branch = {
     id: "br-created",
@@ -268,7 +268,7 @@ test("production branch creation requests protection and checks it on retry", as
 });
 
 test("development defaults to an independent schema-only root and verifies its ancestry", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-schema-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-schema-"));
   const f = fixture();
   const branch = { id: "br-created", name: input.branchName, protected: false, isDefault: false };
   const api: NeonBranchProvisionProvider = {
@@ -292,7 +292,7 @@ test("development defaults to an independent schema-only root and verifies its a
 });
 
 test("a definite branch precondition rejection permits a checked explicit retry", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-rejected-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-rejected-"));
   const f = fixture();
   let attempts = 0;
   const api: NeonBranchProvisionProvider = {

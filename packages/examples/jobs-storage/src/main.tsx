@@ -8,7 +8,7 @@ import { configuration } from "../kello/_generated/api";
 import { createClient } from "../kello/_generated/react";
 import "./style.css";
 
-const serviceUrl = import.meta.env.VITE_LOOM_URL ?? configuration.serviceUrl;
+const serviceUrl = import.meta.env.VITE_KELLO_URL ?? configuration.serviceUrl;
 const kello = serviceUrl ? createKelloNeonReact(createClient, { serviceUrl }) : undefined;
 type Api = ReturnType<typeof createClient>["rpc"];
 type Storage = ReturnType<typeof createClient>["storage"];
@@ -265,7 +265,7 @@ function App() {
     return (
       <main>
         <h1>Connect your Neon application</h1>
-        <p>Run kello link and deploy, then provide VITE_LOOM_URL.</p>
+        <p>Run kello link and deploy, then provide VITE_KELLO_URL.</p>
       </main>
     );
   return (

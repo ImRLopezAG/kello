@@ -1,13 +1,13 @@
-import { createClient, createLiveQueryClient } from "@loom/core/client";
-import type { FunctionReference } from "@loom/core/client";
+import { createClient, createLiveQueryClient } from "@kello/core/client";
+import type { FunctionReference } from "@kello/core/client";
 
 type Task = { _id: string; title: string; done: boolean };
 export interface LiveObservation { index: number; sequence: number }
 interface Setup { services: { url: string; version: string; token: string }[]; projects: string[] }
 declare global {
   interface Window {
-    loomObserved(observation: LiveObservation): Promise<void>;
-    loomLive: {
+    kelloObserved(observation: LiveObservation): Promise<void>;
+    kelloLive: {
       start(setup: Setup): void;
       stop(): void;
       stopSubscriptions(): void;
@@ -20,7 +20,7 @@ const codes = new Set<string>();
 const cleanup: (() => void)[] = [];
 const unsubscribe: (() => void)[] = [];
 let errors = 0;
-window.loomLive = {
+window.kelloLive = {
   start(setup) {
     const bindings = setup.services.map(service => {
       const client = createClient({ url: service.url, maxAttempts: 1, getAuth: async () => ({ token: service.token, identityKey: "live-load" }) });
@@ -42,7 +42,7 @@ window.loomLive = {
         if (!title || title === previous) return;
         previous = title; ready.add(index);
         const sequence = Number(title);
-        if (Number.isSafeInteger(sequence)) void window.loomObserved({ index, sequence });
+        if (Number.isSafeInteger(sequence)) void window.kelloObserved({ index, sequence });
       }));
     });
   },

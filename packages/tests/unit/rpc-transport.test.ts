@@ -1,7 +1,13 @@
+import { createServer } from "node:http";
+import type { Server } from "node:http";
+import * as v from "valibot";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { createRpcHttpTransport } from "kello/client";
 import { createNeonRpcApplication } from "kello/neon";
 import { createProjectProcedures, defineSchema } from "kello/server";
+
+const tcpAddress = v.object({ port: v.number() });
+const listeningPort = (server: Server) => v.parse(tcpAddress, server.address()).port;
 
 describe("native browser transport lifetime", () => {
   it("rejects credential-bearing URLs and stale version formats before connecting", () => {
@@ -109,4 +115,77 @@ it("never exposes a late HTTP mutation response after logout or replays the muta
     transport.dispose();
     fetchSpy.mockRestore();
   }
+});
+
+describe("native transport fetch options", () => {
+  async function capture(options: { credentials?: "include" | "same-origin" } = {}) {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => Response.json({ json: { committed: true } }));
+    const transport = createRpcHttpTransport({
+      url: "https://example.test",
+      version: "a".repeat(64),
+      getToken: async () => "token",
+      ...options,
+    });
+    try {
+      await transport.link.call(["write"], {}, { context: {} });
+      const [address, init] = fetchSpy.mock.calls[0] ?? [];
+      return { address, init };
+    } finally {
+      transport.dispose();
+      fetchSpy.mockRestore();
+    }
+  }
+
+  it("omits credentials and bypasses the HTTP cache by default", async () => {
+    const { init } = await capture();
+    expect(init?.credentials).toBe("omit");
+    expect(init?.cache).toBe("no-store");
+  });
+
+  it("sends the configured credentials mode and still bypasses the HTTP cache", async () => {
+    const { init } = await capture({ credentials: "include" });
+    expect(init?.credentials).toBe("include");
+    expect(init?.cache).toBe("no-store");
+  });
+
+  it("refuses redirects instead of following them", async () => {
+    const { init } = await capture();
+    expect(init?.redirect).toBe("error");
+  });
+
+  // A followed 307/308 would hand the mutation body and idempotency key to another origin;
+  // a followed 301/302/303 would turn the POST into a GET and accept the target's answer.
+  it.each([307, 303])("fails a %i redirect without contacting the target", async (status) => {
+    const target = { hits: 0 };
+    const redirected = createServer((_request, response) => {
+      target.hits += 1;
+      response.writeHead(200, { "content-type": "application/json" }).end('{"json":{"committed":true}}');
+    });
+    const origin = createServer((_request, response) => {
+      response
+        .writeHead(status, { location: `http://127.0.0.1:${listeningPort(redirected)}/api/kello/rpc/write` })
+        .end();
+    });
+    await Promise.all([
+      new Promise<void>((resolve) => redirected.listen(0, "127.0.0.1", resolve)),
+      new Promise<void>((resolve) => origin.listen(0, "127.0.0.1", resolve)),
+    ]);
+    const transport = createRpcHttpTransport({
+      url: `http://127.0.0.1:${listeningPort(origin)}`,
+      version: "a".repeat(64),
+      getToken: async () => "token",
+    });
+    try {
+      await expect(transport.link.call(["write"], { secret: "input" }, { context: {} })).rejects.toThrow();
+      expect(target.hits).toBe(0);
+    } finally {
+      transport.dispose();
+      await Promise.all([
+        new Promise((resolve) => redirected.close(resolve)),
+        new Promise((resolve) => origin.close(resolve)),
+      ]);
+    }
+  });
 });

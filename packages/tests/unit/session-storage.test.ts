@@ -10,7 +10,7 @@ test("storage cannot expose a delayed old-session response or run after teardown
   const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(() => pending);
   const token = vi.fn(async () => "credential");
   const storage = createSessionStorage(
-    { url: "https://service.test", version: "a".repeat(64), getToken: token, cachePrefix: "loom:alice" },
+    { url: "https://service.test", version: "a".repeat(64), getToken: token, cachePrefix: "kello:alice" },
     shutdown.signal,
   );
   try {

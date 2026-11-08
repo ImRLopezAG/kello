@@ -13,13 +13,13 @@ import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema"
 import { createRpcRuntime } from "../../../apps/kello/src/core/server/rpc-runtime";
 import { createNeonRpcApplication } from "../../../apps/kello/src/core/adapters/neon/rpc-application";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "assembled HTTP isolates signing environments and drains timed-out handlers before SDK disposal",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_http_${suffix}`;
+    const metadataNamespace = `kello_http_${suffix}`;
     const runtimeRole = `http_runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     const entered = Promise.withResolvers<void>();
@@ -86,10 +86,10 @@ test.skipIf(!connectionString)(
     let runtime: Awaited<ReturnType<typeof createRpcRuntime>> | undefined;
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       runtime = await createRpcRuntime({
         schema,

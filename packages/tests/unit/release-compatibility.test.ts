@@ -6,7 +6,7 @@ import { defineSchema } from "kello/server";
 import { emptySnapshot, inspectReleaseSchema, planCustomMigration, planMigration, writeMigration } from "kello-cli";
 
 test("release schema ranges bind ordered artifacts and tolerate unchanged schemas in data migrations", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-compatibility-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-compatibility-"));
   try {
     const baseline = await emptySnapshot("app");
     const firstSchema = defineSchema((f) => ({ tasks: { title: f.text() } }), { namespace: "app" });
@@ -60,7 +60,7 @@ test("release schema ranges bind ordered artifacts and tolerate unchanged schema
 });
 
 test("empty history and migration anchors distinguish repeated structural epochs", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-compatibility-epochs-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-compatibility-epochs-"));
   try {
     const baseline = await emptySnapshot("app");
     expect(

@@ -30,7 +30,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 test("initialization creates a consumer and preserves existing user files", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-init-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-init-"));
   try {
     expect(await initializeProject(root, "tasks")).toContain("kello/schema.ts");
     expect(await readFile(join(root, "kello/app.config.ts"), "utf8")).toContain("defineApplication");
@@ -55,7 +55,7 @@ test("initialization creates a consumer and preserves existing user files", asyn
 });
 
 test("generated service and worker entries capture runtime configuration and expose typed connection options", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-entry-import-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-entry-import-"));
   try {
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
@@ -71,7 +71,7 @@ test("generated service and worker entries capture runtime configuration and exp
     const deployed = await prepareNeonEntrypoints(
       root,
       {
-        metadataNamespace: "loom_meta",
+        metadataNamespace: "kello_meta",
         deployment: "preview",
         version: generation.version,
         projectId: "project",
@@ -85,7 +85,7 @@ test("generated service and worker entries capture runtime configuration and exp
     expect(
       (await prepareNeonEntrypoints(root, deployed.binding, { wake: { kind: "wake", name: "worker" } })).directory,
     ).toBe(deployed.directory);
-    expect(await readFile(deployed.service, "utf8")).toContain('process.env["LOOM_DATABASE_URL"]');
+    expect(await readFile(deployed.service, "utf8")).toContain('process.env["KELLO_DATABASE_URL"]');
     expect(await readFile(deployed.service, "utf8")).not.toContain("createNeonStorageBackend");
     const deployedNode = Bun.spawn(
       [
@@ -104,7 +104,7 @@ test("generated service and worker entries capture runtime configuration and exp
       }
     `,
       ],
-      { stdout: "pipe", stderr: "pipe", env: { ...process.env, LOOM_DATABASE_URL: "", LOOM_ACTIVATION_TOKEN: "" } },
+      { stdout: "pipe", stderr: "pipe", env: { ...process.env, KELLO_DATABASE_URL: "", KELLO_ACTIVATION_TOKEN: "" } },
     );
     expect(await new Response(deployedNode.stderr).text()).toBe("");
     expect(await deployedNode.exited).toBe(0);
@@ -114,7 +114,7 @@ test("generated service and worker entries capture runtime configuration and exp
     ]) {
       assert.ok(slug && source);
       const archive = await buildNeonFunctionBundle(source);
-      const packed = await mkdtemp(join(tmpdir(), "loom-packed-entry-"));
+      const packed = await mkdtemp(join(tmpdir(), "kello-packed-entry-"));
       try {
         const files = unzipSync(archive);
         expect(files["index.mjs"]).toBeDefined();
@@ -139,7 +139,7 @@ test("generated service and worker entries capture runtime configuration and exp
             cwd: packed,
             stdout: "pipe",
             stderr: "pipe",
-            env: { ...process.env, LOOM_DATABASE_URL: "", LOOM_ACTIVATION_TOKEN: "" },
+            env: { ...process.env, KELLO_DATABASE_URL: "", KELLO_ACTIVATION_TOKEN: "" },
           },
         );
         expect(await new Response(execution.stderr).text()).toBe("");
@@ -158,7 +158,7 @@ test("generated service and worker entries capture runtime configuration and exp
     expect(runtime.runtimeOptions().version).toBe(generation.version);
     const captured = runtime.runtimeOptions();
     expect(captured.config.jobs.leaseMs).toBe(60000);
-    expect(captured.metadataNamespace).toBe("loom_meta");
+    expect(captured.metadataNamespace).toBe("kello_meta");
     captured.config.jobs.leaseMs = 1000;
     expect(runtime.runtimeOptions().config.jobs.leaseMs).toBe(60000);
     await writeFile(
@@ -211,7 +211,7 @@ void createWorker(connection);
 }, 30000); // Two Vite+ bundles, native imports and a real TypeScript compiler invocation.
 
 test("generation captures explicit authorization and refuses invalid auth modules without activation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-auth-import-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-auth-import-"));
   try {
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
@@ -232,7 +232,7 @@ test("generation captures explicit authorization and refuses invalid auth module
       signal: new AbortController().signal,
     };
     const initial = await loadProject(root);
-    if (initial.protocol !== "loom-orpc-2") throw new Error("Expected native fixture");
+    if (initial.protocol !== "kello-orpc-2") throw new Error("Expected native fixture");
     await assert.rejects(initial.auth.authorize(context), /Forbidden/);
     await writeFile(
       filename,
@@ -282,7 +282,7 @@ export default defineRpcAuth({ allowAnonymous: true, authorize: ({ path }) => {
 });
 
 test("generation loads native relations against its own immutable schema", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-relations-import-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-relations-import-"));
   try {
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
@@ -351,7 +351,7 @@ const schema = defineSchema((s) => ({ tasks: { title: s.text() } }), { namespace
 });
 
 test("extensionless internal imports capture native cron targets and keep candidate versions stable", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-internal-import-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-internal-import-"));
   try {
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
@@ -435,8 +435,8 @@ test("extensionless internal imports capture native cron targets and keep candid
 });
 
 test("initialization refuses a backend symlink outside the project", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-init-"));
-  const outside = await mkdtemp(join(tmpdir(), "loom-external-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-init-"));
+  const outside = await mkdtemp(join(tmpdir(), "kello-external-"));
   try {
     await mkdir(join(outside, "functions"));
     await symlink(outside, join(root, "kello"));
@@ -449,7 +449,7 @@ test("initialization refuses a backend symlink outside the project", async () =>
 });
 
 test("offline generation is deterministic, detects stale contracts and keeps internal references out of the browser API", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-generate-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-generate-"));
   try {
     await initializeProject(root, "tasks");
     await mkdir(join(root, "node_modules/@kello"), { recursive: true });
@@ -606,7 +606,7 @@ client.tasks.secret();
 });
 
 test("CLI produces matching structured/human failures without leaking executable config errors", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-doctor-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-doctor-"));
   const cli = fileURLToPath(new URL("../../../apps/kello-cli/cli.js", import.meta.url));
   try {
     await writeFile(
@@ -667,7 +667,7 @@ export default {};`,
 });
 
 test("generation captures storage policies and validates current internal handlers before activation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-storage-import-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-storage-import-"));
   try {
     await initializeProject(root, "tasks");
     await writeFile(
@@ -714,7 +714,7 @@ authorize: ({ identity }) => { if (identity.subject !== "alice") throw new Error
     const candidate = await prepareProject(root);
     expect(candidate.version).not.toBe(first.version);
     const project = await loadProject(root);
-    if (project.protocol !== "loom-orpc-2") throw new Error("Expected native fixture");
+    if (project.protocol !== "kello-orpc-2") throw new Error("Expected native fixture");
     expect(project.storage.buckets.uploads?.onObjectCreated?.procedure).toBe(
       project.procedures.find((entry) => entry.path.join(".") === "files.created")?.definition,
     );

@@ -49,7 +49,7 @@ try {
     "preview",
     api,
   );
-  assert.equal(target.branchName, "loom-acceptance-kello-002-optimistic-20261007");
+  assert.equal(target.branchName, "kello-acceptance-kello-002-optimistic-20261007");
   assert.equal(target.endpointId, "ep-solitary-block-awijudvn");
   assert.equal(target.protected, false);
   assert(!(await api.listBranchBuckets(projectId, branchId)).some((entry) => entry.name === bucket));

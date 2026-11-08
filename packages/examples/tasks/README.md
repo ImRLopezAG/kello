@@ -6,7 +6,7 @@ A React application with projects, tasks, Neon Auth sessions and live queries. E
 
 This application uses Neon PostgreSQL, Neon Functions and Neon Auth. Its configuration is `kello.config.ts`; secret values belong in `.env`, following `.env.example`. The existing project named **kello** is `late-moon-69483649`. Select a separate development or preview branch with `NEON_BRANCH_ID`.
 
-Use distinct migration and restricted application database credentials. Enable Neon Auth on the selected branch, allow your frontend origin, and set `VITE_NEON_AUTH_URL` to its Auth base URL. `VITE_LOOM_URL` is the service invocation URL returned by deployment. Only public addresses use the `VITE_` prefix.
+Use distinct migration and restricted application database credentials. Enable Neon Auth on the selected branch, allow your frontend origin, and set `VITE_NEON_AUTH_URL` to its Auth base URL. `VITE_KELLO_URL` is the service invocation URL returned by deployment. Only public addresses use the `VITE_` prefix.
 
 From the repository root, install and build the framework:
 
@@ -21,13 +21,13 @@ From this example directory:
 cp .env.example .env
 # Fill the connection credentials and branch-specific addresses.
 bun run generate
-bunx kello migrations apply --runtime-role loom_runtime
+bunx kello migrations apply --runtime-role kello_runtime
 bun run deploy
-# Set VITE_LOOM_URL to the returned service invocation URL.
+# Set VITE_KELLO_URL to the returned service invocation URL.
 bun run dev:frontend
 ```
 
-The migration command creates the restricted role if needed; provision its login credential through Neon and put that connection string in `LOOM_DATABASE_URL` before deploying. Set `LOOM_ACTIVATION_TOKEN` to a random 64-character hexadecimal secret. `kello deploy` reads the deployment configuration and committed migration history, deploys the service and worker to Neon, checks their health, and activates the release. Deployment requires `NEON_API_KEY` in the CLI environment; it is never passed to the application runtime.
+The migration command creates the restricted role if needed; provision its login credential through Neon and put that connection string in `KELLO_DATABASE_URL` before deploying. Set `KELLO_ACTIVATION_TOKEN` to a random 64-character hexadecimal secret. `kello deploy` reads the deployment configuration and committed migration history, deploys the service and worker to Neon, checks their health, and activates the release. Deployment requires `NEON_API_KEY` in the CLI environment; it is never passed to the application runtime.
 
 Sign up or sign in with Neon Auth in the frontend. `bun run dev` watches source and deploys to the configured Neon preview branch; `bun run dev:frontend` runs Vite+. `kello/app.config.ts` defines the application and named RPC builders; `kello/auth.config.ts` defines authentication policy. Every router in `kello/functions` implements its native contract from `kello/contracts` using typed builders from `../_generated/rpc`. Live lists are declared with `.live()` on their contract; their handlers return one Drizzle SELECT whose ownership predicate is in SQL, and Neon Realtime delivers updates. The frontend creates its client with `_generated/react.createClient`, uses native `queryOptions` and `mutationOptions` for ordinary HTTPS calls, and `api.<path>.useLiveQuery(input)` for live lists. Live issuance requires the application to configure `liveQueries` with a trusted login resolver; without it, live procedures fail closed. `kello/migrations` is committed history. `_generated` contains stable current imports; disposable runtime artifacts live under `.kello`.
 

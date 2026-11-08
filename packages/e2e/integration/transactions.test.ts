@@ -17,13 +17,13 @@ import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
 import { bootstrapDatabase } from "kello-cli";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "public conflict exhaustion is bounded and never exposes database diagnostics",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
     const schema = defineSchema(() => ({}));

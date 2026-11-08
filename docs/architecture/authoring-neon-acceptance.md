@@ -2,17 +2,17 @@
 
 ## Delivered behavior
 
-- Projects default to `loom/`, with committed migration history in `loom/migrations`.
-- `_generated` exposes stable current imports. Immutable build artifacts live in `.loom/generations`, retaining the active build and one prior cached build. Deployment entries carry their own runtime files and survive generation pruning.
+- Projects default to `kello/`, with committed migration history in `kello/migrations`.
+- `_generated` exposes stable current imports. Immutable build artifacts live in `.kello/generations`, retaining the active build and one prior cached build. Deployment entries carry their own runtime files and survive generation pruning.
 - Generated server builders bind project relations once. Handler outputs infer automatically when `returns` is omitted. Explicit public validators remain where they strip private fields.
 - `schema.id("projects")` validates UUID syntax and supplies a table-branded type. It does not assert row existence; database constraints and authorized queries enforce that separately.
-- `loom dev` and `loom deploy` read `loom.config.ts`. Environment variable references separate migration and runtime credentials. Development and preview targets use separate branch settings.
+- `kello dev` and `kello deploy` read `kello.config.ts`. Environment variable references separate migration and runtime credentials. Development and preview targets use separate branch settings.
 - Example setup scripts moved into e2e fixtures. Normal example frontends use Neon Auth; fixture identities are restricted to acceptance builds.
 - Storage bytes use Neon Object Storage. PostgreSQL holds ownership, metadata, upload intents, event receipts and durable jobs. Provider credentials remain server-side.
 
 ## Real Neon acceptance
 
-Project: `late-moon-69483649` (`loom`). The main branch was not modified. These isolated acceptance branches expire on 2026-09-25 at 18:00 UTC:
+Project: `late-moon-69483649` (`kello`). The main branch was not modified. These isolated acceptance branches expire on 2026-09-25 at 18:00 UTC:
 
 | Branch                      | Purpose                                             | Result                                   |
 | --------------------------- | --------------------------------------------------- | ---------------------------------------- |

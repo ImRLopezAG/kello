@@ -32,7 +32,7 @@ export async function withKelloServerSession<T extends SessionConnection, R>(
   const token = await abortable(options.getToken(), signal);
   signal.throwIfAborted();
   if (!token) return null;
-  const cachePrefix = `loom:${crypto.randomUUID()}`;
+  const cachePrefix = `kello:${crypto.randomUUID()}`;
   const connection = createClient({
     url: options.url,
     getToken: async () => token,

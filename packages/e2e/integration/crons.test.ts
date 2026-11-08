@@ -18,15 +18,15 @@ import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
 import pg from "pg";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "native cron occurrences persist once across dispatchers and completed-job redelivery",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_cron_${suffix}`;
+    const metadataNamespace = `kello_cron_${suffix}`;
     const applicationNamespace = `app_cron_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
@@ -35,10 +35,10 @@ test.skipIf(!connectionString)(
       await admin.query(`CREATE TABLE "${applicationNamespace}".effects (job_id uuid PRIMARY KEY, value integer)`);
       await admin.query(`GRANT USAGE ON SCHEMA "${applicationNamespace}" TO "${runtimeRole}"`);
       await admin.query(`GRANT SELECT, INSERT ON "${applicationNamespace}".effects TO "${runtimeRole}"`);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const relations = defineRelations(schema.tables);
       const connection = await connectDatabase({
@@ -178,7 +178,7 @@ test.skipIf(!connectionString)(
             listBranchFunctions: async () => [
               {
                 id: "worker",
-                slug: "loomworker",
+                slug: "kelloworker",
                 name: "worker",
                 invocationUrl: "https://example.test",
                 activeDeploymentId: 1,
@@ -216,7 +216,7 @@ test.skipIf(!connectionString)(
                 provider: { projectId: "project", targets: { preview: { branchId: "br-preview" } } },
               }),
               environment: "preview",
-              workerSlug: "loomworker",
+              workerSlug: "kelloworker",
               schedules: [
                 {
                   name: "minute",

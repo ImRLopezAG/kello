@@ -4,7 +4,7 @@ Status: **TERMINAL / noPending**. Verdict: **APPROVE — bounded URL correction 
 
 ## Scope and intent
 
-Canonical checkout: `/Users/angel/.t3/worktrees/loom/release-kello-001-002-alpha`; branch `refactor/neon-cloud-tooling`; HEAD `586e87791735da2282d2dc120f8e084a13764dca`.
+Canonical checkout: `/Users/angel/.t3/worktrees/kello/release-kello-001-002-alpha`; branch `refactor/neon-cloud-tooling`; HEAD `586e87791735da2282d2dc120f8e084a13764dca`.
 
 One independent gpt-6-astra LOW reviewer context applied correctness, implementation and security lenses. No delegates, redundant review hierarchy or cross-model proof. Read root `/Users/angel/dev/loom/AGENTS.md`, governing `docs/plans/2026-10-16-1919-refactor-neon-cloud-only-plan.md` requirements R4-R6, KTD2 and U2, complete prior R1/R2/R3 reports and responses in actual `docs/tasks/cloud-only-current.md`.
 

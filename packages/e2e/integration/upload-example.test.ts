@@ -11,14 +11,14 @@ import type { InvocationIdentity, JsonValue, StorageDelivery } from "kello/serve
 import { createHash } from "node:crypto";
 import { createLocalStorage } from "../fixtures/local-storage";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "upload example catalogs verified objects, retries jobs and isolates owners",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const project = await loadProject(fileURLToPath(new URL("../../examples/jobs-storage/", import.meta.url)));
-    if (project.protocol !== "loom-orpc-2") throw new Error("Expected native fixture");
-    const database = `loom_upload_${crypto.randomUUID().replaceAll("-", "")}`;
+    if (project.protocol !== "kello-orpc-2") throw new Error("Expected native fixture");
+    const database = `kello_upload_${crypto.randomUUID().replaceAll("-", "")}`;
     const runtimeRole = `${database}_runtime`;
     const admin = new pg.Client({ connectionString });
     const storage = createLocalStorage({ origin: "http://127.0.0.1:5174", onUploaded: async () => {} });
@@ -33,14 +33,14 @@ test.skipIf(!connectionString)(
         root: project.root,
         migrations: project.config.database.migrations,
         namespace: "app",
-        metadataNamespace: "loom_meta",
+        metadataNamespace: "kello_meta",
         runtimeRole,
       };
       assert.equal((await applyMigrations(migration)).applied.length, 1);
       assert.deepEqual((await applyMigrations(migration)).applied, []);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const runtime = await createRpcRuntime({
         application: project.application,
         schema: project.schema,
@@ -48,7 +48,7 @@ test.skipIf(!connectionString)(
         connectionString: address.href,
         version: project.version,
         deployment: "upload-example",
-        metadataNamespace: "loom_meta",
+        metadataNamespace: "kello_meta",
         procedures: project.procedures.map((entry) => ({ ...entry, procedure: entry.definition })),
         auth: defineRpcAuth({ authorize: project.auth.authorize, allowAnonymous: project.auth.allowAnonymous }),
         storage: project.storage,

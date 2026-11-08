@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { generateProject, initializeProject } from "kello-cli";
 
 test("live functions generate a public React entry and preserve contract inference", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-live-functions-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-live-functions-"));
   try {
     await initializeProject(root, "live-functions");
     await symlink(

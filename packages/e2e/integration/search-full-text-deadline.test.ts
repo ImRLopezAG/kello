@@ -6,8 +6,8 @@ import { runFunctionTransaction } from "../../../apps/kello/src/core/server/tran
 import { withSearchDeadline } from "../../../apps/kello/src/core/search/deadline";
 
 test("full-text deadlines retain owned read snapshots and restore only on success", async () => {
-  const connectionString = process.env.LOOM_TEST_DATABASE_URL;
-  if (!connectionString) throw new Error("LOOM_TEST_DATABASE_URL is required for full-text acceptance");
+  const connectionString = process.env.KELLO_TEST_DATABASE_URL;
+  if (!connectionString) throw new Error("KELLO_TEST_DATABASE_URL is required for full-text acceptance");
   const schema = defineSchema(() => ({}));
   const relations = defineRelations(schema.tables);
   const connection = await connectDatabase({ schema, relations, connectionString, maxConnections: 1 });

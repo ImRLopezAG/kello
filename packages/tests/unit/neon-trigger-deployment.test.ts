@@ -54,7 +54,7 @@ function fixture() {
       {
         id: "fn-worker",
         name: "worker",
-        slug: "loomworker",
+        slug: "kelloworker",
         invocationUrl: "https://example.test",
         activeDeploymentId: state.workerDeployment,
         currentDeployment: { id: state.workerDeployment, status: "completed" },
@@ -118,7 +118,7 @@ function fixture() {
   const options = {
     config,
     environment: "preview" as const,
-    workerSlug: "loomworker",
+    workerSlug: "kelloworker",
     schedules: [
       { name: "wake", schedule: "* * * * *", binding: { kind: "wake" as const, name: "wake" } },
       { name: "daily", schedule: "0 0 * * *", binding: { kind: "cron" as const, name: "daily", cron: "tasks:daily" } },
@@ -239,7 +239,7 @@ test("trigger disabling includes inherited schedules and storage events only for
     type: "storage_object_created",
     triggerId: "storage",
     name: "uploads",
-    functionSlug: "loomworker",
+    functionSlug: "kelloworker",
     functionPath: "/api/kello/triggers",
     bucketName: "uploads",
     enabled: true,
@@ -257,17 +257,17 @@ test("trigger disabling includes inherited schedules and storage events only for
     inherited: false,
   });
   const result = await disableNeonTriggers(
-    { config: f.options.config, environment: "preview", workerSlugs: ["loomworker"] },
+    { config: f.options.config, environment: "preview", workerSlugs: ["kelloworker"] },
     f.provider,
   );
   expect(result.triggers.map((trigger) => trigger.triggerId)).toEqual(["trigger-wake", "trigger-daily", "storage"]);
   expect(
-    f.triggers.filter((trigger) => trigger.functionSlug === "loomworker").every((trigger) => !trigger.enabled),
+    f.triggers.filter((trigger) => trigger.functionSlug === "kelloworker").every((trigger) => !trigger.enabled),
   ).toBe(true);
   expect(f.triggers.find((trigger) => trigger.triggerId === "other")?.enabled).toBe(true);
   const count = f.calls.length;
   await disableNeonTriggers(
-    { config: f.options.config, environment: "preview", workerSlugs: ["loomworker"] },
+    { config: f.options.config, environment: "preview", workerSlugs: ["kelloworker"] },
     f.provider,
   );
   expect(f.calls).toHaveLength(count);
@@ -331,7 +331,7 @@ test("trigger operations reject target drift and a provider that leaves work ena
   f.state.ignoreDisable = true;
   await expect(prepareNeonScheduleTriggers(f.options, f.provider)).rejects.toThrow();
   await expect(
-    disableNeonTriggers({ config: f.options.config, environment: "preview", workerSlugs: ["loomworker"] }, f.provider),
+    disableNeonTriggers({ config: f.options.config, environment: "preview", workerSlugs: ["kelloworker"] }, f.provider),
   ).rejects.toThrow();
 });
 
@@ -340,7 +340,7 @@ test("storage preparation creates private buckets and disabled branch-scoped tri
   const common = { config: f.options.config, environment: "preview" as const };
   const buckets = await prepareNeonStorageBuckets({ ...common, buckets: ["uploads"] }, f.provider);
   expect(buckets.buckets).toEqual([{ name: "uploads", accessLevel: "private" }]);
-  const options = { ...common, workerSlug: "loomworker", buckets: [{ name: "created", bucket: "uploads" }] };
+  const options = { ...common, workerSlug: "kelloworker", buckets: [{ name: "created", bucket: "uploads" }] };
   const prepared = await prepareNeonStorageTriggers(options, f.provider);
   expect(prepared.bindings).toEqual({ "trigger-created": { kind: "storage", name: "created", bucket: "uploads" } });
   expect(f.triggers[0]).toMatchObject({
@@ -364,7 +364,7 @@ test("storage preparation creates private buckets and disabled branch-scoped tri
 test("storage preparation refuses public buckets, missing buckets and unrelated trigger ownership", async () => {
   const f = fixture();
   const common = { config: f.options.config, environment: "preview" as const };
-  const options = { ...common, workerSlug: "loomworker", buckets: [{ name: "created", bucket: "uploads" }] };
+  const options = { ...common, workerSlug: "kelloworker", buckets: [{ name: "created", bucket: "uploads" }] };
   await expect(prepareNeonStorageTriggers(options, f.provider)).rejects.toThrow();
   f.buckets.push({ name: "uploads", accessLevel: "public_read" });
   await expect(prepareNeonStorageBuckets({ ...common, buckets: ["uploads"] }, f.provider)).rejects.toThrow();
@@ -383,7 +383,7 @@ test("storage preparation refuses public buckets, missing buckets and unrelated 
   });
   await expect(prepareNeonStorageTriggers(options, f.provider)).rejects.toThrow();
   expect(f.calls).toHaveLength(0);
-  f.triggers[0]!.functionSlug = "loomworker";
+  f.triggers[0]!.functionSlug = "kelloworker";
   await expect(prepareNeonStorageTriggers(options, f.provider)).rejects.toThrow();
   expect(f.calls).toHaveLength(0);
 });
@@ -394,7 +394,7 @@ test("storage trigger preparation redacts failures, resumes a partial result and
   const options = {
     config: f.options.config,
     environment: "preview" as const,
-    workerSlug: "loomworker",
+    workerSlug: "kelloworker",
     buckets: [
       { name: "created", bucket: "uploads" },
       { name: "images-created", bucket: "images" },
@@ -443,7 +443,7 @@ test("storage preparation rejects duplicate declarations before writes and detec
   const common = { config: f.options.config, environment: "preview" as const };
   await expect(prepareNeonStorageBuckets({ ...common, buckets: ["uploads", "uploads"] }, f.provider)).rejects.toThrow();
   const entry = { name: "created", bucket: "uploads" };
-  const options = { ...common, workerSlug: "loomworker", buckets: [entry] };
+  const options = { ...common, workerSlug: "kelloworker", buckets: [entry] };
   await expect(prepareNeonStorageTriggers({ ...options, buckets: [entry, entry] }, f.provider)).rejects.toThrow();
   await expect(
     prepareNeonStorageTriggers({ ...options, buckets: [entry, { ...entry, name: "second" }] }, f.provider),
@@ -465,14 +465,14 @@ test("ingress handoff requires and preserves a working old job wake", async () =
   const options = {
     config: f.options.config,
     environment: "preview" as const,
-    workerSlugs: ["loomworker"],
+    workerSlugs: ["kelloworker"],
     preserveJobWake: true,
   };
   await expect(disableNeonTriggers(options, f.provider)).rejects.toThrow("Could not disable");
   expect(f.triggers.every((trigger) => trigger.enabled)).toBe(true);
   const wake = f.triggers.find((trigger) => trigger.name === "wake");
   if (!wake || wake.type !== "schedule") throw new Error("Missing fixture wake");
-  wake.name = "loom:loomworker:jobs";
+  wake.name = "kello:kelloworker:jobs";
   await disableNeonTriggers(options, f.provider);
   expect(wake.enabled).toBe(true);
   expect(f.triggers.find((trigger) => trigger.name === "daily")?.enabled).toBe(false);

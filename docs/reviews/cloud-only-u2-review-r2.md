@@ -6,7 +6,7 @@ One gpt-6-astra LOW reviewer context, applying correctness, implementation, API 
 
 ## Scope and intent
 
-Canonical workspace: `/Users/angel/.t3/worktrees/loom/release-kello-001-002-alpha`; branch `refactor/neon-cloud-tooling`; HEAD `586e87791735da2282d2dc120f8e084a13764dca`. The stale integration checkout was not reviewed.
+Canonical workspace: `/Users/angel/.t3/worktrees/kello/release-kello-001-002-alpha`; branch `refactor/neon-cloud-tooling`; HEAD `586e87791735da2282d2dc120f8e084a13764dca`. The stale integration checkout was not reviewed.
 
 Read root `/Users/angel/dev/loom/AGENTS.md`, the governing `docs/plans/2026-10-16-1919-refactor-neon-cloud-only-plan.md`, R1 finding/response and limits in `docs/reviews/cloud-only-u2-review-r1.md`, and current response in `docs/tasks/cloud-only-current.md`. Intent is R4/KTD2 runtime row validation fidelity and natural generated HTTP/React contracts, with R5 authority/revocation/replay/expiry and R6 ordinary HTTP streaming preserved. This correction does not alter those auth/HTTP implementations.
 

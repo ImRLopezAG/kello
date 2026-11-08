@@ -303,7 +303,7 @@ export async function planProjectRelease(root: string, file: string, provider?: 
           .filter(
             (entry) =>
               retainedWorkers.includes(entry.functionSlug) &&
-              entry.name !== `loom:${entry.functionSlug}:jobs` &&
+              entry.name !== `kello:${entry.functionSlug}:jobs` &&
               entry.enabled,
           )
           .map((entry) => entry.triggerId),

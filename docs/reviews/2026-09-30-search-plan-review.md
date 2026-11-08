@@ -11,7 +11,7 @@ Scope: update the existing plan with schema/relations-derived validators, the pr
 - [U1 characterization](../validation/2026-09-29-search-u1-typing-proof.md) establishes the native fixed-output boundary, rather than accepted projection typing.
 - [Opus typing review](2026-09-29-search-opus-typing-review.md) contains the corrected declaration sketch and the observed cross-projection placeholder failure. Its model receipt belongs to that earlier review; this revision did not launch another model.
 - Current root/component code generation uses `createProjectContext(schema)` and native client/options creation. Runtime context also constructs validators separately. These call sites substantiate the graph-aware context work assigned to the revised units.
-- The application RPC definition resides at `apps/loom/src/core/server/application/definition.ts`.
+- The application RPC definition resides at `apps/kello/src/core/server/application/definition.ts`.
 
 ## Confidence check
 

@@ -5,8 +5,8 @@ import pg from "pg";
 import { sql } from "drizzle-orm";
 import { connectDatabase, defineSchema, runFunctionTransaction } from "kello/server";
 
-const ownerUrl = process.env.LOOM_TEST_DATABASE_URL;
-const pooledUrl = process.env.LOOM_TEST_POOLED_DATABASE_URL;
+const ownerUrl = process.env.KELLO_TEST_DATABASE_URL;
+const pooledUrl = process.env.KELLO_TEST_POOLED_DATABASE_URL;
 
 async function waitFor(predicate: () => Promise<boolean>, message: string) {
   const expires = performance.now() + 3000;
@@ -38,7 +38,7 @@ for (const [transport, runtimeUrl] of [
     `abort stops PostgreSQL statements and releases retained locks through ${transport}`,
     async () => {
       if (!ownerUrl || !runtimeUrl) throw new Error("Missing database URL");
-      const role = `loom_cancel_${crypto.randomUUID().replaceAll("-", "")}`;
+      const role = `kello_cancel_${crypto.randomUUID().replaceAll("-", "")}`;
       const password = crypto.randomUUID();
       const owner = new pg.Client({ connectionString: ownerUrl });
       const schema = defineSchema(() => ({}));

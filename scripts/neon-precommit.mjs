@@ -24,19 +24,19 @@ function stagedTree() {
 
 try {
   const tree = stagedTree();
-  for (const name of ["KELLO_CLOUD_PROJECT_ID", "LOOM_CLOUD_BRANCH_ID"]) {
+  for (const name of ["KELLO_CLOUD_PROJECT_ID", "KELLO_CLOUD_BRANCH_ID"]) {
     if (!process.env[name]?.trim()) throw new Error(`${name} is required; commit blocked.`);
   }
   if (process.env.KELLO_CLOUD_PROJECT_ID !== "late-moon-69483649") {
     throw new Error("Use the admitted disposable Neon acceptance project.");
   }
-  // Existing Neon tooling accepts an API key or the authenticated Neon CLI profile.
+  // Kello tooling uses NEON_API_KEY when set, otherwise the key stored by `kello login`.
   // Existing fixtures validate disposable targets and own their resource cleanup.
   run("bun", ["run", "--cwd", "apps/kello", "build"]);
   run("bun", ["run", "--cwd", "apps/kello-cli", "build"]);
   run("bun", ["./cloud/run.ts"], {
     cwd: "packages/e2e",
-    env: { ...process.env, LOOM_CLOUD_SUITE: "tasks", LOOM_CLOUD_SETUP_AUTH: "1" },
+    env: { ...process.env, KELLO_CLOUD_SUITE: "tasks", KELLO_CLOUD_SETUP_AUTH: "1" },
   });
   run("bun", ["fixtures/neon-realtime-smoke.ts"], { cwd: "packages/e2e" });
   run("bun", ["fixtures/live-functions-neon.ts", "--verify"], { cwd: "packages/e2e" });
@@ -45,7 +45,7 @@ try {
   }
   run("bun", ["test", "cloud/dev-component-watch.test.ts"], {
     cwd: "packages/e2e",
-    env: { ...process.env, LOOM_CLOUD_DEV_COMPONENT_WATCH: "1" },
+    env: { ...process.env, KELLO_CLOUD_DEV_COMPONENT_WATCH: "1" },
   });
   if (stagedTree() !== tree) throw new Error("The index changed during Neon verification; commit blocked.");
 } catch (error) {

@@ -83,10 +83,10 @@ export async function readProjectRelease(root: string, file: string, signal?: Ab
   const privileged = ["NEON_API_KEY", project.config.database.migrationUrlEnv];
   if (
     privileged.includes(activationTokenEnv) ||
-    Object.values(sources).some((name) => [...privileged, activationTokenEnv, "LOOM_ACTIVATION_TOKEN"].includes(name))
+    Object.values(sources).some((name) => [...privileged, activationTokenEnv, "KELLO_ACTIVATION_TOKEN"].includes(name))
   )
     throw new Error("Reserved release environment source");
-  const reserved = [...neonInjectedVariables, ...privileged, "LOOM_ACTIVATION_TOKEN"];
+  const reserved = [...neonInjectedVariables, ...privileged, "KELLO_ACTIVATION_TOKEN"];
   if (Object.keys(sources).some((name) => reserved.includes(name)))
     throw new Error("Reserved release environment destination");
   if (!Object.hasOwn(sources, project.config.database.runtimeUrlEnv))
@@ -132,8 +132,8 @@ export async function deployProjectRelease(
   const environment = { ...process.env };
   const runtimeName = project.config.database.runtimeUrlEnv;
   const discoverRuntime =
-    runtimeName === "LOOM_DATABASE_URL" && sources[runtimeName] === runtimeName && !environment[runtimeName];
-  const discoverToken = activationTokenEnv === "LOOM_ACTIVATION_TOKEN" && !environment[activationTokenEnv];
+    runtimeName === "KELLO_DATABASE_URL" && sources[runtimeName] === runtimeName && !environment[runtimeName];
+  const discoverToken = activationTokenEnv === "KELLO_ACTIVATION_TOKEN" && !environment[activationTokenEnv];
   if (file === "kello.config.ts" && (discoverRuntime || discoverToken)) {
     const managed = await resolveManagedDeploymentCredentials(
       project.config,

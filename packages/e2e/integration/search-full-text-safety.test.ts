@@ -90,14 +90,14 @@ async function nativeFixture(
     options: { root: string; migrations: string; namespace: string; metadataNamespace: string; runtimeRole: string };
   }) => Promise<void>,
 ) {
-  const connectionString = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
+  const connectionString = fullTextLocalTarget(process.env.KELLO_TEST_DATABASE_URL);
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const root = await mkdtemp(join(tmpdir(), "kello-006-u2-native-"));
   const options = {
     root,
     migrations: "migrations",
     namespace: `fts_u2_${suffix}`,
-    metadataNamespace: `loom_u2_${suffix}`,
+    metadataNamespace: `kello_u2_${suffix}`,
     runtimeRole: `fts_u2_role_${suffix}`,
   };
   const admin = new pg.Client({ connectionString });
@@ -261,7 +261,7 @@ test("seven pre-U1 format-2 artifacts retain bytes and historical safety under c
     ] as const) {
       const schema = fixture(options.namespace, { gin, config, weight, bodyOnly, historicalSpelling, method });
       const native = fromDrizzleSnapshot(
-        await generateDrizzleJson({ ...schema.tables, __loomNamespace: pgSchema(options.namespace) }, before.id, [
+        await generateDrizzleJson({ ...schema.tables, __kelloNamespace: pgSchema(options.namespace) }, before.id, [
           options.namespace,
         ]),
       );

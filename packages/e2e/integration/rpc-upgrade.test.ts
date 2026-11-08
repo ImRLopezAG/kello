@@ -16,14 +16,14 @@ import {
 } from "kello/server";
 import type { JsonValue } from "kello/server";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "durable upgrades preserve envelopes, validate mappings and fence old claims and incompatible rollback",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_upgrade_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_upgrade_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const meta = `"${metadataNamespace}"`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
@@ -62,13 +62,13 @@ test.skipIf(!connectionString)(
       expect((await admin.query(`SELECT call,attempts FROM ${meta}.jobs WHERE id=$1`, [id])).rows).toEqual([
         { call: original, attempts: 0 },
       ]);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       await admin.query(`CREATE TABLE ${meta}.counter(value integer NOT NULL)`);
       await admin.query(`INSERT INTO ${meta}.counter VALUES(0)`);
       await admin.query(`GRANT SELECT,UPDATE ON ${meta}.counter TO "${runtimeRole}"`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const runtimeConnection = new pg.Client({ connectionString: address.href });
       await runtimeConnection.connect();
       try {
@@ -85,7 +85,7 @@ test.skipIf(!connectionString)(
             return result.rows[0]!.value;
           });
         const migration = defineJobMigration({
-          from: { protocol: "loom-legacy-1", version: oldVersion, name: "jobs:increment", kind: "mutation" },
+          from: { protocol: "kello-legacy-1", version: oldVersion, name: "jobs:increment", kind: "mutation" },
           input: v.strictObject({ amount: v.number() }),
           to: increment,
           transform: (input) => ({ delta: input.amount }),
@@ -95,7 +95,7 @@ test.skipIf(!connectionString)(
           metadataNamespace,
           deployment: "test",
           version,
-          protocol: "loom-orpc-2" as const,
+          protocol: "kello-orpc-2" as const,
           procedures,
           migrations: [migration],
         };
@@ -184,7 +184,7 @@ test.skipIf(!connectionString)(
         await assert.rejects(
           withProcedureUpgrade(
             admin,
-            { ...upgrade, version: "e".repeat(64), protocol: "loom-legacy-1", migrations: [] },
+            { ...upgrade, version: "e".repeat(64), protocol: "kello-legacy-1", migrations: [] },
             async () => {},
           ),
           (error) => error instanceof ProcedureUpgradeError && error.inventory[0]?.reason === "rollback-incompatible",

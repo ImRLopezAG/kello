@@ -51,7 +51,7 @@ test("committed migration artifacts reject altered SQL and broken lineage", asyn
   const { tmpdir } = await import("node:os");
   const path = await import("node:path");
   const { emptySnapshot, writeMigration, readMigrations } = await import("kello-cli");
-  const root = await mkdtemp(path.join(tmpdir(), "loom-history-"));
+  const root = await mkdtemp(path.join(tmpdir(), "kello-history-"));
   try {
     const schema = defineSchema(
       (f) => ({

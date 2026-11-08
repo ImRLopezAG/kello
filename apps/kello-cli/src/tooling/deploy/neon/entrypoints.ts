@@ -29,7 +29,7 @@ export async function prepareNeonEntrypoints(
   const runtimeUrlEnv = project.config.database.runtimeUrlEnv;
   const storage = project.storageBuckets.length > 0;
   if (
-    [...neonInjectedVariables, "LOOM_ACTIVATION_TOKEN", "LOOM_SEARCH_CURSOR_KEY", "LOOM_REALTIME_SECRET"].some(
+    [...neonInjectedVariables, "KELLO_ACTIVATION_TOKEN", "KELLO_SEARCH_CURSOR_KEY", "KELLO_REALTIME_SECRET"].some(
       (name) => name === runtimeUrlEnv,
     )
   )

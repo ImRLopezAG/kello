@@ -5,7 +5,7 @@ import type { ActivationDatabase } from "../../server/runtime-contracts";
 
 const identifier = v.pipe(v.string(), v.minLength(1), v.maxLength(256));
 const activation = v.strictObject({
-  metadataNamespace: v.pipe(v.string(), v.regex(/^loom_[a-z0-9_]{1,58}$/)),
+  metadataNamespace: v.pipe(v.string(), v.regex(/^kello_[a-z0-9_]{1,57}$/)),
   deployment: identifier,
   version: v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/)),
   projectId: identifier,
@@ -56,7 +56,7 @@ function environmentCredentials() {
   return {
     branchName: process.env.NEON_BRANCH,
     connectionString: process.env.DATABASE_URL,
-    token: process.env.LOOM_ACTIVATION_TOKEN,
+    token: process.env.KELLO_ACTIVATION_TOKEN,
   };
 }
 

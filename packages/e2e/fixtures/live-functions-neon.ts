@@ -18,14 +18,15 @@ import { createRpcHttpApp } from "kello/neon";
 import { initializeProject, generateProject, loadProject, createKelloNeonApi } from "kello-cli";
 import { createKelloNeonClient } from "../../../apps/kello-cli/src/tooling/neon/api";
 import * as v from "valibot";
+import WebSocket from "ws";
 
 const projectId = "late-moon-69483649";
 const branchId = "br-dark-block-awbbt60w";
 const endpointId = "ep-solitary-block-awijudvn";
 const run = crypto.randomUUID();
 const namespace = `live_${run.replaceAll("-", "")}`;
-const metadataNamespace = `loom_${namespace}`;
-const root = await mkdtemp(join(tmpdir(), "loom-live-neon-"));
+const metadataNamespace = `kello_${namespace}`;
+const root = await mkdtemp(join(tmpdir(), "kello-live-neon-"));
 const cleanupErrors: string[] = [];
 const rpcStatuses: number[] = [];
 const websocketStatuses: number[] = [];
@@ -47,11 +48,36 @@ const report = {
   originsRestored: false,
   cleanupErrors,
 };
-const reportFile = join(tmpdir(), `loom-live-functions-${run}.json`);
+const reportFile = join(tmpdir(), `kello-live-functions-${run}.json`);
 const verifyBrowser = process.argv.includes("--verify");
 let browser: Browser | undefined;
 let connection: Awaited<ReturnType<typeof connectDatabase>> | undefined;
 let server: ReturnType<typeof Bun.serve> | undefined;
+/** Resolves once the Realtime proxy upgrades a handshake carrying `origin`; 403 means not yet admitted. */
+async function waitForProxyOrigin(invocationUrl: string, origin: string) {
+  const url = new URL(invocationUrl);
+  url.protocol = "wss:";
+  const deadline = Date.now() + 120_000;
+  for (;;) {
+    const status = await new Promise<number>((resolve) => {
+      const socket = new WebSocket(url, "neon.realtime.v2", { origin, handshakeTimeout: 10_000 });
+      socket.once("upgrade", () => {
+        resolve(101);
+        socket.close();
+      });
+      socket.once("unexpected-response", (_request, response) => {
+        resolve(response.statusCode ?? 0);
+        socket.terminate();
+      });
+      socket.once("error", () => resolve(0));
+    });
+    if (status === 101) return;
+    if (status !== 403 && status !== 0) throw new Error("Realtime proxy rejected the admitted origin");
+    if (Date.now() > deadline) throw new Error("Realtime proxy did not admit the origin");
+    await Bun.sleep(2_000);
+  }
+}
+
 let allocated = false;
 let restoreOrigins: (() => Promise<void>) | undefined;
 let stage = "admission";
@@ -72,7 +98,7 @@ try {
   const branch = branches.find((entry) => entry.id === branchId);
   const database = databases.find((entry) => entry.name === "neondb");
   assert(project.pgVersion === 18 && branch && !branch.isDefault && !branch.protected);
-  assert.equal(branch.name, "loom-acceptance-kello-002-optimistic-20261007");
+  assert.equal(branch.name, "kello-acceptance-kello-002-optimistic-20261007");
   assert(
     endpoint.branch_id === branchId && realtime.enabled && !realtime.pending && realtime.invocation_url && database,
   );
@@ -177,7 +203,7 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
   stage = "application";
   const prepared = await prepareApplicationEnvironment(
     loaded.application,
-    { SECRET: secret.secret, LOOM_REALTIME_SECRET: secret.secret },
+    { SECRET: secret.secret, KELLO_REALTIME_SECRET: secret.secret },
     { database: database.name, deployment: run },
   );
   assert(prepared.liveQueries);
@@ -287,6 +313,9 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
     { projectId, branchId, allowed_origins: admittedOrigins },
     { waitForReadiness: true, wait: { timeoutMs: 60_000 } },
   );
+  // The control plane reports `pending: false` before the proxy enforces the new allowlist
+  // (observed ~55s), so wait until a handshake from this exact origin is upgraded.
+  await waitForProxyOrigin(realtime.invocation_url, server.url.origin);
   report.status = "ready";
   await writeFile(reportFile, JSON.stringify(report, null, 2), { mode: 0o600 });
   console.log(JSON.stringify({ status: "READY", port: server.port, run, reportFile }));
@@ -380,6 +409,8 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
           "Expected a project-bound procedure",
           "Invalid idempotency configuration",
           "Browser bundle failed",
+          "Realtime proxy rejected the admitted origin",
+          "Realtime proxy did not admit the origin",
         ].includes(cause.message)
           ? cause.message
           : "UNCLASSIFIED",

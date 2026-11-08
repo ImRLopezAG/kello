@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { generateProject, initializeProject, loadProject } from "kello-cli";
 
 test("generation discovers only mounted components and emits isolated current facades", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-components-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-components-"));
   try {
     await initializeProject(root, "components");
     await mkdir(join(root, "node_modules"));
@@ -62,7 +62,7 @@ export default app;`,
 });
 
 test("component RPC bindings use component tables and contracts without ambient application registration", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-component-rpc-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-component-rpc-"));
   try {
     await initializeProject(root, "componentrpc");
     await mkdir(join(root, "node_modules"));

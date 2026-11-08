@@ -25,7 +25,7 @@ export async function verifyCloudSchemaExpansion(
   const project = await loadProject(root);
   const { namespace, metadataNamespace } = project.config.database;
   assert.match(namespace, /^[a-z_][a-z0-9_]*$/);
-  assert.match(metadataNamespace, /^loom_[a-z0-9_]+$/);
+  assert.match(metadataNamespace, /^kello_[a-z0-9_]+$/);
   const tasksTable = `"${namespace}".tasks`;
   const historyTable = `"${metadataNamespace}".migration_history`;
   const settings = project.config.deployment;
@@ -55,7 +55,7 @@ export async function verifyCloudSchemaExpansion(
   const history = (await admin.query(`SELECT hash FROM ${historyTable} ORDER BY ordinal`)).rows;
   const tasks = (await admin.query(`SELECT _id,title,done FROM ${tasksTable} ORDER BY _id`)).rows;
   assert(tasks.length > 0);
-  const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
+  const connectionString = process.env.KELLO_MIGRATION_DATABASE_URL;
   assert(connectionString);
   await assert.rejects(
     applyMigrations({

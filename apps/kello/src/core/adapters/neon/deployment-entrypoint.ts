@@ -31,7 +31,7 @@ export function createNeonDeploymentEntrypoint(options: NeonDeploymentEntrypoint
   const unavailable = () =>
     new Response("Service unavailable", { status: 503, headers: { "cache-control": "no-store" } });
   function authenticated(request: Request): boolean {
-    const token = process.env.LOOM_ACTIVATION_TOKEN;
+    const token = process.env.KELLO_ACTIVATION_TOKEN;
     const authorization = request.headers.get("authorization");
     const supplied = authorization?.slice(7);
     return (
@@ -47,7 +47,7 @@ export function createNeonDeploymentEntrypoint(options: NeonDeploymentEntrypoint
   return Object.freeze({
     async fetch(this: void, request: Request): Promise<Response> {
       if (stopping) return unavailable();
-      if (new URL(request.url).pathname !== "/_loom/deployment/health") return normal.fetch(request);
+      if (new URL(request.url).pathname !== "/_kello/deployment/health") return normal.fetch(request);
       if (!authenticated(request))
         return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
       if (request.signal.aborted) return unavailable();

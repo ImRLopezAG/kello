@@ -19,7 +19,7 @@ Authenticate locally with `npm login --registry=https://registry.npmjs.org`, the
 
 The registry returned 404 for `kello` during setup; this is not a reservation or a guarantee of publish permission. npm requires the package to exist before configuring its trusted publisher. Establish ownership with the reviewed initial alpha artifact under the intended npm profile, after successful CI for the exact main commit. This first publication uses local authenticated npm access; subsequent releases use OIDC. Do not add that local credential to GitHub secrets.
 
-In the package's npm settings, configure a GitHub Actions trusted publisher with owner `ImRLopezAG`, repository `kello`, workflow `release.yml`, and environment `npm`. Allow direct `npm publish` for this workflow. Alternatively, after authentication, use the current npm CLI's `npm trust` command with those exact bindings. Do not create a trust binding to the former `loom` repository name.
+In the package's npm settings, configure a GitHub Actions trusted publisher with owner `ImRLopezAG`, repository `kello`, workflow `release.yml`, and environment `npm`. Allow direct `npm publish` for this workflow. Alternatively, after authentication, use the current npm CLI's `npm trust` command with those exact bindings. Do not create a trust binding to the former `kello` repository name.
 
 Complete the first successful trusted publication within npm's current configuration expiry period. After confirming trusted publication works, require 2FA and disallow token-based publishing for this package. This does not disable OIDC publishing.
 

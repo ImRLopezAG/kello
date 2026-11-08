@@ -156,9 +156,9 @@ export async function applyProjectMigrations(
       throw new MigrationCommandError("UNGENERATED_SCHEMA");
   }
   return withMigrationConnection(options.connectionString, async (client) => {
-    await acquireMigrationLock(client, "loom:component-ownership");
+    await acquireMigrationLock(client, "kello:component-ownership");
     await assertExternalAuthTables(client, project);
-    for (const scope of scopes) await acquireMigrationLock(client, `loom:migrations:${scope.namespace}`);
+    for (const scope of scopes) await acquireMigrationLock(client, `kello:migrations:${scope.namespace}`);
     await bootstrapSession(client, options.metadataNamespace, runtimeRole);
     for (const scope of scopes) {
       const status = await migrationStatusOnConnection(client, {

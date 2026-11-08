@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { generateProject, initializeProject, loadProject } from "kello-cli";
 
 test("generation aggregates scoped cron and storage resources and rejects root collisions", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-component-resources-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-component-resources-"));
   try {
     await initializeProject(root, "resources");
     await mkdir(join(root, "node_modules"));

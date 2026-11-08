@@ -33,8 +33,5 @@ export interface InvocationContext {
 /** Local to the current transaction. Pool reuse must never inherit a previous request's identity. */
 export async function bindDatabaseIdentity(db: NodePgDatabase, identity: InvocationIdentity | null): Promise<void> {
   const value = JSON.stringify(identity);
-  // Existing application RLS policies keep reading the original transaction-local key.
-  await db.execute(
-    sql`SELECT set_config('kello.identity', ${value}, true), set_config('loom.identity', ${value}, true)`,
-  );
+  await db.execute(sql`SELECT set_config('kello.identity', ${value}, true)`);
 }

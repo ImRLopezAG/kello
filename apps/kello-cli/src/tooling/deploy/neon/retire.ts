@@ -65,7 +65,7 @@ export async function retireNeonReleaseDatabase(
           throw new Error("Retirement grant is missing, inactive or changed");
         return observed;
       }
-      await acquireMigrationLock(client, `loom:migrations:${namespace}`, false, signal);
+      await acquireMigrationLock(client, `kello:migrations:${namespace}`, false, signal);
       if ((await readGrantState()) === "active") {
         const health = await inspectNeonFunctionHealth(
           root,

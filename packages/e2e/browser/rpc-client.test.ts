@@ -32,8 +32,8 @@ test("packed native React callables share ordinary HTTP streams, refetch and dis
       const path = new URL(request.url).pathname;
       if (path.startsWith("/api/kello/rpc/")) {
         expect(request.headers.get("authorization")).toBe("Bearer test-token");
-        expect(request.headers.get("x-loom-version")).toBe("a".repeat(64));
-        expect(request.headers.get("x-loom-protocol")).toBe("loom-orpc-2");
+        expect(request.headers.get("x-kello-version")).toBe("a".repeat(64));
+        expect(request.headers.get("x-kello-protocol")).toBe("kello-orpc-2");
         return (
           (await handler.handle(request, { prefix: "/api/kello/rpc" })).response ?? new Response(null, { status: 404 })
         );

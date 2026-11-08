@@ -8,7 +8,7 @@ See [the runnable example guide](../../packages/examples/README.md) for setup an
 
 | Surface                 | Executable example                                              | Verification                                                                             |
 | ----------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Zod input/output        | `integrations/loom/contracts/examples.ts`                       | Authenticated RPC validates input, applies trimming and preserves inferred output        |
+| Zod input/output        | `integrations/kello/contracts/examples.ts`                      | Authenticated RPC validates input, applies trimming and preserves inferred output        |
 | Mixed Standard Schema   | Zod input, Valibot output                                       | Runtime call and negative TypeScript output assertion                                    |
 | Effect handler/services | Native `.effect`, injected Greeting, Database and Tables        | Typed declared error, real PostgreSQL reads and service resolution                       |
 | Effect Schema           | `Schema.toStandardSchemaV1`                                     | Valid/invalid RPC input and negative generated-client type assertion                     |
@@ -20,13 +20,13 @@ Current dependency pins are maintained in the example manifests and root lockfil
 
 ## Independent example backends
 
-The Next and Start examples now each own their contracts, schema, handlers, migrations, app/auth configuration and generated clients. Neither consumes `@loom/example-integrations`. Next demonstrates Zod plus native Effect handlers/services; Start demonstrates Valibot plus ordinary async handlers. The `integrations` package remains a separate schema comparison backend.
+The Next and Start examples now each own their contracts, schema, handlers, migrations, app/auth configuration and generated clients. Neither consumes `@kello/example-integrations`. Next demonstrates Zod plus native Effect handlers/services; Start demonstrates Valibot plus ordinary async handlers. The `integrations` package remains a separate schema comparison backend.
 
-Each app also owns its deployment identity: `next_app` / `loom_next` / `loom_next_runtime` / `next-preview`, and `start_app` / `loom_start` / `loom_start_runtime` / `start-preview`. Distinct development deployment names are configured too. Initial migrations were generated separately by the Loom CLI. These examples have not yet been deployed by this change.
+Each app also owns its deployment identity: `next_app` / `kello_next` / `kello_next_runtime` / `next-preview`, and `start_app` / `kello_start` / `kello_start_runtime` / `start-preview`. Distinct development deployment names are configured too. Initial migrations were generated separately by the Kello CLI. These examples have not yet been deployed by this change.
 
 Correction verification: production builds and negative client typechecks pass for both apps; workspace typechecks and Oxlint pass. Five focused PostgreSQL/browser scenarios cover the schema comparison backend, each app's own authenticated SSR/live flow, independent writes, and all three migrations applied together to one database. The shared-database test verifies that each runtime role can read only its own notes namespace. The existing 204-unit-test suite remains green via Turbo cache.
 
-Code/security review ran inline under the workspace instructions, with an independent Claude adversarial pass (requested/reported `claude-opus-5-5`, requested high effort, actual effort unverified). It identified shared deployment/schema defaults despite independent source files; distinct namespaces, metadata, roles and deployment names now remove that collision. The same-database regression verifies the database boundary. Start's startup instructions also specify port 3001, matching its configured origin. Receipt: `loom-independent-examples-20260925`; no actionable findings remain.
+Code/security review ran inline under the workspace instructions, with an independent Claude adversarial pass (requested/reported `claude-opus-5-5`, requested high effort, actual effort unverified). It identified shared deployment/schema defaults despite independent source files; distinct namespaces, metadata, roles and deployment names now remove that collision. The same-database regression verifies the database boundary. Start's startup instructions also specify port 3001, matching its configured origin. Receipt: `kello-independent-examples-20260925`; no actionable findings remain.
 
 ## Initial integration validation
 
@@ -44,7 +44,7 @@ The browser tests verify oversized token refusal, origin checks, per-page token 
 
 `ce-simplify-code` and `ce-code-review` ran with local passes sequentially in the main context, as required by the workspace instructions. Simplification narrowed Turbo output declarations; duplicate frontend demonstration code remains intentional so each example can be read independently.
 
-Review receipt: `loom-integrations-20260925`. The independent Claude adversarial pass requested and reported `claude-opus-5-5`; requested effort was high, actual effort was unverified. Three actionable findings were resolved:
+Review receipt: `kello-integrations-20260925`. The independent Claude adversarial pass requested and reported `claude-opus-5-5`; requested effort was high, actual effort was unverified. Three actionable findings were resolved:
 
 1. Bound asynchronous token acquisition by cancellation/deadline.
 2. Prevent stale tabs from adopting a different session; broadcast session changes.
@@ -54,10 +54,10 @@ The review also prompted matching configuration propagation for browser fixtures
 
 ## Acceptance boundary
 
-These new examples were tested against disposable local PostgreSQL 18 databases, genuine Loom runtimes and authenticated native oRPC transports. Their configuration supports the ordinary Neon deployment flow; this run did **not** deploy these examples to Neon, Vercel or another frontend host. Earlier Neon acceptance remains recorded separately in [contract-first execution](contract-first-execution.md).
+These new examples were tested against disposable local PostgreSQL 18 databases, genuine Kello runtimes and authenticated native oRPC transports. Their configuration supports the ordinary Neon deployment flow; this run did **not** deploy these examples to Neon, Vercel or another frontend host. Earlier Neon acceptance remains recorded separately in [contract-first execution](contract-first-execution.md).
 
 The session bridge is a demonstration, not an identity-provider callback/refresh implementation. It makes the bearer token available to same-origin browser code for direct WebSocket authentication. Tokens are limited to 3,800 characters; rotation requires a page reload. Preserve the public origin/protocol behind proxies. Finite SSR payloads are JSON-safe; richer RPC values require corresponding framework hydration serializers. Standard Schema compatibility does not promise that every library-specific transform can be represented by OpenAPI.
 
 ## Post-deploy validation
 
-The deploying maintainer should use a disposable Neon branch with matching build/deploy configuration, then run two independent users through SSR, writes, live updates and sign-out in two tabs. Verify private/no-store page responses, rejected stale sessions, no token in HTML, and drained subscriptions after logout. Stop on cross-user data, unexpected repeated writes, version mismatches or persistent live failures. Keep the previous frontend artifacts available; only restore a backend version permitted by Loom's schema compatibility checks. No production monitoring owner or metrics service is configured by these examples.
+The deploying maintainer should use a disposable Neon branch with matching build/deploy configuration, then run two independent users through SSR, writes, live updates and sign-out in two tabs. Verify private/no-store page responses, rejected stale sessions, no token in HTML, and drained subscriptions after logout. Stop on cross-user data, unexpected repeated writes, version mismatches or persistent live failures. Keep the previous frontend artifacts available; only restore a backend version permitted by Kello's schema compatibility checks. No production monitoring owner or metrics service is configured by these examples.

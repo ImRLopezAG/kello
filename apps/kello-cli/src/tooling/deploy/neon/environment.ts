@@ -15,7 +15,7 @@ export const neonInjectedVariables = [
 ] as const;
 
 const injected = new Set<string>(neonInjectedVariables);
-const managed = new Set(["LOOM_ACTIVATION_TOKEN", "LOOM_SEARCH_CURSOR_KEY", "LOOM_REALTIME_SECRET"]);
+const managed = new Set(["KELLO_ACTIVATION_TOKEN", "KELLO_SEARCH_CURSOR_KEY", "KELLO_REALTIME_SECRET"]);
 
 /** Provider-injected values are validated at runtime, never copied from the deployer's environment. */
 export function applicationEnvironmentSources(declaration: ApplicationEnvironment = {}) {
@@ -48,8 +48,8 @@ export async function resolveReleaseEnvironment(
   for (const [name, source] of Object.entries(sources)) {
     const value = Object.hasOwn(environment, source) ? environment[source] : undefined;
     if (!declared.has(name) && !value) throw new Error("Missing release environment value");
-    // Neon interprets an empty value as deletion. Explicit deletion also removes
-    // an optional value retained by a previous deployment's merged environment.
+    // An empty value marks an unset optional variable. The function policy declares it
+    // `onUndefined: "unset"`, removing a value retained by a previous deployment.
     variables.set(name, value ?? "");
   }
   const values = Object.fromEntries(variables);
@@ -80,12 +80,12 @@ export async function resolveRealtimeEnvironment(
   live: boolean,
   target: { readonly projectId: string; readonly branchId: string },
   provider: RealtimeProvider,
-): Promise<{ readonly LOOM_REALTIME_SECRET?: string }> {
+): Promise<{ readonly KELLO_REALTIME_SECRET?: string }> {
   if (!live) return {};
   const state = await provider.get(target.projectId, target.branchId);
   if (!state.enabled || state.pending || !state.invocationUrl)
     throw new Error("Realtime is not ready on the selected branch. Run `kello realtime enable` first.");
   const secret = await provider.secret(target.projectId, target.branchId);
   if (!secret) throw new Error("Neon Realtime secret is unavailable");
-  return { LOOM_REALTIME_SECRET: secret };
+  return { KELLO_REALTIME_SECRET: secret };
 }

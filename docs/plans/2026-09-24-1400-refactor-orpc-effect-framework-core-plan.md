@@ -1,5 +1,5 @@
 ---
-title: Loom oRPC and Effect Framework Core - Plan
+title: Kello oRPC and Effect Framework Core - Plan
 type: refactor
 date: 2026-09-24
 deepened: 2026-09-24
@@ -8,13 +8,13 @@ product_contract_source: ce-plan-bootstrap
 execution: code
 ---
 
-# Loom oRPC and Effect Framework Core - Plan
+# Kello oRPC and Effect Framework Core - Plan
 
 ## Goal Capsule
 
-- **Objective:** Developers can build and deploy typed, reactive Neon applications through one coherent Loom API, with native ecosystem integrations and verified data safety.
+- **Objective:** Developers can build and deploy typed, reactive Neon applications through one coherent Kello API, with native ecosystem integrations and verified data safety.
 - **Means:** oRPC procedures and contracts, Effect services, PostgreSQL change tracking, and generated TanStack Query options (R1-R6; KTD1-KTD9).
-- **Authority:** User decisions and this Product Contract govern behavior. KTDs govern implementation within those constraints. Units and examples cannot weaken either. This plan replaces the old endpoint/client architecture; the preservation map below carries forward the database and operational guarantees from `docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md`.
+- **Authority:** User decisions and this Product Contract govern behavior. KTDs govern implementation within those constraints. Units and examples cannot weaken either. This plan replaces the old endpoint/client architecture; the preservation map below carries forward the database and operational guarantees from `docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md`.
 - **Execution profile:** Breaking pre-release migration, dependency-ordered work, characterization before replacement, real Neon acceptance before completion. Keep version `0.0.0`.
 - **Stop conditions:** Stop the affected phase on incompatible dependencies, failure to preserve data or authorization, or unresolved provider requirements. Missing cloud access blocks cloud acceptance, not independent local implementation. Never count skipped checks as passes.
 - **Completion owner:** The implementing agent completes the Verification Contract, removes abandoned code, and records evidence outside this plan. Publishing packages and promoting a protected production branch are separate actions, not completion requirements.
@@ -25,11 +25,11 @@ execution: code
 
 ### Summary
 
-Replace Loom's custom function protocol with oRPC throughout server and client. Preserve the filesystem workflow and Neon data guarantees while making Effect services, live updates, contracts, and native TanStack options work together with minimal application boilerplate.
+Replace Kello's custom function protocol with oRPC throughout server and client. Preserve the filesystem workflow and Neon data guarantees while making Effect services, live updates, contracts, and native TanStack options work together with minimal application boilerplate.
 
 ### Problem Frame
 
-Loom currently maintains its own function registry, transport messages, streaming bridge, and query option types. Application authors encounter framework-specific abstractions where the desired ecosystem already supplies procedures, routers, middleware, contracts, and client utilities. Previous Neon acceptance verifies the current implementation, not the proposed replacement.
+Kello currently maintains its own function registry, transport messages, streaming bridge, and query option types. Application authors encounter framework-specific abstractions where the desired ecosystem already supplies procedures, routers, middleware, contracts, and client utilities. Previous Neon acceptance verifies the current implementation, not the proposed replacement.
 
 ### Key Decisions
 
@@ -43,7 +43,7 @@ Loom currently maintains its own function registry, transport messages, streamin
 
 **Authoring and types**
 
-- R1. Authors implement ordinary oRPC procedures and nested routers, using Promise handlers or Effect handlers without Loom query/mutation/action registration wrappers.
+- R1. Authors implement ordinary oRPC procedures and nested routers, using Promise handlers or Effect handlers without Kello query/mutation/action registration wrappers.
 - R2. Generated project bindings supply typed tables, validators, identity, relations, and services without repeating schema definitions at each handler; no-input handlers and inferred output types remain supported.
 - R3. Generated methods directly return native-compatible TanStack options, accepting one options object with input and caller overrides; no required queryOptions/mutationOptions suffix or wrapper at call sites.
 - R4. Effect owns infrastructure services and bounded execution lifetimes; browser consumers need not adopt Effect.
@@ -52,7 +52,7 @@ Loom currently maintains its own function registry, transport messages, streamin
 
 **Data and live behavior**
 
-- R7. PostgreSQL owns persisted state, constraints, and committed change metadata, including supported writes outside Loom.
+- R7. PostgreSQL owns persisted state, constraints, and committed change metadata, including supported writes outside Kello.
 - R8. Live reads converge after committed changes and reconnects, with consistent snapshots, current authorization, bounded resources, and no repeated external side effects hidden inside automatic retries.
 - R9. Native optimistic-update callbacks remain available, with a documented way to prevent incoming live results from overwriting pending edits and to recover after failures.
 - R10. Existing application data, migration history, restricted runtime roles, branch quarantine, and recoverable releases survive the migration.
@@ -69,7 +69,7 @@ Loom currently maintains its own function registry, transport messages, streamin
 
 ### Success Criteria
 
-Authors can discover a procedure through generated completion, pass its options directly to native hooks, and get compile-time rejection of incorrect inputs and incompatible selections. A fresh checkout can generate, build, deploy, and exercise the examples through documented Loom commands without app-owned setup scripts.
+Authors can discover a procedure through generated completion, pass its options directly to native hooks, and get compile-time rejection of incorrect inputs and incompatible selections. A fresh checkout can generate, build, deploy, and exercise the examples through documented Kello commands without app-owned setup scripts.
 
 Performance acceptance uses the controlled workload and thresholds in the Verification Contract. Report measured results rather than assuming oRPC or Effect is faster.
 
@@ -82,7 +82,7 @@ Performance acceptance uses the controlled workload and thresholds in the Verifi
 - AE5. **Covers R6, R8:** Sign-out or tenant change aborts old streams and clears scoped cache data. Guessing an internal procedure path fails over both HTTP and WebSocket.
 - AE6. **Covers R8:** A commit occurs while the listener reconnects. The recovered subscription sends a fresh authorized snapshot including that commit, even if its notification was missed.
 - AE7. **Covers R10-R12:** A cloned branch starts quarantined. Old jobs cannot run until activation; uploaded bytes and storage-event effects remain correctly authorized and deduplicated after upgrade.
-- AE8. **Covers R15, R16:** A developer creates an isolated Neon target, runs the normal example with Neon Auth, changes a safe schema field, deploys, and resumes a deliberately interrupted release through Loom.
+- AE8. **Covers R15, R16:** A developer creates an isolated Neon target, runs the normal example with Neon Auth, changes a safe schema field, deploys, and resumes a deliberately interrupted release through Kello.
 
 ### Scope Boundaries
 
@@ -90,7 +90,7 @@ The migration covers all existing framework phases, both examples, and the docum
 
 #### Deferred to Follow-Up Work
 
-Row-level dependency inference, CDC/logical replication, external message brokers, multi-region subscription distribution, offline-first entity storage, and automatic optimistic patch inference are deferred. TanStack DB is not introduced. Agent.io's WorkOS, Redis cache, and business-specific services are reference patterns, not Loom dependencies.
+Row-level dependency inference, CDC/logical replication, external message brokers, multi-region subscription distribution, offline-first entity storage, and automatic optimistic patch inference are deferred. TanStack DB is not introduced. Agent.io's WorkOS, Redis cache, and business-specific services are reference patterns, not Kello dependencies.
 
 ---
 
@@ -102,7 +102,7 @@ Row-level dependency inference, CDC/logical replication, external message broker
 
 `docs/architecture/authoring-neon-acceptance.md` records prior hosted acceptance. Its temporary branches and prior results are historical evidence only. The example config records project `late-moon-69483649`; an earlier conversation used `late-moon-6948364`. U12 resolves provider identity before any cloud mutation.
 
-Old-plan IDs below refer only to `docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md`; this document's IDs are local to this migration.
+Old-plan IDs below refer only to `docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md`; this document's IDs are local to this migration.
 
 | Original phase | Disposition | Migration owner |
 | --- | --- | --- |
@@ -151,13 +151,13 @@ Old-plan IDs below refer only to `docs/plans/2026-09-22-1141-feat-loom-full-fram
 
 - KTD11. **WebSocket recovery is a new authorized invocation.** Adapt Neon's native socket to oRPC and preserve the upgrade response unchanged. Retain short-lived single-use connection tickets and origin checks; per-call metadata cannot override the authenticated identity. Check expiry and authorization for every call and live evaluation. Restore subscriptions after reconnect with a fresh snapshot; do not replay writes automatically. HTTP server callers use the same policy chain. SSR uses a finite snapshot and releases resources before hydration opens the browser stream. Implements R6, R8. [oRPC WebSocket adapter](https://orpc.dev/docs/adapters/websocket).
 
-- KTD12. **Stable generation without server import cycles.** Keep schema-bound server bindings independent from router assembly. Generate lightweight current files under loom/_generated and private runtime bundles under .loom; no accumulated generation directories under the public import surface. Build in staging and publish a complete generation under the existing lock, retaining only the active and one previous private generation unless a release receipt pins an artifact. Clean starts bootstrap schema bindings before importing application procedures. Extensionless authored imports remain supported; emitted Node files resolve correctly through packaging. Migration SQL/history remains committed under loom/migrations. Implements R2, R13, R16.
+- KTD12. **Stable generation without server import cycles.** Keep schema-bound server bindings independent from router assembly. Generate lightweight current files under kello/_generated and private runtime bundles under .kello; no accumulated generation directories under the public import surface. Build in staging and publish a complete generation under the existing lock, retaining only the active and one previous private generation unless a release receipt pins an artifact. Clean starts bootstrap schema bindings before importing application procedures. Extensionless authored imports remain supported; emitted Node files resolve correctly through packaging. Migration SQL/history remains committed under kello/migrations. Implements R2, R13, R16.
 
 - KTD13. **Upgrade durable state before switching code.** Introduce an explicit metadata/procedure protocol version and additive migrations, preserving applied migration hashes. Inventory queued jobs and replay receipts before cutover. Map old job identifiers to the new internal procedures only through an explicit generated migration map with validated arguments; unknown jobs block activation rather than disappear. Preserve original job envelopes and receipt versions; apply migration mappings at dispatch rather than destructively rewriting queued inputs. Quiesce old worker claims and drain or fence outstanding leases before activation. Keep old release artifacts available to drain incompatible work or roll back, but permit rollback only when the chosen worker can read all pending durable formats. New-format work that an old worker cannot read blocks that rollback and requires a compatible release. A protocol-incompatible replay receipt returns a version error; it must never become a cache miss that repeats a committed write. Browser clients with the old protocol receive a reload/version-mismatch outcome rather than being dispatched accidentally. Implements R10, R11, R16.
 
 - KTD14. **Pin release channels, not floating tags.** The candidate matrix below is verified from npm metadata on 2026-09-24; U1 must prove compatibility before downstream units rely on it. Re-check channels at execution start and record the chosen exact pins. Keep the narrow licensed Drizzle patch unless the public API passes the rename fixtures without it. Review the Neon config patch when upgrading its package. Implements R13, R14. (session-settled: user-directed — chosen over waiting for stable releases or blocking on Drizzle upstream: use reviewed pins and verification.)
 
-| Package family | Candidate | Existing Loom baseline |
+| Package family | Candidate | Existing Kello baseline |
 | --- | --- | --- |
 | oRPC server/client/contract/openapi/tanstack-query/experimental-effect | 2.0.0-beta.40 together | Absent |
 | Effect | 4.0.0-rc.117 | 3.22.2 in tests |
@@ -332,7 +332,7 @@ Keeping a custom protocol with oRPC at the edge would retain the duplicated API 
 
 **Files:** `packages/core/src/server/runtime.ts`, `packages/core/src/server/database/connection.ts`, new `packages/core/src/server/effect/`, new `packages/tests/unit/effect-runtime.test.ts`, new `packages/e2e/integration/effect-scopes.test.ts`.
 
-**Approach:** Implement KTD3 with schema-bound database, identity, storage, scheduler, and diagnostics services. Follow Agent.io's Layer/runtime composition and Loom's existing invocation guard. Keep Promise and Effect entry points on one ownership model.
+**Approach:** Implement KTD3 with schema-bound database, identity, storage, scheduler, and diagnostics services. Follow Agent.io's Layer/runtime composition and Kello's existing invocation guard. Keep Promise and Effect entry points on one ownership model.
 
 **Test scenarios:**
 
@@ -507,7 +507,7 @@ Keeping a custom protocol with oRPC at the edge would retain the duplicated API 
 
 **Requirements:** R10, R13, R16. **Dependencies:** U5, U6, U7, U10.
 
-**Files:** `apps/loom/src/`, `packages/tooling/src/config/`, `packages/tooling/src/dev/`, `packages/tooling/src/migrations/`, `packages/tooling/src/deploy/`, `packages/e2e/integration/dev-sync.test.ts`, `packages/e2e/integration/release-activation.test.ts`, new `packages/e2e/integration/rpc-upgrade.test.ts`.
+**Files:** `apps/kello/src/`, `packages/tooling/src/config/`, `packages/tooling/src/dev/`, `packages/tooling/src/migrations/`, `packages/tooling/src/deploy/`, `packages/e2e/integration/dev-sync.test.ts`, `packages/e2e/integration/release-activation.test.ts`, new `packages/e2e/integration/rpc-upgrade.test.ts`.
 
 **Approach:** Apply KTD8, KTD12, KTD13. Add realtime-mode configuration and explicit direct runtime connection resolution. Upgrade metadata through recorded migrations and inspect durable work before activation. Keep safe dev sync separate from committed release history.
 
@@ -519,7 +519,7 @@ Keeping a custom protocol with oRPC at the edge would retain the duplicated API 
 - Failed deployment resumes at its recorded stage; code rollback retains the expanded schema. A rollback with incompatible new-format queued work is refused without modifying that work. Existing leases cannot acknowledge after the cutover fence, and incompatible replay receipts cannot cause duplicate writes.
 - Invalid schema edits keep the prior runtime usable; concurrent generation/deploy cannot publish mixed artifacts.
 
-**Verification:** Initialize, generate, dev, migrate, deploy, inspect, and recovery operate through normal config-driven Loom commands.
+**Verification:** Initialize, generate, dev, migrate, deploy, inspect, and recovery operate through normal config-driven Kello commands.
 
 ### U12. Migrate examples and prove the hosted implementation
 
@@ -529,7 +529,7 @@ Keeping a custom protocol with oRPC at the edge would retain the duplicated API 
 
 **Files:** `packages/examples/tasks/`, `packages/examples/jobs-storage/`, `packages/e2e/cloud/`, `packages/e2e/browser/tasks.test.ts`, `packages/e2e/browser/uploads.test.ts`, new `packages/e2e/cloud/orpc-live.test.ts`, new `packages/e2e/cloud/orpc-upgrade.test.ts`, new `docs/architecture/orpc-neon-acceptance.md`.
 
-**Approach:** Resolve the project-ID discrepancy through an authenticated provider read, then use disposable branches within the existing loom project. Use actual Neon Auth, Functions, and Object Storage. Deploy two independently identifiable service instances against the same test database to prove cross-runtime invalidation. Record baseline/new performance with identical workload and compute settings.
+**Approach:** Resolve the project-ID discrepancy through an authenticated provider read, then use disposable branches within the existing kello project. Use actual Neon Auth, Functions, and Object Storage. Deploy two independently identifiable service instances against the same test database to prove cross-runtime invalidation. Record baseline/new performance with identical workload and compute settings.
 
 **Test scenarios:**
 
@@ -624,7 +624,7 @@ The final state contains no abandoned experiments, alternate active RPC stack, a
 
 - `docs/explainers/2026-09-24-orpc-effect-framework-core.md`: prior behavior trace and integration assessment, updated by the decisions in this plan.
 - `docs/architecture/authoring-neon-acceptance.md`: historical hosted proof and current project identity evidence.
-- `docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md`: retained framework guarantees mapped above.
+- `docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md`: retained framework guarantees mapped above.
 - Sibling checkout `../agent.io-eng`: `src/server/rpc/init.ts`, `src/server/rpc/contracts/base.ts`, `src/server/rpc/routes/hubspot.router.ts`, `src/server/services/runtime.ts`, and `src/lib/rpc/client.ts` establish native router, middleware, service, and client patterns. This checkout is optional reference material, not a build dependency.
 - [oRPC contract-first](https://orpc.dev/docs/contract-first), [Effect integration](https://orpc.dev/docs/integrations/effect), [TanStack options](https://orpc.dev/docs/integrations/tanstack-query), [WebSocket adapters](https://orpc.dev/docs/adapters/websocket).
 - [Neon realtime](https://neon.com/docs/compute/functions/websockets), [runtime limits](https://neon.com/docs/compute/functions/reference/runtime-limits), [connection pooling](https://neon.com/docs/connect/connection-pooling).

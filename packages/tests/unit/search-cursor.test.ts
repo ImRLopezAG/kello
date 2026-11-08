@@ -199,7 +199,7 @@ describe("authenticated exact search cursors", () => {
         schema: searchSchema,
         relations: searchRelations,
         connectionString: "postgresql://runtime:fixture@ep-never.example.test/database",
-        metadataNamespace: "loom_meta",
+        metadataNamespace: "kello_meta",
         deployment: "test",
         version: "a".repeat(64),
         procedures: [{ path: ["tasks", "list"], visibility: "public", procedure: endpoint }],
@@ -210,7 +210,7 @@ describe("authenticated exact search cursors", () => {
       }),
     ).rejects.toThrow("cursor key");
     expect(activated).toBe(false);
-    for (const name of ["LOOM_ACTIVATION_TOKEN", "LOOM_SEARCH_CURSOR_KEY"]) {
+    for (const name of ["KELLO_ACTIVATION_TOKEN", "KELLO_SEARCH_CURSOR_KEY"]) {
       expect(() => applicationEnvironmentSources({ [name]: v.string() })).toThrow("managed secret");
       await expect(resolveReleaseEnvironment({ [name]: name }, undefined, { [name]: key })).rejects.toThrow(
         "managed secret",

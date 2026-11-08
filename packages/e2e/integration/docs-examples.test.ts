@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 test("documented authoring examples compile and validate through a packed public API", async () => {
   const examples = fileURLToPath(new URL("../../../apps/docs/examples/", import.meta.url));
   assert.ok((await readFile(join(examples, "kello/schema.ts"), "utf8")).includes("defineSchema"));
-  const root = await mkdtemp(join(tmpdir(), "loom-docs-consumer-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-docs-consumer-"));
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, { cwd, stdout: "pipe", stderr: "pipe", timeout: 60000 });
     const [stdout, stderr, code] = await Promise.all([

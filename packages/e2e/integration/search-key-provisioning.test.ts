@@ -4,14 +4,14 @@ import pg from "pg";
 import { bootstrapDatabase } from "kello-cli";
 import { provisionSearchCursorKey } from "../../../apps/kello-cli/src/tooling/deploy/neon/search-key";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "cursor secrets survive releases and isolate branch ownership",
   async () => {
     assert(connectionString);
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_keys_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_keys_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const clients = [new pg.Client({ connectionString }), new pg.Client({ connectionString })];
     await Promise.all(clients.map((client) => client.connect()));
     const owner = clients[0]!;

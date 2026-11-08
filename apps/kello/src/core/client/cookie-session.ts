@@ -16,7 +16,7 @@ export function createCookieSession(endpoint = "/api/session") {
   if (!endpoint.startsWith("/") || new URL(endpoint, "https://kello.invalid").origin !== "https://kello.invalid")
     throw new Error("Session endpoint must be a same-origin absolute path");
   const events = new EventTarget();
-  const channelName = `loom-session:${endpoint}`;
+  const channelName = `kello-session:${endpoint}`;
   function changed() {
     events.dispatchEvent(new Event("change"));
     if (typeof BroadcastChannel !== "undefined") {
@@ -44,7 +44,7 @@ export function createCookieSession(endpoint = "/api/session") {
         sessionKey,
         async getToken() {
           const response = await fetch(endpoint, {
-            headers: { "x-loom-session": "1", "x-loom-session-id": sessionKey },
+            headers: { "x-kello-session": "1", "x-kello-session-id": sessionKey },
             cache: "no-store",
             credentials: "same-origin",
             redirect: "error",

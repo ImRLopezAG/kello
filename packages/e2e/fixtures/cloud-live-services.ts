@@ -17,7 +17,7 @@ export async function deployLiveServices(options: {
   const source = join(options.root, ".kello/deploy", options.artifactHash, "service.mjs");
   const result = [];
   const existing = await options.provider.listBranchFunctions(options.projectId, options.branchId);
-  for (const slug of options.slugs ?? ["loomlivea", "loomliveb"]) {
+  for (const slug of options.slugs ?? ["kellolivea", "kelloliveb"]) {
     assert(!existing.some((fn) => fn.slug === slug), "Live test requires unused owned function slugs");
     const bundle = await buildNeonFunctionBundle(source);
     const deployment = await options.provider.deployBranchFunction(options.projectId, options.branchId, slug, {

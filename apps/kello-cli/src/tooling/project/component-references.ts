@@ -28,12 +28,12 @@ export interface ComponentSourceScope {
 }
 
 export function componentVirtual(scope: ComponentSourceScope, part: string): string {
-  return `loom-component:${scope.index}:${part}`;
+  return `kello-component:${scope.index}:${part}`;
 }
 
 export function componentSchemaSource(scope: ComponentSourceScope): string {
   return scope.schemaFile
-    ? `import declaration from ${JSON.stringify(`loom-component-file:${scope.index}:${scope.schemaFile}`)}; import { bindSchemaNamespace } from "kello/server"; export default bindSchemaNamespace(declaration, ${JSON.stringify(scope.namespace)});`
+    ? `import declaration from ${JSON.stringify(`kello-component-file:${scope.index}:${scope.schemaFile}`)}; import { bindSchemaNamespace } from "kello/server"; export default bindSchemaNamespace(declaration, ${JSON.stringify(scope.namespace)});`
     : 'import { defineSchema } from "kello/server"; export default defineSchema(() => ({}));';
 }
 
@@ -60,20 +60,20 @@ ${scope.builders.map((key, index) => `const builder${index} = builders[${JSON.st
 function generatedReference(scope: ComponentSourceScope, filename: string) {
   const published = scope.bindings?.get(filename);
   if (published)
-    return { path: published === "setup" ? "setup" : componentVirtual(scope, published), namespace: "loom-component" };
-  if (filename === join(scope.directory, "_generated/setup")) return { path: "setup", namespace: "loom-component" };
+    return { path: published === "setup" ? "setup" : componentVirtual(scope, published), namespace: "kello-component" };
+  if (filename === join(scope.directory, "_generated/setup")) return { path: "setup", namespace: "kello-component" };
   for (const part of ["rpc", "server", "contract", "schema"])
     if (filename === join(scope.directory, "_generated", part))
       return {
         path: componentVirtual(scope, part === "schema" ? "schema-bindings" : part),
-        namespace: "loom-component",
+        namespace: "kello-component",
       };
   if (["api", "internal"].some((name) => filename === join(scope.directory, "_generated", name)))
     throw new Error("Component procedures cannot import generated client bindings");
   const index = scope.contractModules.findIndex(
     (module) => filename === join(scope.directory, "_generated/contracts", module.path.replace(/\.[cm]?[jt]s$/, "")),
   );
-  if (index >= 0) return { path: componentVirtual(scope, `contract-${index}`), namespace: "loom-component" };
+  if (index >= 0) return { path: componentVirtual(scope, `contract-${index}`), namespace: "kello-component" };
 }
 
 export function componentReferences(
@@ -81,7 +81,7 @@ export function componentReferences(
   scopes: readonly ComponentSourceScope[] = [],
 ): BunPlugin {
   return {
-    name: "loom-component-references",
+    name: "kello-component-references",
     setup(build) {
       const packages = scopes.filter((scope) => scope.packageEntry);
       const packageEntries = packages.flatMap((scope) => [scope.setupFile, scope.packageEntry!]);
@@ -117,31 +117,31 @@ export function componentReferences(
         if (!path.startsWith(".") && !selfImport) return { path: resolved, external: true };
         if (resolved === scope.setupFile) return { path: resolved };
         if (resolved === scope.schemaFile)
-          return { path: componentVirtual(scope, "schema"), namespace: "loom-component" };
-        return { path: sourcePath(scope, resolved), namespace: "loom-component-source" };
+          return { path: componentVirtual(scope, "schema"), namespace: "kello-component" };
+        return { path: sourcePath(scope, resolved), namespace: "kello-component-source" };
       });
-      build.onLoad({ filter: /.*/, namespace: "loom-component-source" }, async ({ path }) => ({
+      build.onLoad({ filter: /.*/, namespace: "kello-component-source" }, async ({ path }) => ({
         contents: await readFile(path.slice(path.indexOf(":") + 1), "utf8"),
         loader: "ts",
       }));
-      build.onResolve({ filter: /^loom-component:/ }, ({ path }) => ({ path, namespace: "loom-component" }));
+      build.onResolve({ filter: /^kello-component:/ }, ({ path }) => ({ path, namespace: "kello-component" }));
       build.onResolve({ filter: /_generated\// }, ({ path, importer }) => {
         const filename = resolve(dirname(importer), path).replace(/\.[cm]?[jt]s$/, "");
         const setupFile = setupFiles.find((file) => filename === join(dirname(file), "_generated/setup"));
-        if (setupFile) return { path: "setup", namespace: "loom-component" };
+        if (setupFile) return { path: "setup", namespace: "kello-component" };
         const bootstrapIndex = setupFiles.findIndex((file) => filename === join(dirname(file), "_generated/server"));
         if (!scopes.length && bootstrapIndex >= 0)
-          return { path: `bootstrap-server:${bootstrapIndex}`, namespace: "loom-component" };
+          return { path: `bootstrap-server:${bootstrapIndex}`, namespace: "kello-component" };
         for (const scope of scopes) {
           const reference = generatedReference(scope, filename);
           if (reference) return reference;
         }
       });
-      build.onResolve({ filter: /^loom-component-file:/ }, ({ path }) => ({
-        path: path.slice("loom-component-file:".length),
-        namespace: "loom-component-source",
+      build.onResolve({ filter: /^kello-component-file:/ }, ({ path }) => ({
+        path: path.slice("kello-component-file:".length),
+        namespace: "kello-component-source",
       }));
-      build.onLoad({ filter: /.*/, namespace: "loom-component" }, ({ path }) => {
+      build.onLoad({ filter: /.*/, namespace: "kello-component" }, ({ path }) => {
         if (path === "setup") return { contents: 'export { defineComponent } from "kello/server";', loader: "js" };
         if (path.startsWith("bootstrap-server:")) {
           const setupFile = setupFiles[Number(path.slice("bootstrap-server:".length))];
@@ -158,12 +158,12 @@ export function componentReferences(
           if (part?.startsWith("contract-source-")) {
             const module = scope.contractModules[Number(part.slice(16))];
             if (!module) throw new Error("Unknown component contract module");
-            return `export { default } from ${JSON.stringify(`loom-component-file:${sourcePath(scope, module.file)}`)};`;
+            return `export { default } from ${JSON.stringify(`kello-component-file:${sourcePath(scope, module.file)}`)};`;
           }
           if (part === "schema") return componentSchemaSource(scope);
           if (part === "relations")
             return scope.relationsFile
-              ? `export { default } from ${JSON.stringify(`loom-component-file:${sourcePath(scope, scope.relationsFile)}`)};`
+              ? `export { default } from ${JSON.stringify(`kello-component-file:${sourcePath(scope, scope.relationsFile)}`)};`
               : `import schema from ${JSON.stringify(componentVirtual(scope, "schema"))}; import { defineRelations } from "drizzle-orm"; export default defineRelations(schema.tables);`;
           if (part === "contracts") return componentContractSource(scope);
           if (part === "contract") return 'export { defineContract, oc, eventIterator } from "kello/contract";';

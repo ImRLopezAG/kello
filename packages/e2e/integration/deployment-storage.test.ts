@@ -11,14 +11,14 @@ import { unzipSync } from "fflate";
 import { buildNeonFunctionBundle } from "kello-cli";
 import { generateProject, prepareNeonEntrypoints, bootstrapDatabase } from "kello-cli";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "packed Neon storage entries boot with injected credentials and reject absent or mismatched storage",
   async () => {
     if (!connectionString) throw new Error("Missing database");
-    const root = await mkdtemp(join(tmpdir(), "loom-storage-deployment-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-storage-deployment-"));
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
@@ -41,10 +41,10 @@ test.skipIf(!connectionString)(
       );
       const generated = await generateProject(root);
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const runtime = new URL(connectionString);
       runtime.username = runtimeRole;
-      runtime.password = "loom-test-only";
+      runtime.password = "kello-test-only";
       const token = "c".repeat(64);
       const binding = {
         metadataNamespace,
@@ -107,8 +107,8 @@ test.skipIf(!connectionString)(
               `
           import assert from "node:assert/strict";
           import entry from ${JSON.stringify(pathToFileURL(packed).href)};
-          const health = () => new Request("https://app.test/_loom/deployment/health", {
-            method: "POST", headers: { authorization: "Bearer " + process.env.LOOM_ACTIVATION_TOKEN }
+          const health = () => new Request("https://app.test/_kello/deployment/health", {
+            method: "POST", headers: { authorization: "Bearer " + process.env.KELLO_ACTIVATION_TOKEN }
           });
           assert.equal((await entry.fetch(new Request(health().url, { method: "POST" }))).status, 404);
           const probe = await entry.fetch(health());
@@ -118,10 +118,10 @@ test.skipIf(!connectionString)(
             process.env.NEON_BRANCH = "wrong-branch";
             assert.equal((await entry.fetch(health())).status, 503);
             process.env.NEON_BRANCH = "preview";
-            const originalToken = process.env.LOOM_ACTIVATION_TOKEN;
-            process.env.LOOM_ACTIVATION_TOKEN = "d".repeat(64);
+            const originalToken = process.env.KELLO_ACTIVATION_TOKEN;
+            process.env.KELLO_ACTIVATION_TOKEN = "d".repeat(64);
             assert.equal((await entry.fetch(health())).status, 503);
-            process.env.LOOM_ACTIVATION_TOKEN = originalToken;
+            process.env.KELLO_ACTIVATION_TOKEN = originalToken;
           } else assert.equal(await probe.text(), "Service unavailable");
           const response = await entry.fetch(new Request("https://app.test/not-a-route"));
           assert.equal(response.status, ${expected});
@@ -135,10 +135,10 @@ test.skipIf(!connectionString)(
               stderr: "pipe",
               env: {
                 ...process.env,
-                LOOM_DATABASE_URL: runtime.href,
+                KELLO_DATABASE_URL: runtime.href,
                 DATABASE_URL: runtime.href,
                 NEON_BRANCH: "preview",
-                LOOM_ACTIVATION_TOKEN: token,
+                KELLO_ACTIVATION_TOKEN: token,
                 AWS_ACCESS_KEY_ID: "fixture-injected-access",
                 AWS_SECRET_ACCESS_KEY: "fixture-injected-secret",
                 AWS_ENDPOINT_URL_S3: endpoint,

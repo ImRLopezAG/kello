@@ -45,7 +45,7 @@ The `rpc` callback returns named native builders. Generated `rpc.ts` exports tho
 import { defineConfig } from "kello-cli";
 
 export default defineConfig({
-  database: { namespace: "app", metadataNamespace: "loom_meta" },
+  database: { namespace: "app", metadataNamespace: "kello_meta" },
 });
 ```
 
@@ -69,4 +69,4 @@ For component overrides, declare the parent variable in `app.env` and bind the c
 
 - [Neon Function environment variables](https://neon.com/docs/compute/functions/environment-variables)
 
-CLI state, generated runtime bundles, locks and deployment receipts live in `.kello/`. Public bindings remain in `kello/_generated/`; generated `.js` and `.d.ts` files supply runtime imports and TypeScript types. Existing `.loom/` state is not automatically moved or deleted. This alpha rename requires relinking an existing project and regenerating bindings in a fresh checkout; preserve committed migration history.
+CLI state, generated runtime bundles, locks and deployment receipts live in `.kello/`. Public bindings remain in `kello/_generated/`; generated `.js` and `.d.ts` files supply runtime imports and TypeScript types.

@@ -1,5 +1,5 @@
 import { defineComponent } from "./_generated/setup";
-import sdk from "@loom-test/sdk";
+import sdk from "@kello-test/sdk";
 const component = defineComponent({ name: "catalog" });
 component.use(sdk);
 export default component;

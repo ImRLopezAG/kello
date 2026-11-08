@@ -41,7 +41,7 @@ async function main(): Promise<void> {
     const batchSize = numeric("--batch-size", 500);
     const maxBatches = numeric("--max-batches", 20);
     const maxDurationMs = numeric("--max-duration-ms", 30_000);
-    const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
+    const connectionString = process.env.KELLO_MIGRATION_DATABASE_URL;
     if (!connectionString) throw new Error();
     const url = new URL(connectionString);
     if (!["postgres:", "postgresql:"].includes(url.protocol)) throw new Error();

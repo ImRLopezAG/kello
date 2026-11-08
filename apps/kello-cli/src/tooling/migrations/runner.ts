@@ -36,11 +36,11 @@ export const runnerOptions = v.strictObject({
     databaseIdentifier,
     v.check(
       (name) =>
-        name !== "public" && name !== "information_schema" && !name.startsWith("pg_") && !name.startsWith("loom_"),
+        name !== "public" && name !== "information_schema" && !name.startsWith("pg_") && !name.startsWith("kello_"),
       "Application migrations require an isolated namespace",
     ),
   ),
-  metadataNamespace: v.optional(v.pipe(databaseIdentifier, v.regex(/^loom_/)), "loom_meta"),
+  metadataNamespace: v.optional(v.pipe(databaseIdentifier, v.regex(/^kello_/)), "kello_meta"),
   sourceVersion: v.optional(v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/))),
   reviewedHashes: v.optional(v.array(v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/))), []),
   expectedHashes: v.optional(v.array(v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/)))),
@@ -85,7 +85,7 @@ export async function applyMigrationsOnConnection(
   assertMigrationConnection(client);
   const config = v.parse(connectionOptions, options);
   // Session lifetime bounds this lock, including failure paths and nested ORM transactions.
-  await acquireMigrationLock(client, `loom:migrations:${config.namespace}`);
+  await acquireMigrationLock(client, `kello:migrations:${config.namespace}`);
   if (config.sourceVersion) await assertGeneratedVersion(config.root, config.sourceVersion);
   const artifacts = await readMigrations(config.root, config.migrations);
   if (

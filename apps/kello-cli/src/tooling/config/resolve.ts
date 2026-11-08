@@ -262,7 +262,7 @@ export async function readPublicProjectConfiguration(
       "PROJECT_STATE_INVALID",
       "The Neon branch changed. Refresh discovery before generating public client configuration.",
     );
-  const serviceUrl = process.env.LOOM_URL ?? saved?.public.serviceUrl;
+  const serviceUrl = process.env.KELLO_URL ?? saved?.public.serviceUrl;
   const authUrl = process.env.NEON_AUTH_URL ?? saved?.public.authUrl;
   const dataApiUrl = saved?.public.dataApiUrl;
   const realtimeUrl = saved?.public.realtimeUrl;

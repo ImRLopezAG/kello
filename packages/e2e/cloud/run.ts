@@ -23,21 +23,21 @@ const suite = v.parse(
     "better-auth",
     "search",
   ]),
-  process.env.LOOM_CLOUD_SUITE,
+  process.env.KELLO_CLOUD_SUITE,
 );
 const projectId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.KELLO_CLOUD_PROJECT_ID);
-const branchId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.LOOM_CLOUD_BRANCH_ID);
+const branchId = v.parse(v.pipe(v.string(), v.minLength(1)), process.env.KELLO_CLOUD_BRANCH_ID);
 assert(projectId && branchId, "Required cloud acceptance needs a project and branch");
 const target = await inspectDeploymentTarget(
   defineConfig({ project: "acceptance", provider: { projectId, targets: { preview: { branchId } } } }),
   "preview",
 );
 assert(
-  !target.protected && target.branchName.startsWith("loom-acceptance-"),
+  !target.protected && target.branchName.startsWith("kello-acceptance-"),
   "Use an unprotected disposable acceptance branch",
 );
 const cwd = fileURLToPath(new URL("../", import.meta.url));
-const directory = resolve(process.env.LOOM_CLOUD_RECEIPT_DIR ?? join(cwd, ".cloud-receipts"));
+const directory = resolve(process.env.KELLO_CLOUD_RECEIPT_DIR ?? join(cwd, ".cloud-receipts"));
 await mkdir(directory, { recursive: true });
 const env = { ...process.env };
 const neonCli = createRequire(import.meta.resolve("kello-cli")).resolve("neon/dist/index.js");
@@ -54,7 +54,7 @@ async function neon(args: string[]) {
     throw new Error(`Neon acceptance setup failed: ${args.slice(0, 3).join(" ")}`);
   }
 }
-if (!env.LOOM_MIGRATION_DATABASE_URL) {
+if (!env.KELLO_MIGRATION_DATABASE_URL) {
   const result = await promisify(execFile)(
     "node",
     [
@@ -64,7 +64,7 @@ if (!env.LOOM_MIGRATION_DATABASE_URL) {
       "--project-id",
       projectId,
       "--role-name",
-      env.LOOM_CLOUD_MIGRATION_ROLE ?? "neondb_owner",
+      env.KELLO_CLOUD_MIGRATION_ROLE ?? "neondb_owner",
       "--ssl",
       "verify-full",
     ],
@@ -75,11 +75,11 @@ if (!env.LOOM_MIGRATION_DATABASE_URL) {
   const address = new URL(result.stdout.trim());
   assert.equal(address.protocol, "postgresql:");
   assert.equal(address.searchParams.get("sslmode"), "verify-full");
-  env.LOOM_MIGRATION_DATABASE_URL = address.href;
+  env.KELLO_MIGRATION_DATABASE_URL = address.href;
 }
-env.LOOM_CLOUD_RUNTIME_ROLE ??= `runtime_${crypto.randomUUID().replaceAll("-", "")}`;
+env.KELLO_CLOUD_RUNTIME_ROLE ??= `runtime_${crypto.randomUUID().replaceAll("-", "")}`;
 // Verify even an explicitly supplied URL before Auth setup can execute DDL.
-const migrationAddress = new URL(env.LOOM_MIGRATION_DATABASE_URL);
+const migrationAddress = new URL(env.KELLO_MIGRATION_DATABASE_URL);
 assert.equal(migrationAddress.protocol, "postgresql:");
 assert.equal(
   migrationAddress.hostname.split(".")[0],
@@ -91,7 +91,7 @@ assert.equal(migrationAddress.port, "");
 for (const parameter of migrationAddress.searchParams.keys())
   assert(["sslmode", "channel_binding"].includes(parameter), "Unexpected database URL option");
 migrationAddress.searchParams.set("sslmode", "verify-full");
-env.LOOM_MIGRATION_DATABASE_URL = migrationAddress.href;
+env.KELLO_MIGRATION_DATABASE_URL = migrationAddress.href;
 if (
   suite === "tasks" ||
   suite === "jobs-storage" ||
@@ -99,8 +99,8 @@ if (
   suite === "start" ||
   suite === "components-browser"
 ) {
-  if (env.LOOM_CLOUD_SETUP_AUTH === "1") {
-    const admin = new pg.Client({ connectionString: env.LOOM_MIGRATION_DATABASE_URL });
+  if (env.KELLO_CLOUD_SETUP_AUTH === "1") {
+    const admin = new pg.Client({ connectionString: env.KELLO_MIGRATION_DATABASE_URL });
     try {
       await admin.connect();
       const role = await admin.query("SELECT 1 FROM pg_roles WHERE rolname='neon_service'");
@@ -119,7 +119,7 @@ if (
           "neon-auth",
           "enable",
           "--database-name",
-          decodeURIComponent(new URL(env.LOOM_MIGRATION_DATABASE_URL).pathname.slice(1)),
+          decodeURIComponent(new URL(env.KELLO_MIGRATION_DATABASE_URL).pathname.slice(1)),
         ]),
       ),
     );
@@ -136,27 +136,27 @@ if (
     ]);
   }
   assert(env.VITE_NEON_AUTH_URL, "Real Neon Auth acceptance requires its branch URL");
-  env.LOOM_CLOUD_NEON_AUTH = "1";
-  env.LOOM_CLOUD_AUTH_EXAMPLE = suite === "components-browser" ? "components" : suite;
+  env.KELLO_CLOUD_NEON_AUTH = "1";
+  env.KELLO_CLOUD_AUTH_EXAMPLE = suite === "components-browser" ? "components" : suite;
 }
 if (suite === "better-auth") {
-  env.LOOM_CLOUD_HOSTED_AUTH = "1";
-  env.LOOM_TEST_DATABASE_URL = env.LOOM_MIGRATION_DATABASE_URL;
+  env.KELLO_CLOUD_HOSTED_AUTH = "1";
+  env.KELLO_TEST_DATABASE_URL = env.KELLO_MIGRATION_DATABASE_URL;
 }
-if (suite === "components") env.LOOM_CLOUD_COMPONENTS = "1";
-if (suite === "search") env.LOOM_CLOUD_SEARCH = "1";
-if (suite === "services") env.LOOM_CLOUD_SERVICES = "1";
+if (suite === "components") env.KELLO_CLOUD_COMPONENTS = "1";
+if (suite === "search") env.KELLO_CLOUD_SEARCH = "1";
+if (suite === "services") env.KELLO_CLOUD_SERVICES = "1";
 if (suite === "upgrade") {
-  if (!env.LOOM_CLOUD_PREVIOUS_VERSION) {
+  if (!env.KELLO_CLOUD_PREVIOUS_VERSION) {
     const historical = await runHistoricalAcceptance(
-      { ...env, LOOM_CLOUD_LIVE_SECONDS: "1", LOOM_CLOUD_LIVE_WARMUP_SECONDS: "30" },
+      { ...env, KELLO_CLOUD_LIVE_SECONDS: "1", KELLO_CLOUD_LIVE_WARMUP_SECONDS: "30" },
       join(directory, "historical.json"),
     );
-    env.LOOM_CLOUD_PREVIOUS_VERSION = historical.version;
+    env.KELLO_CLOUD_PREVIOUS_VERSION = historical.version;
     // The predecessor's test issuer is owned by this disposable fixture.
-    await neon(["functions", "delete", "loomissuer"]);
+    await neon(["functions", "delete", "kelloissuer"]);
   }
-  env.LOOM_CLOUD_UPGRADE = "1";
+  env.KELLO_CLOUD_UPGRADE = "1";
 }
 const file =
   suite === "search"
@@ -174,7 +174,7 @@ const file =
           : `orpc-${suite}`;
 const receipt = join(directory, `${suite}.json`);
 await rm(receipt, { force: true });
-env.LOOM_CLOUD_RECEIPT = receipt;
+env.KELLO_CLOUD_RECEIPT = receipt;
 const child = Bun.spawn(["bun", "test", "cloud/target.test.ts", "cloud/database.test.ts", `cloud/${file}.test.ts`], {
   cwd,
   env,

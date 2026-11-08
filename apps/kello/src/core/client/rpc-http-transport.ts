@@ -29,9 +29,9 @@ export function createRpcHttpTransport(options: RpcTransportOptions) {
       if (!token) throw new Error("Authentication required");
       const headers = new Headers({
         authorization: `Bearer ${token}`,
-        "x-loom-protocol": "loom-orpc-2",
-        "x-loom-version": version,
-        "x-loom-operation": context[OPERATION_CONTEXT_SYMBOL]?.type ?? "call",
+        "x-kello-protocol": "kello-orpc-2",
+        "x-kello-version": version,
+        "x-kello-operation": context[OPERATION_CONTEXT_SYMBOL]?.type ?? "call",
         "idempotency-key":
           context.idempotencyKey === undefined
             ? crypto.randomUUID()

@@ -18,16 +18,16 @@ import type { RouterClient } from "@orpc/server";
 import { defineRelations } from "drizzle-orm";
 import { bootstrapDatabase } from "kello-cli";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "Neon activation requires external branch identity and a read-only database grant",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
-    const keys = ["NEON_BRANCH", "DATABASE_URL", "LOOM_ACTIVATION_TOKEN"] as const;
+    const keys = ["NEON_BRANCH", "DATABASE_URL", "KELLO_ACTIVATION_TOKEN"] as const;
     const saved = keys.map((key) => [key, process.env[key]] as const);
     await admin.connect();
     try {
@@ -37,7 +37,7 @@ test.skipIf(!connectionString)(
       const version = "b".repeat(64);
       process.env.NEON_BRANCH = "production";
       process.env.DATABASE_URL = connectionString;
-      process.env.LOOM_ACTIVATION_TOKEN = token;
+      process.env.KELLO_ACTIVATION_TOKEN = token;
       const verify = createNeonActivationVerifier({
         metadataNamespace,
         deployment: "app",
@@ -70,10 +70,10 @@ test.skipIf(!connectionString)(
         ],
       );
       await verify(signal, context);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const runtimeAddress = new URL(connectionString);
       runtimeAddress.username = runtimeRole;
-      runtimeAddress.password = "loom-test-only";
+      runtimeAddress.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const admitted = Promise.withResolvers<void>();
       const resume = Promise.withResolvers<void>();
@@ -122,7 +122,7 @@ test.skipIf(!connectionString)(
         new RPCLink({
           origin: "https://activation.test",
           url: "/api/kello/rpc",
-          headers: { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version },
+          headers: { "x-kello-protocol": "kello-orpc-2", "x-kello-version": version },
           fetch: (request, init) => app.fetch(new Request(request, init)),
         }),
       );
@@ -170,9 +170,9 @@ test.skipIf(!connectionString)(
       process.env.DATABASE_URL = cloneAddress.href;
       await assert.rejects(verify(signal), /activation denied/i);
       process.env.DATABASE_URL = connectionString;
-      process.env.LOOM_ACTIVATION_TOKEN = "c".repeat(64);
+      process.env.KELLO_ACTIVATION_TOKEN = "c".repeat(64);
       await assert.rejects(verify(signal, context), /activation denied/i);
-      process.env.LOOM_ACTIVATION_TOKEN = token;
+      process.env.KELLO_ACTIVATION_TOKEN = token;
       await assert.rejects(
         verify(signal, { ...context, connectionString: `${connectionString}?host=other` }),
         /activation denied/i,

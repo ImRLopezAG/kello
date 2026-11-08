@@ -5,7 +5,7 @@ export default defineConfig({
     tsconfig: "./tsconfig.json",
     outExtensions: () => ({ js: ".js", dts: ".d.ts" }),
     report: false,
-    entry: ["src/cli.ts", "src/tooling/index.ts", "src/tooling/neon/credential-worker.ts"],
+    entry: ["src/cli.ts", "src/tooling/index.ts"],
     root: "src",
     unbundle: false,
     format: "esm",

@@ -48,7 +48,7 @@ test("concurrent indexes require an explicit nontransactional artifact", async (
 });
 
 test("data-only migration history follows artifact parents and rejects stale writers", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-custom-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-custom-"));
   try {
     const initial = await planMigration(await emptySnapshot("app"), schema);
     await writeMigration(root, "migrations", "initial", initial);

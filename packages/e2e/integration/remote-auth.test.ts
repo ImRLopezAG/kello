@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 test("Node 24 verifies remote JWKS over trusted TLS, rotates keys and fails closed on provider errors", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "loom-jwks-"));
+  const directory = await mkdtemp(join(tmpdir(), "kello-jwks-"));
   try {
     const config = join(directory, "openssl.cnf");
     const certificate = join(directory, "certificate.pem");

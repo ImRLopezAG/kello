@@ -14,7 +14,7 @@ import {
   migrationStatus,
 } from "kello-cli";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test("concurrent recovery refuses SQL outside its declared index expansion", async () => {
   const { concurrentIndexOperations } = await import("../../../apps/kello-cli/src/tooling/migrations/nontransactional");
   const namespace = "recovery_validation";
@@ -50,9 +50,9 @@ test.skipIf(!connectionString)(
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `app_${suffix}`;
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-index-recovery-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-index-recovery-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const options = { connectionString, root, namespace, metadataNamespace, runtimeRole, migrations: "migrations" };

@@ -39,7 +39,7 @@ test("native optimistic state survives refetch until the mutation settles", asyn
       const path = new URL(request.url).pathname;
       if (path.startsWith("/api/kello/rpc/")) {
         expect(request.headers.get("authorization")).toBe("Bearer test-token");
-        expect(request.headers.get("x-loom-version")).toBe("a".repeat(64));
+        expect(request.headers.get("x-kello-version")).toBe("a".repeat(64));
         return (
           (await handler.handle(request, { prefix: "/api/kello/rpc" })).response ?? new Response(null, { status: 404 })
         );

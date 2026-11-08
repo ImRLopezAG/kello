@@ -26,26 +26,26 @@ import { createRpcHttpTransport } from "kello/client";
 import { nativeAuth } from "../fixtures/hosted-native-auth";
 import { appPreferencesClient } from "../fixtures/app-auth-plugin-client";
 
-test.skipIf(process.env.LOOM_CLOUD_HOSTED_AUTH !== "1")(
+test.skipIf(process.env.KELLO_CLOUD_HOSTED_AUTH !== "1")(
   "native bearer sessions exchange JWTs for protected RPC on deployed Neon Functions",
   async () => {
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
-    const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
-    const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+    const branchId = process.env.KELLO_CLOUD_BRANCH_ID;
+    const connectionString = process.env.KELLO_TEST_DATABASE_URL;
     assert(projectId && branchId && connectionString);
     const target = await inspectDeploymentTarget(
       defineConfig({ project: "auth", provider: { projectId, targets: { preview: { branchId } } } }),
       "preview",
     );
-    assert(!target.protected && target.branchName.startsWith("loom-acceptance-"));
+    assert(!target.protected && target.branchName.startsWith("kello-acceptance-"));
     assert.equal(new URL(connectionString).hostname.split(".")[0], target.endpointId);
     const api = createKelloNeonApi();
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const slug = `lba${suffix.slice(0, 8)}`;
     const namespace = `auth_${suffix}`;
-    const metadataNamespace = `loom_auth_${suffix}`;
+    const metadataNamespace = `kello_auth_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-native-auth-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-native-auth-"));
     const source = join(root, "index.mjs");
     const admin = new pg.Client({ connectionString });
     await admin.connect();
@@ -76,7 +76,7 @@ test.skipIf(process.env.LOOM_CLOUD_HOSTED_AUTH !== "1")(
       // Obtain the provider-assigned URL before defining issuer and JWKS trust.
       await writeFile(
         source,
-        'export default {fetch(){return new Response("bootstrap",{status:503,headers:{"x-loom-bootstrap":"1"}})}};',
+        'export default {fetch(){return new Response("bootstrap",{status:503,headers:{"x-kello-bootstrap":"1"}})}};',
       );
       const url = new URL(await deploy({})).origin;
       const secret = crypto.randomUUID() + crypto.randomUUID();
@@ -113,21 +113,21 @@ application.use(defineBetterAuth({name:"identity",env:{},create:({database})=>na
 const schema=defineSchema(()=>({}));
 const contract={whoami:oc.output(v.strictObject({subject:v.string()}))};
 const procedure=implement(contract).whoami.handler(({context})=>({subject:context.identity.subject}));
-const service=await createNeonRpcService({application,schema,relations:defineRelations(schema.tables),connectionString:process.env.LOOM_DATABASE_URL,
+const service=await createNeonRpcService({application,schema,relations:defineRelations(schema.tables),connectionString:process.env.KELLO_DATABASE_URL,
 metadataNamespace:${JSON.stringify(metadataNamespace)},deployment:"native-auth",version:"${"a".repeat(64)}",procedures:[{path:["whoami"],visibility:"public",procedure}],
 authScopes:[{mountPath:"identity",namespace:${JSON.stringify(namespace)},fingerprint:${JSON.stringify(nativeSchema.fingerprint)}}],
-config:{auth:{origins:[${JSON.stringify(url)}],issuers:[{issuer:${JSON.stringify(url)},jwksUrl:${JSON.stringify(url + "/api/auth/jwks")},audience:"loom-test",algorithms:["EdDSA"]}]}},
+config:{auth:{origins:[${JSON.stringify(url)}],issuers:[{issuer:${JSON.stringify(url)},jwksUrl:${JSON.stringify(url + "/api/auth/jwks")},audience:"kello-test",algorithms:["EdDSA"]}]}},
 auth:defineRpcAuth({authorize:({identity})=>{if(!identity)throw new ORPCError("UNAUTHORIZED")}}),assertActive:async()=>{}});
 export default {...service,fetch(request){if(new URL(request.url).pathname==="/revision")return new Response(${JSON.stringify(suffix)});return service.fetch(request)}};
 `,
       );
-      await deploy({ LOOM_DATABASE_URL: address.href, AUTH_SECRET: secret });
+      await deploy({ KELLO_DATABASE_URL: address.href, AUTH_SECRET: secret });
       async function deployedFetch(input: RequestInfo | URL, init?: RequestInit) {
         const signal = AbortSignal.timeout(90_000);
         for (;;) {
           const response = await fetch(input, { ...init, signal });
           // Only the inert bootstrap can produce this marker; it never executes an auth operation.
-          if (response.headers.get("x-loom-bootstrap") !== "1") return response;
+          if (response.headers.get("x-kello-bootstrap") !== "1") return response;
           await response.body?.cancel();
           await setTimeout(1000, undefined, { signal });
         }
@@ -148,7 +148,7 @@ export default {...service,fetch(request){if(new URL(request.url).pathname==="/r
         },
       });
       const signup = await client.signUp.email({
-        email: `loom-${suffix}@example.test`,
+        email: `kello-${suffix}@example.test`,
         password: crypto.randomUUID(),
         name: "Hosted native",
       });
@@ -173,7 +173,7 @@ export default {...service,fetch(request){if(new URL(request.url).pathname==="/r
       const keys = await (await deployedFetch(`${url}/api/auth/jwks`)).json();
       const verified = await jwtVerify(token.data.token, createLocalJWKSet(keys), {
         issuer: url,
-        audience: "loom-test",
+        audience: "kello-test",
         algorithms: ["EdDSA"],
       });
       assert.equal(verified.payload.sub, signup.data.user.id);
@@ -190,7 +190,7 @@ export default {...service,fetch(request){if(new URL(request.url).pathname==="/r
           const bootstrap =
             error instanceof ORPCError &&
             error.cause instanceof MalformedResponseError &&
-            error.cause.response.headers["x-loom-bootstrap"] === "1";
+            error.cause.response.headers["x-kello-bootstrap"] === "1";
           if (!bootstrap && !(error instanceof ORPCError && error.code === "UNAUTHORIZED")) throw error;
           await setTimeout(1000, undefined, { signal: deadline });
         }
@@ -205,7 +205,7 @@ export default {...service,fetch(request){if(new URL(request.url).pathname==="/r
             if (
               error instanceof ORPCError &&
               error.cause instanceof MalformedResponseError &&
-              error.cause.response.headers["x-loom-bootstrap"] === "1"
+              error.cause.response.headers["x-kello-bootstrap"] === "1"
             ) {
               await setTimeout(1000, undefined, { signal: deadline });
               continue;
@@ -235,9 +235,9 @@ export default {...service,fetch(request){if(new URL(request.url).pathname==="/r
       await admin.end();
       await rm(root, { recursive: true, force: true });
     }
-    if (process.env.LOOM_CLOUD_RECEIPT) {
+    if (process.env.KELLO_CLOUD_RECEIPT) {
       await writeFile(
-        process.env.LOOM_CLOUD_RECEIPT,
+        process.env.KELLO_CLOUD_RECEIPT,
         JSON.stringify({
           projectId,
           branchId,

@@ -145,7 +145,7 @@ export function createNeonQueryIssuer(options: Target & { readonly queries: read
       assertProjection(selected);
       const query = await realtime.seal({ query: selected });
       identity.signal.throwIfAborted();
-      // SDK 0.1.0 seals a fixed 60-second capability. Metadata cannot shorten
+      // SDK 0.2 still seals a fixed 60-second capability. Metadata cannot shorten
       // its signed expiry: refuse issuance if the verified session ends first.
       authorized(identity);
       if (query.expiresAt > identity.expiresAt * 1000) throw new Error("Session expires before realtime capability");

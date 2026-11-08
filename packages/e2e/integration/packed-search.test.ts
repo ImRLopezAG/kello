@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "bun:test";
 
 test("packed generated search-shaped contracts expose the native dependent-output typing gap", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-packed-search-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-packed-search-"));
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, { cwd, stdout: "pipe", stderr: "pipe", timeout: 120000 });
     const [stdout, stderr, code] = await Promise.all([

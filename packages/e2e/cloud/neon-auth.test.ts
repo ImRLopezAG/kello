@@ -26,23 +26,23 @@ import { startCloudFramework, verifyCloudFramework } from "../fixtures/cloud-fra
 import { startCloudFrontend } from "../fixtures/cloud-frontend";
 import { verifyCloudSchemaExpansion } from "../fixtures/cloud-schema-expansion";
 
-test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
+test.skipIf(process.env.KELLO_CLOUD_NEON_AUTH !== "1")(
   "Neon Auth signs in the actual example against Neon Functions",
   async () => {
     const example = v.parse(
       v.picklist(["tasks", "jobs-storage", "next", "start", "components"]),
-      process.env.LOOM_CLOUD_AUTH_EXAMPLE ?? "tasks",
+      process.env.KELLO_CLOUD_AUTH_EXAMPLE ?? "tasks",
     );
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
-    const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
+    const branchId = process.env.KELLO_CLOUD_BRANCH_ID;
     const authUrl = process.env.VITE_NEON_AUTH_URL;
-    const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
+    const connectionString = process.env.KELLO_MIGRATION_DATABASE_URL;
     assert(projectId && branchId && authUrl && connectionString);
     const target = await inspectDeploymentTarget(
       defineConfig({ project: example, provider: { projectId, targets: { preview: { branchId } } } }),
       "preview",
     );
-    assert.match(target.branchName, /^loom-acceptance-/);
+    assert.match(target.branchName, /^kello-acceptance-/);
     const provider = createKelloNeonApi();
     const fixtures = fileURLToPath(new URL("../.cloud-receipts/", import.meta.url));
     await mkdir(fixtures, { recursive: true, mode: 0o700 });
@@ -75,7 +75,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
       });
       await symlink(join(source, "node_modules"), join(root, "node_modules"));
       const address = new URL(connectionString);
-      const runtimeRole = process.env.LOOM_CLOUD_RUNTIME_ROLE;
+      const runtimeRole = process.env.KELLO_CLOUD_RUNTIME_ROLE;
       assert(
         runtimeRole && /^runtime_[a-f0-9]{32}$/.test(runtimeRole),
         "Use the runtime role from the owned acceptance branch",
@@ -83,7 +83,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
       const { config: exampleConfig } = await loadProjectConfig(source);
       // Each hook run exercises schema expansion independently of retained deployments.
       const namespace = example === "tasks" ? `accept_${runtimeRole.slice(8)}` : exampleConfig.database.namespace;
-      const metadataNamespace = example === "tasks" ? `loom_${namespace}` : exampleConfig.database.metadataNamespace;
+      const metadataNamespace = example === "tasks" ? `kello_${namespace}` : exampleConfig.database.metadataNamespace;
       if (example === "tasks") {
         const schemaPath = join(root, "kello/schema.ts");
         const original = await readFile(schemaPath, "utf8");
@@ -134,8 +134,8 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
       await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD '${password}'`);
       address.username = runtimeRole;
       address.password = password;
-      process.env.LOOM_DATABASE_URL = address.href;
-      process.env.LOOM_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
+      process.env.KELLO_DATABASE_URL = address.href;
+      process.env.KELLO_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
       stage = "enable example Realtime";
       const realtime = await enableRealtime(root, defineConfig(config), {
         allowedOrigins: [frontendUrl.origin],
@@ -157,9 +157,9 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
           env: {
             ...process.env,
             NODE_ENV: "production",
-            VITE_LOOM_ACCEPTANCE: "0",
+            VITE_KELLO_ACCEPTANCE: "0",
             VITE_NEON_AUTH_URL: authUrl,
-            VITE_LOOM_URL: invocationUrl,
+            VITE_KELLO_URL: invocationUrl,
             NEXT_PUBLIC_KELLO_SERVICE_URL: invocationUrl,
             VITE_KELLO_SERVICE_URL: invocationUrl,
           },
@@ -202,7 +202,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
         page.on("requestfailed", (request) => diagnostics.push(`${new URL(request.url()).pathname}: network failure`));
         await page.goto(frontendUrl.href);
         await page.getByRole("button", { name: "Create an account", exact: true }).click();
-        const email = `loom-${crypto.randomUUID()}@example.test`;
+        const email = `kello-${crypto.randomUUID()}@example.test`;
         const userPassword = crypto.randomUUID();
         async function signIn() {
           {
@@ -271,9 +271,9 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
         assert.deepEqual(errors, []);
       }
       passed = true;
-      if (process.env.LOOM_CLOUD_RECEIPT)
+      if (process.env.KELLO_CLOUD_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_RECEIPT,
+          process.env.KELLO_CLOUD_RECEIPT,
           JSON.stringify(
             {
               example,
@@ -282,7 +282,7 @@ test.skipIf(process.env.LOOM_CLOUD_NEON_AUTH !== "1")(
               runtimeRole,
               projectId,
               branchId,
-              region: process.env.LOOM_CLOUD_REGION,
+              region: process.env.KELLO_CLOUD_REGION,
               version: generated.version,
               schemaExpansion,
               functions: deployed.functions.map(({ role, functionId, deploymentId, invocationUrl }) => ({

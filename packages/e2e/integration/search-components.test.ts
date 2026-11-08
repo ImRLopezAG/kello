@@ -21,14 +21,14 @@ import {
 import { callExample } from "../fixtures/rpc-call";
 import { writeSearchComponent } from "../fixtures/search-component";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "generated search mounts retain local graphs, data and cursor authority (U6)",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
-    const root = await mkdtemp(join(tmpdir(), "loom-search-components-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-search-components-"));
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_search_components_${suffix}`;
+    const metadataNamespace = `kello_search_components_${suffix}`;
     const runtimeRole = `search_component_reader_${suffix}`;
     const namespaces: string[] = [];
     const owner = new pg.Pool({ connectionString });
@@ -81,7 +81,7 @@ export default app;`,
       const ownerName = actor.rows[0]?.name;
       assert(ownerName);
       await owner.query(`GRANT "${runtimeRole}" TO "${ownerName.replaceAll('"', '""')}"`);
-      await owner.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-search-Test-06!'`);
+      await owner.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-search-Test-06!'`);
       for (const scope of project.componentScopes) {
         if (!scope.schema.tables.tasks) continue;
         const index = scope.mountPath.startsWith("catalog_") ? 0 : 1;
@@ -123,7 +123,7 @@ export default app;`,
       }
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-search-Test-06!";
+      address.password = "kello-search-Test-06!";
       runtime = await createRpcRuntime({
         schema: project.schema,
         relations: project.relations,
@@ -133,7 +133,7 @@ export default app;`,
         deployment: "search-components",
         metadataNamespace,
         branchId: "br-wispy-dew-awdp5g3y",
-        environment: { LOOM_SEARCH_CURSOR_KEY: "06".repeat(32) },
+        environment: { KELLO_SEARCH_CURSOR_KEY: "06".repeat(32) },
         auth: defineRpcAuth({ allowAnonymous: true, authorize: () => {} }),
         procedures: project.componentScopes.flatMap((scope) =>
           scope.procedures.map((entry) => ({

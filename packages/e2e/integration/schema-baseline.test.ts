@@ -8,15 +8,15 @@ import {
 import { applyMigrations, migrationStatus, readMigrations } from "kello-cli";
 import { ormHistoryTable } from "../../../apps/kello-cli/src/tooling/migrations/state";
 
-const source = process.env.LOOM_BASELINE_SOURCE_URL;
-const target = process.env.LOOM_BASELINE_TARGET_URL;
-const root = process.env.LOOM_BASELINE_ROOT;
+const source = process.env.KELLO_BASELINE_SOURCE_URL;
+const target = process.env.KELLO_BASELINE_TARGET_URL;
+const root = process.env.KELLO_BASELINE_ROOT;
 
 test.skipIf(!source || !target || !root)(
   "schema-only baseline adopts verified DDL without replay and preserves quarantine",
   async () => {
     assert(source && target && root);
-    const scope = { namespace: "u5_app", metadataNamespace: "loom_u5_meta" };
+    const scope = { namespace: "u5_app", metadataNamespace: "kello_u5_meta" };
     const artifacts = await readMigrations(root, "kello/_generated/migrations");
     await withMigrationConnection(source, async (sourceClient) => {
       const baseline = await captureSchemaBaseline(sourceClient, scope, artifacts);
@@ -24,7 +24,7 @@ test.skipIf(!source || !target || !root)(
         expect((await targetClient.query("SELECT count(*)::int AS count FROM u5_app.tasks")).rows[0]?.count).toBe(0);
         await establishSchemaBaseline(sourceClient, targetClient, baseline, artifacts);
         await establishSchemaBaseline(sourceClient, targetClient, baseline, artifacts);
-        const orm = `loom_u5_meta."${ormHistoryTable(scope.namespace)}"`;
+        const orm = `kello_u5_meta."${ormHistoryTable(scope.namespace)}"`;
         const ledger = await targetClient.query<{ hash: string; created_at: string }>(
           `SELECT hash, created_at FROM ${orm}`,
         );
@@ -50,7 +50,7 @@ test.skipIf(!source || !target || !root)(
         const marker = "a".repeat(64);
         try {
           await targetClient.query(
-            "INSERT INTO loom_u5_meta.mutation_results(scope_hash,key_hash,fingerprint,result,expires_at) VALUES($1,$1,$1,'{}',now()+interval '1 minute')",
+            "INSERT INTO kello_u5_meta.mutation_results(scope_hash,key_hash,fingerprint,result,expires_at) VALUES($1,$1,$1,'{}',now()+interval '1 minute')",
             [marker],
           );
           await assert.rejects(
@@ -58,7 +58,7 @@ test.skipIf(!source || !target || !root)(
             /inherited runtime records/,
           );
         } finally {
-          await targetClient.query("DELETE FROM loom_u5_meta.mutation_results WHERE scope_hash=$1 AND key_hash=$1", [
+          await targetClient.query("DELETE FROM kello_u5_meta.mutation_results WHERE scope_hash=$1 AND key_hash=$1", [
             marker,
           ]);
         }
@@ -70,13 +70,13 @@ test.skipIf(!source || !target || !root)(
         }
         await establishSchemaBaseline(sourceClient, targetClient, baseline, artifacts);
         expect(
-          (await targetClient.query("SELECT count(*)::int AS count FROM loom_u5_meta.deployment_activations")).rows[0]
+          (await targetClient.query("SELECT count(*)::int AS count FROM kello_u5_meta.deployment_activations")).rows[0]
             ?.count,
         ).toBe(0);
         expect(
           (
             await targetClient.query(
-              "SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolbypassrls FROM pg_roles WHERE rolname='loom_u5_runtime'",
+              "SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolbypassrls FROM pg_roles WHERE rolname='kello_u5_runtime'",
             )
           ).rows,
         ).toEqual([
@@ -85,7 +85,7 @@ test.skipIf(!source || !target || !root)(
         expect(
           (
             await targetClient.query(
-              "SELECT has_table_privilege('loom_u5_runtime','u5_app.tasks','INSERT') AS writable, has_schema_privilege('loom_u5_runtime','u5_app','CREATE') AS ddl",
+              "SELECT has_table_privilege('kello_u5_runtime','u5_app.tasks','INSERT') AS writable, has_schema_privilege('kello_u5_runtime','u5_app','CREATE') AS ddl",
             )
           ).rows,
         ).toEqual([{ writable: true, ddl: false }]);
@@ -95,7 +95,7 @@ test.skipIf(!source || !target || !root)(
     });
     const options = { root, connectionString: target, migrations: "kello/_generated/migrations", ...scope };
     expect((await migrationStatus(options)).consistent).toBe(true);
-    expect((await applyMigrations({ ...options, runtimeRole: "loom_u5_runtime" })).applied).toEqual([]);
+    expect((await applyMigrations({ ...options, runtimeRole: "kello_u5_runtime" })).applied).toEqual([]);
   },
   60_000,
 );

@@ -61,10 +61,10 @@ const projectedRows = v.array(v.strictObject({ _id: v.string(), label: v.string(
 // Authored against accepted U4 e22b5623. No runtime fixes or uncommitted 003
 // dependency metadata. The host owns execution and the acceptance receipt.
 test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential oracle and bounded continuation", async () => {
-  const connectionString = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
+  const connectionString = fullTextLocalTarget(process.env.KELLO_TEST_DATABASE_URL);
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `fts_u5_scale_${suffix}`;
-  const metadataNamespace = `loom_fts_u5_scale_${suffix}`;
+  const metadataNamespace = `kello_fts_u5_scale_${suffix}`;
   const role = `fts_u5_scale_reader_${suffix}`;
   const owner = new pg.Pool({ connectionString, max: 3 });
   const schema = defineSchema(

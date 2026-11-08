@@ -8,20 +8,20 @@ import pg from "pg";
 import * as v from "valibot";
 import { createKelloNeonApi } from "kello-cli";
 
-test.skipIf(!process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT)(
+test.skipIf(!process.env.KELLO_CLOUD_COMPONENT_SOURCE_RECEIPT)(
   "schema-only Neon branch adopts all component histories without data or work",
   async () => {
     const source = v.parse(
       v.object({ passed: v.literal(true), projectId: v.string(), branchId: v.string(), fixtureRoot: v.string() }),
-      JSON.parse(await readFile(process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT!, "utf8")),
+      JSON.parse(await readFile(process.env.KELLO_CLOUD_COMPONENT_SOURCE_RECEIPT!, "utf8")),
     );
     const tooling: typeof import("kello-cli") = await import(
       join(source.fixtureRoot, "node_modules/kello-cli/dist/tooling/index.js")
     );
     const api = createKelloNeonApi();
     const parent = (await api.listBranches(source.projectId)).find((branch) => branch.id === source.branchId);
-    assert(parent && !parent.isDefault && !parent.protected && parent.name.startsWith("loom-acceptance-"));
-    const name = `loom-acceptance-component-schema-${Date.now()}`;
+    assert(parent && !parent.isDefault && !parent.protected && parent.name.startsWith("kello-acceptance-"));
+    const name = `kello-acceptance-component-schema-${Date.now()}`;
     const declaration = {
       format: 1,
       key: createHash("sha256").update(name).digest("hex"),
@@ -76,7 +76,7 @@ test.skipIf(!process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT)(
       connection = new pg.Client({ connectionString });
       await connection.connect();
       const namespaces = await connection.query<{ mount_path: string; namespace: string }>(
-        "SELECT mount_path,namespace FROM loom_meta.component_namespaces ORDER BY mount_path",
+        "SELECT mount_path,namespace FROM kello_meta.component_namespaces ORDER BY mount_path",
       );
       assert.deepEqual(
         namespaces.rows.map((row) => row.mount_path),
@@ -92,7 +92,7 @@ test.skipIf(!process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT)(
           root: source.fixtureRoot,
           connectionString,
           namespace: row.namespace,
-          metadataNamespace: "loom_meta",
+          metadataNamespace: "kello_meta",
           migrations: `kello/_generated/migrations/components/${row.namespace}`,
         });
         assert(status.consistent && status.pending.length === 0);
@@ -108,7 +108,7 @@ test.skipIf(!process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT)(
         "runtime_scopes",
       ]) {
         assert.equal(
-          (await connection.query(`SELECT count(*)::int AS count FROM loom_meta.${table}`)).rows[0].count,
+          (await connection.query(`SELECT count(*)::int AS count FROM kello_meta.${table}`)).rows[0].count,
           0,
         );
       }
@@ -131,9 +131,9 @@ test.skipIf(!process.env.LOOM_CLOUD_COMPONENT_SOURCE_RECEIPT)(
       } catch {
         cleanupFailures.push("branch");
       }
-      if (process.env.LOOM_CLOUD_SCHEMA_RECEIPT)
+      if (process.env.KELLO_CLOUD_SCHEMA_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_SCHEMA_RECEIPT,
+          process.env.KELLO_CLOUD_SCHEMA_RECEIPT,
           JSON.stringify(
             {
               projectId: source.projectId,

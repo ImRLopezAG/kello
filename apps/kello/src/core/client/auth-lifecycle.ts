@@ -32,8 +32,8 @@ export function createAuthLifecycle<T extends SessionConnection>(options: {
   let active: T | undefined;
   let key: string | undefined = options.hydration?.session.key;
   let prefix = options.hydration
-    ? v.parse(v.pipe(v.string(), v.regex(/^loom:[a-f0-9-]{36}$/)), options.hydration.cachePrefix)
-    : `loom:${crypto.randomUUID()}`;
+    ? v.parse(v.pipe(v.string(), v.regex(/^kello:[a-f0-9-]{36}$/)), options.hydration.cachePrefix)
+    : `kello:${crypto.randomUUID()}`;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pending: Promise<void> | undefined;
   const stop = () => {
@@ -49,7 +49,7 @@ export function createAuthLifecycle<T extends SessionConnection>(options: {
       if (!token) {
         options.clearCache(prefix);
         key = undefined;
-        prefix = `loom:${crypto.randomUUID()}`;
+        prefix = `kello:${crypto.randomUUID()}`;
         return;
       }
       // Pin the verified credential. A mutable SDK token getter must not switch
@@ -64,7 +64,7 @@ export function createAuthLifecycle<T extends SessionConnection>(options: {
       }
       if (key !== undefined && key !== session.key) {
         options.clearCache(prefix);
-        prefix = `loom:${crypto.randomUUID()}`;
+        prefix = `kello:${crypto.randomUUID()}`;
         connection.dispose();
         connection = options.createClient({ url: options.url, getToken, cachePrefix: prefix });
         active = connection;
@@ -82,7 +82,7 @@ export function createAuthLifecycle<T extends SessionConnection>(options: {
       stop();
       options.clearCache(prefix);
       key = undefined;
-      prefix = `loom:${crypto.randomUUID()}`;
+      prefix = `kello:${crypto.randomUUID()}`;
       options.onError?.(error instanceof Error ? error : new Error("Authentication failed"));
     }
   }
@@ -105,7 +105,7 @@ export function createAuthLifecycle<T extends SessionConnection>(options: {
     stop();
     options.clearCache(prefix);
     key = undefined;
-    prefix = `loom:${crypto.randomUUID()}`;
+    prefix = `kello:${crypto.randomUUID()}`;
     void refresh(false);
   });
   const unsubscribeOnline = onlineManager.subscribe((online) => {

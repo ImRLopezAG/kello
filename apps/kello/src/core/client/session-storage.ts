@@ -4,7 +4,7 @@ import { abortable } from "../adapters/neon/abortable";
 
 /** Shares the provider's pinned credential and teardown with its RPC peer. */
 export function createSessionStorage(options: RpcTransportOptions, shutdown: AbortSignal) {
-  const identityKey = options.cachePrefix ?? `loom:${crypto.randomUUID()}`;
+  const identityKey = options.cachePrefix ?? `kello:${crypto.randomUUID()}`;
   return createStorageClient({
     url: options.url,
     signal: shutdown,

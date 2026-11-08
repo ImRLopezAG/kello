@@ -6,10 +6,10 @@ import { bigint, pgSchema, text, uuid } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
 import pg from "pg";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 
 test.skipIf(!connectionString)("PostgreSQL 18 native IDs, constraints, migration replay and RQB v2", async () => {
-  const namespace = `loom_compat_${crypto.randomUUID().replaceAll("-", "")}`;
+  const namespace = `kello_compat_${crypto.randomUUID().replaceAll("-", "")}`;
   const schema = pgSchema(namespace);
   const projects = schema.table("projects", {
     _id: uuid()

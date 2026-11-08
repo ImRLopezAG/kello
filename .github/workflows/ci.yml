@@ -25,7 +25,7 @@ jobs:
         image: postgres:18.6
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: loom-ci-only
+          POSTGRES_PASSWORD: kello-ci-only
           POSTGRES_DB: kello_test
         ports:
           - 55432:5432
@@ -33,8 +33,8 @@ jobs:
           --health-cmd "pg_isready -U postgres -d kello_test"
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
-      LOOM_TEST_DATABASE_URL: postgresql://postgres:loom-ci-only@127.0.0.1:55432/kello_test
-      LOOM_TEST_POOLED_DATABASE_URL: postgresql://postgres:loom-ci-only@127.0.0.1:56432/kello_test
+      KELLO_TEST_DATABASE_URL: postgresql://postgres:kello-ci-only@127.0.0.1:55432/kello_test
+      KELLO_TEST_POOLED_DATABASE_URL: postgresql://postgres:kello-ci-only@127.0.0.1:56432/kello_test
       TURBO_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -57,7 +57,7 @@ jobs:
           sudo apt-get install -y pgbouncer
           mkdir -m 700 "$RUNNER_TEMP/kello-pgbouncer"
           cat > "$RUNNER_TEMP/kello-pgbouncer/users.txt" <<'EOF'
-          "postgres" "loom-ci-only"
+          "postgres" "kello-ci-only"
           EOF
           cat > "$RUNNER_TEMP/kello-pgbouncer/pgbouncer.ini" <<EOF
           [databases]
@@ -79,7 +79,7 @@ jobs:
           EOF
           chmod 600 "$RUNNER_TEMP/kello-pgbouncer/"*
           pgbouncer -d "$RUNNER_TEMP/kello-pgbouncer/pgbouncer.ini"
-          PGPASSWORD=loom-ci-only psql -h 127.0.0.1 -p 56432 -U postgres -d kello_test -c 'SELECT 1'
+          PGPASSWORD=kello-ci-only psql -h 127.0.0.1 -p 56432 -U postgres -d kello_test -c 'SELECT 1'
       - name: PostgreSQL integration and packed Bun/Node consumers
         run: bun run test:integration
       - name: Typecheck package and integration consumers

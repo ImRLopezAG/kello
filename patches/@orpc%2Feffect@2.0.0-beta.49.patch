@@ -1,0 +1,11 @@
+diff --git a/dist/extensions/effect.d.ts b/dist/extensions/effect.d.ts
+index 16b5517e7b936b0a76c544fad4e38789544aeca4..4f4314070c2ab0c5d3cb385acab84e5e90b38c23 100644
+--- a/dist/extensions/effect.d.ts
++++ b/dist/extensions/effect.d.ts
+@@ -1,5 +1,5 @@
+ import type { AnySchema, ErrorMap, InferSchemaInput, InferSchemaOutput, InitialInputSchema, Schema } from '@orpc/contract';
+-import type { Context, ImplementedProcedure, MergedContext, ORPCErrorConstructorMap } from '@orpc/server';
++import type { Context, DecoratedProcedure, ImplementedProcedure, MergedContext, ORPCErrorConstructorMap } from '@orpc/server';
+ import type { Effect } from 'effect';
+ import type { InferEffectServices } from '../context.ts';
+ import type { HandlerGen } from '../handler.ts';

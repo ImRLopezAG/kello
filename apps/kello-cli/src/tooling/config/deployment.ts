@@ -13,7 +13,7 @@ export const deploymentConfigValidator = v.strictObject({
   migrationRole: identifier,
   runtimeRole: identifier,
   quarantine: v.optional(v.picklist(["clone", "preserve"]), "preserve"),
-  activationTokenEnv: v.optional(environmentName, "LOOM_ACTIVATION_TOKEN"),
+  activationTokenEnv: v.optional(environmentName, "KELLO_ACTIVATION_TOKEN"),
   slugs: v.optional(v.strictObject({ service: slug, worker: slug })),
   variables: v.optional(v.record(environmentName, environmentName), {}),
   reviewedHashes: v.optional(v.array(hash), []),

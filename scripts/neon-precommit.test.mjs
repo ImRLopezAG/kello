@@ -24,7 +24,7 @@ function fixture(work) {
       join(root, "bin/bun"),
       `#!/bin/sh
 printf '%s\\n' "$*" >> "$HOOK_TEST_LOG"
-if [ "$1" = "./cloud/run.ts" ]; then printf '%s\\n' "$LOOM_CLOUD_SUITE" >> "$HOOK_TEST_ROOT/suites.log"; fi
+if [ "$1" = "./cloud/run.ts" ]; then printf '%s\\n' "$KELLO_CLOUD_SUITE" >> "$HOOK_TEST_ROOT/suites.log"; fi
 if [ "$HOOK_TEST_FAIL" = "$*" ]; then exit 1; fi
 if [ "$HOOK_TEST_DRIFT" = 1 ]; then printf changed > "$HOOK_TEST_ROOT/source.txt"; fi
 `,
@@ -35,7 +35,7 @@ if [ "$HOOK_TEST_DRIFT" = 1 ]; then printf changed > "$HOOK_TEST_ROOT/source.txt
       PATH: `${join(root, "bin")}:${process.env.PATH}`,
       NEON_API_KEY: "test-double-only",
       KELLO_CLOUD_PROJECT_ID: "late-moon-69483649",
-      LOOM_CLOUD_BRANCH_ID: "br-test",
+      KELLO_CLOUD_BRANCH_ID: "br-test",
       HOOK_TEST_LOG: join(root, "commands.log"),
       HOOK_TEST_ROOT: root,
       HOOK_TEST_FAIL: "",

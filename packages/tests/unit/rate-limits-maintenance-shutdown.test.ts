@@ -157,7 +157,7 @@ vi.mock("pg", async () => {
       if (text.includes("nspowner")) return { rows: [{ owned: true, framework: true, migrations: true }] };
       if (text.includes("SELECT version,hash")) {
         const { frameworkMigrations } = await import("../../../apps/kello-cli/src/tooling/migrations/bootstrap");
-        return { rows: frameworkMigrations("loom_shutdown").map(({ version, hash }) => ({ version, hash })) };
+        return { rows: frameworkMigrations("kello_shutdown").map(({ version, hash }) => ({ version, hash })) };
       }
       if (text.includes(" AS now")) return { rows: [{ now: "1000" }] };
       if (text.includes(" AS has_more"))
@@ -190,7 +190,26 @@ function repeatCancellationEvent(): void {
   state.releaseCancellation?.();
 }
 
+const weakMapSet = Object.getOwnPropertyDescriptor(WeakMap.prototype, "set")!;
+
+// Observe the private WeakMap write without vi.spyOn: newer Vitest records mock
+// state in its own WeakMaps, so spying on WeakMap.prototype.set recurses forever.
+function recordWeakMapWrites(): Array<[WeakKey, any]> {
+  const calls: Array<[WeakKey, any]> = [];
+  Object.defineProperty(WeakMap.prototype, "set", {
+    ...weakMapSet,
+    value(this: WeakMap<WeakKey, any>, ...entry: [WeakKey, any]) {
+      calls.push(entry);
+      const original: (this: WeakMap<WeakKey, any>, ...entry: [WeakKey, any]) => WeakMap<WeakKey, any> =
+        weakMapSet.value;
+      return original.call(this, ...entry);
+    },
+  });
+  return calls;
+}
+
 afterEach(() => {
+  Object.defineProperty(WeakMap.prototype, "set", weakMapSet);
   vi.useRealTimers();
   vi.restoreAllMocks();
   state.failClose = state.deferDrain = state.hasMore = false;
@@ -224,7 +243,7 @@ test.each([
     state.entered = entered.resolve;
     const pending = cleanupRateLimits({
       connectionString: "postgresql://unused.invalid/db",
-      metadataNamespace: "loom_shutdown",
+      metadataNamespace: "kello_shutdown",
       signal: controller.signal,
       maxDurationMs: 1000,
     });
@@ -273,7 +292,7 @@ test("abort between queries issues no next query or cancellation", async () => {
   state.controller = new AbortController();
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     signal: state.controller.signal,
   }).catch((error) => error.message);
   await vi.waitFor(() => expect(state.events).toContain("owner-end"));
@@ -291,7 +310,7 @@ test("already aborted invocation closes without connecting", async () => {
   controller.abort();
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     signal: controller.signal,
   }).catch((error) => error.message);
   await vi.waitFor(() => expect(state.events).toContain("owner-end"));
@@ -307,7 +326,7 @@ test("successful result also awaits owned close settlement", async () => {
   let settled = false;
   const pending = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
   });
   const outcome = pending.then((result) => {
     settled = true;
@@ -335,7 +354,7 @@ test("cancellation consumes only the remaining run budget before owned close", a
   let settled = false;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     signal: controller.signal,
     maxDurationMs: 1000,
   }).then(
@@ -409,7 +428,7 @@ test.each(["deadline", "abort"] as const)(
     let settled = false;
     const outcome = cleanupRateLimits({
       connectionString: "postgresql://unused.invalid/db",
-      metadataNamespace: "loom_shutdown",
+      metadataNamespace: "kello_shutdown",
       signal: controller.signal,
       maxDurationMs: 1000,
     }).then(
@@ -441,7 +460,7 @@ test("late close cannot succeed even before the deadline watchdog gets a turn", 
   const started = performance.now();
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     maxDurationMs: 1000,
   }).then(
     () => "success",
@@ -464,7 +483,7 @@ test.each([false, true])("confirmed batches survive operation failure and close 
   state.failClose = failClose;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
   }).then(
     () => undefined,
     (error) => error,
@@ -474,7 +493,7 @@ test.each([false, true])("confirmed batches survive operation failure and close 
   state.releaseClose!();
   const error = await outcome;
   expect(error).toMatchObject({ message: "Rate limit cleanup failed", removed: 1, batches: 1 });
-  expect(JSON.stringify(error)).not.toMatch(/PRIVATE_|unused|loom_shutdown/);
+  expect(JSON.stringify(error)).not.toMatch(/PRIVATE_|unused|kello_shutdown/);
   expect(error.cause).toBeUndefined();
   expect(state.events.filter((event) => event === "owner-end")).toHaveLength(1);
 });
@@ -486,7 +505,7 @@ test("close failure rejects a completed run and retains confirmed commits", asyn
   state.failClose = true;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
   }).then(
     () => undefined,
     (error) => error,
@@ -509,7 +528,7 @@ test("one shutdown joins query drain even when cancellation and close fail", asy
   let settled = false;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     signal: controller.signal,
   }).then(
     () => {
@@ -549,7 +568,7 @@ test("late successful connect is drained and closed without issuing SQL", async 
   let settled = false;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     signal: controller.signal,
   }).then(
     () => {
@@ -583,7 +602,7 @@ test("reentrant driver failure during close joins one shutdown", async () => {
   state.reenterOnDestroy = true;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
   }).then(
     () => undefined,
     (error) => error,
@@ -605,7 +624,7 @@ test("a fulfilled late COMMIT is counted but cannot produce success or another b
   };
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     maxDurationMs: 1000,
   }).then(
     () => undefined,
@@ -630,7 +649,7 @@ test("voluntary time-budget stop succeeds only after close within the deadline",
   let settled = false;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     maxDurationMs: 1000,
   }).then((result) => {
     settled = true;
@@ -649,7 +668,7 @@ test("client construction failure is redacted before any connection work", async
   state.failConstructor = true;
   const error = await cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
   }).then(
     () => undefined,
     (error) => error,
@@ -741,7 +760,7 @@ test("throwing cancel destroy still joins the owner's query drain and close", as
   let settled = false;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     signal: controller.signal,
   }).catch((error) => {
     settled = true;
@@ -770,7 +789,7 @@ test.each([new Error("PRIVATE_ABORT_INITIATOR"), null, false, 0, ""])(
   "initiating abort %s stays primary across cancellation, reentrant close and query-drain failures",
   async (reason) => {
     // Observe the existing private WeakMap write, without exporting raw diagnostics.
-    const records = vi.spyOn(WeakMap.prototype, "set");
+    const records = recordWeakMapWrites();
     state.events = [];
     state.stage = "SHOW";
     state.ssl = false;
@@ -782,7 +801,7 @@ test.each([new Error("PRIVATE_ABORT_INITIATOR"), null, false, 0, ""])(
     const controller = new AbortController();
     const outcome = cleanupRateLimits({
       connectionString: "postgresql://unused.invalid/db",
-      metadataNamespace: "loom_shutdown",
+      metadataNamespace: "kello_shutdown",
       signal: controller.signal,
     }).catch((error) => error);
     await entered.promise;
@@ -793,7 +812,7 @@ test.each([new Error("PRIVATE_ABORT_INITIATOR"), null, false, 0, ""])(
     state.releaseClose!();
     state.releaseDrain!();
     const error = await outcome;
-    const details = records.mock.calls.find(([key]) => key === error)?.[1];
+    const details = records.find(([key]) => key === error)?.[1];
     expect(details).toMatchObject({ primary: { error: reason } });
     expect(details.cleanup).toEqual(
       expect.arrayContaining([
@@ -818,7 +837,7 @@ test.each(["work-cutoff", "absolute-deadline", "late-connect"] as const)(
   "%s keeps its initiating failure before shutdown consequences",
   async (path) => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-    const records = vi.spyOn(WeakMap.prototype, "set");
+    const records = recordWeakMapWrites();
     state.events = [];
     state.stage = path === "late-connect" ? "none" : "SHOW";
     state.ssl = false;
@@ -832,7 +851,7 @@ test.each(["work-cutoff", "absolute-deadline", "late-connect"] as const)(
     const reason = new Error("PRIVATE_CONNECT_ABORT");
     const outcome = cleanupRateLimits({
       connectionString: "postgresql://unused.invalid/db",
-      metadataNamespace: "loom_shutdown",
+      metadataNamespace: "kello_shutdown",
       signal: controller.signal,
       maxDurationMs: 1000,
     }).catch((error) => error);
@@ -849,7 +868,7 @@ test.each(["work-cutoff", "absolute-deadline", "late-connect"] as const)(
     await vi.advanceTimersByTimeAsync(0);
     state.releaseClose!();
     const error = await outcome;
-    const details = records.mock.calls.find(([key]) => key === error)?.[1];
+    const details = records.find(([key]) => key === error)?.[1];
     expect(details.primary.error).toEqual(path === "late-connect" ? reason : new Error("Rate limit cleanup failed"));
     expect(details.cleanup).toEqual(
       expect.arrayContaining([
@@ -874,7 +893,7 @@ test.each(["work-cutoff", "absolute-deadline", "late-connect"] as const)(
 );
 
 test("an earlier SQL failure remains primary when abort and reentrant close fail later", async () => {
-  const records = vi.spyOn(WeakMap.prototype, "set");
+  const records = recordWeakMapWrites();
   state.events = [];
   state.stage = "none";
   state.failQuery = "SHOW";
@@ -883,14 +902,14 @@ test("an earlier SQL failure remains primary when abort and reentrant close fail
   const controller = new AbortController();
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "loom_shutdown",
+    metadataNamespace: "kello_shutdown",
     signal: controller.signal,
   }).catch((error) => error);
   await vi.waitFor(() => expect(state.events).toContain("owner-end"));
   controller.abort(new Error("PRIVATE_LATER_ABORT"));
   state.releaseClose!();
   const error = await outcome;
-  const details = records.mock.calls.find(([key]) => key === error)?.[1];
+  const details = records.find(([key]) => key === error)?.[1];
   expect(details.primary.error.message).toBe("PRIVATE_OPERATION_FAILURE");
   expect(details.cleanup).toEqual(
     expect.arrayContaining([

@@ -44,9 +44,9 @@ export async function captureSchemaBaseline(
   quoteIdentifier(scope.namespace);
   quoteIdentifier(scope.metadataNamespace);
   if (scope.namespace === scope.metadataNamespace) throw new Error("Baseline namespaces must differ");
-  await acquireMigrationLock(source, "loom:component-ownership");
-  await acquireMigrationLock(source, `loom:migrations:${scope.namespace}`);
-  await acquireMigrationLock(source, "loom:bootstrap");
+  await acquireMigrationLock(source, "kello:component-ownership");
+  await acquireMigrationLock(source, `kello:migrations:${scope.namespace}`);
+  await acquireMigrationLock(source, "kello:bootstrap");
   const baseline = await snapshot(source, Object.freeze({ ...scope }), artifacts);
   for (const migration of baseline.migrations) Object.freeze(migration);
   Object.freeze(baseline.migrations);
@@ -68,14 +68,14 @@ export async function establishSchemaBaselines(
   if (!first || source === target) throw new Error("Missing or invalid baseline source");
   const metadataNamespace = first.baseline.scope.metadataNamespace;
   const metadata = quoteIdentifier(metadataNamespace);
-  await acquireMigrationLock(target, "loom:component-ownership");
+  await acquireMigrationLock(target, "kello:component-ownership");
   const sorted = [...entries].sort((a, b) => a.baseline.scope.namespace.localeCompare(b.baseline.scope.namespace));
   for (const { baseline } of sorted) {
     if (sources.get(baseline) !== source || baseline.scope.metadataNamespace !== metadataNamespace)
       throw new Error("Baseline source session changed");
-    await acquireMigrationLock(target, `loom:migrations:${baseline.scope.namespace}`);
+    await acquireMigrationLock(target, `kello:migrations:${baseline.scope.namespace}`);
   }
-  await acquireMigrationLock(target, "loom:bootstrap");
+  await acquireMigrationLock(target, "kello:bootstrap");
   async function verifySource() {
     const ledger = await source.query<{ present: boolean }>("SELECT to_regclass($1) IS NOT NULL AS present", [
       `${metadata}.component_namespaces`,

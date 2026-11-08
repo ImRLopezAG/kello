@@ -12,13 +12,13 @@ import {
 } from "kello-cli";
 import type { DeploymentDatabaseProvider } from "kello-cli";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "preview quarantine revokes grants and fences copied jobs atomically on a verified target",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
@@ -87,10 +87,10 @@ test.skipIf(!connectionString)(
         { state: "active" },
       ]);
       await admin.query(`ALTER TABLE "${metadataNamespace}".jobs DROP CONSTRAINT refuse_cancel`);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const runtimeAddress = new URL(connectionString);
       runtimeAddress.username = runtimeRole;
-      runtimeAddress.password = "loom-test-only";
+      runtimeAddress.password = "kello-test-only";
       api.getConnectionUri = async () => ({ uri: runtimeAddress.href });
       await assert.rejects(
         quarantinePreviewDatabase({ ...options, migrationRole: runtimeRole }, api),
@@ -191,7 +191,7 @@ test.skipIf(!connectionString)(
           expect((await client.query("SELECT current_database() AS name")).rows[0].name).toBe(options.databaseName);
           const lock = await admin.query<{ acquired: boolean }>(
             "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS acquired",
-            [`loom:deployment:${metadataNamespace}`],
+            [`kello:deployment:${metadataNamespace}`],
           );
           expect(lock.rows[0]?.acquired).toBe(false);
           await assert.rejects(session.assertActive(), /not active/i);
@@ -244,10 +244,12 @@ test.skipIf(!connectionString)(
       );
       const released = await admin.query<{ acquired: boolean }>(
         "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS acquired",
-        [`loom:deployment:${metadataNamespace}`],
+        [`kello:deployment:${metadataNamespace}`],
       );
       expect(released.rows[0]?.acquired).toBe(true);
-      await admin.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [`loom:deployment:${metadataNamespace}`]);
+      await admin.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [
+        `kello:deployment:${metadataNamespace}`,
+      ]);
       await admin.query(
         `UPDATE "${metadataNamespace}".deployment_activations SET state = 'retired' WHERE version = $1 AND deployment = 'preview'`,
         [grantOptions.version],

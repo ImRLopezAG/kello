@@ -168,7 +168,7 @@ export async function inspectNeonFunctionHealth(
         signal.throwIfAborted();
         identityMismatch = undefined;
         const response = await fetch(
-          `${invocationAddress(fn.invocationUrl).href.replace(/\/$/, "")}/_loom/deployment/health`,
+          `${invocationAddress(fn.invocationUrl).href.replace(/\/$/, "")}/_kello/deployment/health`,
           {
             method: "POST",
             headers: { authorization: `Bearer ${token}` },

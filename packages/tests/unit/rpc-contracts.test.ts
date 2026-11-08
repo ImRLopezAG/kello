@@ -242,6 +242,35 @@ describe("native project procedures", () => {
     expect((await generateRpcOpenAPI({ tasks: { effect } })).paths?.["/tasks/effect"]).toBeDefined();
   });
 
+  test("OpenAPI emits Effect's native JSON Schema, including optional input properties", async () => {
+    const effect = procedure
+      .input(Schema.toStandardSchemaV1(Schema.Struct({ name: Schema.String, note: Schema.optionalKey(Schema.String) })))
+      .output(Schema.toStandardSchemaV1(Schema.Struct({ ok: Schema.Boolean })))
+      .handler(() => ({ ok: true }));
+    const operation = (await generateRpcOpenAPI({ effect })).paths?.["/effect"]?.post;
+    expect(operation?.requestBody).toMatchObject({
+      content: {
+        "application/json": {
+          schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+        },
+      },
+    });
+    expect(operation?.responses?.["200"]).toMatchObject({
+      content: {
+        "application/json": { schema: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] } },
+      },
+    });
+  });
+
+  test("OpenAPI fails generation for an Effect schema without a JSON Schema representation", async () => {
+    // Effect refuses symbol property names; the converter must surface that, not emit an unconstrained schema.
+    const unrepresentable = Schema.Struct({ [Symbol("key")]: Schema.String });
+    const unsupported = procedure.output(Schema.toStandardSchemaV1(unrepresentable)).handler(() => {
+      throw new Error("unreachable");
+    });
+    await expect(generateRpcOpenAPI({ tasks: { unsupported } })).rejects.toThrow("tasks.unsupported");
+  });
+
   test("OpenAPI supports Standard JSON Schema contracts without requiring a Zod runtime dependency", async () => {
     const item = procedure
       .input(z.object({ name: z.string() }))

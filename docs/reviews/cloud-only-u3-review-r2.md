@@ -4,7 +4,7 @@
 
 ## Authority and scope
 
-Canonical checkout: `/Users/angel/.t3/worktrees/loom/release-kello-001-002-alpha`. Branch: `refactor/neon-cloud-tooling`. Opening and closing HEAD: `623a764820e972aa896dd12d1d88586ef95b384c`.
+Canonical checkout: `/Users/angel/.t3/worktrees/kello/release-kello-001-002-alpha`. Branch: `refactor/neon-cloud-tooling`. Opening and closing HEAD: `623a764820e972aa896dd12d1d88586ef95b384c`.
 
 This was one independent correctness/API/security/lifecycle source review, not a CE shipping invocation. No delegates, source edits, history changes, commits, build, test, install, browser, network, provider or database execution. The only written artifact is this report. Other dirty work was neither adopted nor reverted.
 

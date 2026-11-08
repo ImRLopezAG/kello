@@ -6,11 +6,11 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { pgSchema } from "drizzle-orm/pg-core";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "compiled schema persists typed rows and protects system fields against SQL writes",
   async () => {
-    const namespace = `loom_schema_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_schema_${crypto.randomUUID().replaceAll("-", "")}`;
     const schema = defineSchema(
       (s) => ({
         projects: { name: s.text().notNull() },

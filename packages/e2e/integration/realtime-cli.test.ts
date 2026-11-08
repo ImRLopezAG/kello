@@ -143,7 +143,7 @@ test("a fresh acceptance branch must enable Realtime before a live deployment", 
       provider,
     );
     expect(status.state).toBe("ready");
-    expect(await resolveRealtimeEnvironment(true, target, provider)).toEqual({ LOOM_REALTIME_SECRET: canary });
+    expect(await resolveRealtimeEnvironment(true, target, provider)).toEqual({ KELLO_REALTIME_SECRET: canary });
     expect(await readFile(join(root, ".kello/project.json"), "utf8")).not.toContain(canary);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -270,7 +270,7 @@ test("realtime mutation refuses every disagreeing branch and database binding", 
       { name: "neondb", branchId, ownerName: "neondb_owner" },
       { name: "otherdb", branchId, ownerName: "neondb_owner" },
     ];
-    const database = { migrationRole: "neondb_owner", runtimeRole: "loom_runtime" };
+    const database = { migrationRole: "neondb_owner", runtimeRole: "kello_runtime" };
     const deployment = { ...database, environment: "preview" as const, deployment: "preview" };
     const cases = [
       { config: { branchId: "br-other" } },
@@ -547,7 +547,7 @@ test("live deployments fresh-check Realtime and route the SDK secret only throug
       /Realtime is not ready on the selected branch/,
     );
   const ready = realtime([{ enabled: true, pending: false }]);
-  expect(await resolveRealtimeEnvironment(true, target, ready.provider)).toEqual({ LOOM_REALTIME_SECRET: canary });
+  expect(await resolveRealtimeEnvironment(true, target, ready.provider)).toEqual({ KELLO_REALTIME_SECRET: canary });
   await assert.rejects(
     resolveRealtimeEnvironment(true, target, { ...ready.provider, secret: async () => "" }),
     /Neon Realtime secret is unavailable/,

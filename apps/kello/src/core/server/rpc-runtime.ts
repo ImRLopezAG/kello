@@ -74,11 +74,11 @@ export interface RpcRuntimeOptions<Relations extends AnyRelations> extends Datab
 export async function createRpcRuntime<Relations extends AnyRelations>(options: RpcRuntimeOptions<Relations>) {
   const hasSearch = options.procedures.some((entry) => searchContractDescriptor(entry.procedure));
   if (hasSearch) {
-    readSearchCursorKey((options.environment ?? process.env).LOOM_SEARCH_CURSOR_KEY);
+    readSearchCursorKey((options.environment ?? process.env).KELLO_SEARCH_CURSOR_KEY);
     if (!options.branchId) throw new Error("Search branch binding required");
   }
   const search = hasSearch
-    ? { branchId: options.branchId!, key: (options.environment ?? process.env).LOOM_SEARCH_CURSOR_KEY! }
+    ? { branchId: options.branchId!, key: (options.environment ?? process.env).KELLO_SEARCH_CURSOR_KEY! }
     : undefined;
   let application = options.application
     ? await prepareApplicationEnvironment(options.application, options.environment ?? process.env, {

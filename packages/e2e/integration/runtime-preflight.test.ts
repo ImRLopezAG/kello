@@ -3,12 +3,12 @@ import { test } from "bun:test";
 import pg from "pg";
 import { bootstrapDatabase, inspectRuntimeDatabase } from "kello-cli";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)("runtime preflight verifies actual credentials without granting authority", async () => {
   if (!connectionString) throw new Error("Missing database");
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `app_${suffix}`;
-  const metadataNamespace = `loom_${suffix}`;
+  const metadataNamespace = `kello_${suffix}`;
   const runtimeRole = `runtime_${suffix}`;
   const otherRole = `other_${suffix}`;
   const admin = new pg.Client({ connectionString });

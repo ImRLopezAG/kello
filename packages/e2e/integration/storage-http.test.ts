@@ -9,23 +9,23 @@ import { createStorageHttpApp } from "kello/neon";
 import { createStorageClient, KelloClientError } from "kello/client";
 import { storageProviderFixture } from "../fixtures/storage-provider";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "storage HTTP verifies tenant JWTs and preserves intents across lost client responses",
   async () => {
     if (!connectionString) throw new Error("Missing database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     const provider = storageProviderFixture();
     await admin.connect();
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       let permitted = true;
       const runtime = await createRpcRuntime({

@@ -101,11 +101,11 @@ const configurations: readonly [string, BetterAuthOptions][] = [
   ],
 ];
 for (const [name, configuration] of configurations)
-  test.skipIf(!process.env.LOOM_TEST_DATABASE_URL)(
+  test.skipIf(!process.env.KELLO_TEST_DATABASE_URL)(
     `${name}: migrations create native tables and real Better Auth sign-up uses the adapter`,
     async () => {
       const namespace = `auth_${crypto.randomUUID().replaceAll("-", "")}`;
-      const pool = new pg.Pool({ connectionString: process.env.LOOM_TEST_DATABASE_URL });
+      const pool = new pg.Pool({ connectionString: process.env.KELLO_TEST_DATABASE_URL });
       try {
         const schema = compileBetterAuthSchema(configuration, namespace);
         const snapshot = await createNativeSnapshot({ namespace, tables: schema.ownedTables });
@@ -118,7 +118,7 @@ for (const [name, configuration] of configurations)
         expect(catalog.rows.map((r) => r.table_name).sort()).toEqual(Object.keys(schema.ownedTables).sort());
         const auth = betterAuth({
           ...configuration,
-          secret: "loom-integration-secret-at-least-thirty-two-characters",
+          secret: "kello-integration-secret-at-least-thirty-two-characters",
           baseURL: "https://auth.example.test",
           database: createBetterAuthDatabase(drizzle({ client: pool }), namespace),
           emailAndPassword: { enabled: true },

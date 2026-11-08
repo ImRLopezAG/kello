@@ -415,7 +415,7 @@ for (const input of inputs) {
     assert.equal(input.includes(fragment), false, "server-only browser module: " + input);
   }
 }
-assert.match(output, /loom-search-projections/);
+assert.match(output, /kello-search-projections/);
 assert.match(output, /fullText/);
 assert.match(output, /content/);
 assert.doesNotMatch(output, /fts_packed_private_marker|packed-content-v1|packed-hidden-v1|taskLabels|projectId|organizationId|secret|pg_catalog|ts_rank|to_tsvector|plainto_tsquery|DATABASE_URL|node:fs|node:crypto|pg-protocol|drizzle-orm|libpg-query|kello.search.descriptor/);

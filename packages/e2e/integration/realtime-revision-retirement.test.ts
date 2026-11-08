@@ -3,13 +3,13 @@ import pg from "pg";
 import { bootstrapSession, frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
 // The integration runner supplies an admitted disposable PG18 target. Never create a local server.
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 
 test("upgrade and fresh bootstrap retire only the selected metadata live engine", async () => {
   if (!connectionString) throw new Error("An admitted PostgreSQL integration target is required");
   const suffix = crypto.randomUUID().replaceAll("-", "");
-  const metadata = `loom_retire_${suffix}`;
-  const fresh = `loom_fresh_${suffix}`;
+  const metadata = `kello_retire_${suffix}`;
+  const fresh = `kello_fresh_${suffix}`;
   const application = `app_retire_${suffix}`;
   const role = `retire_${suffix}`;
   const client = new pg.Client({ connectionString, connectionTimeoutMillis: 5000 });
@@ -31,14 +31,14 @@ test("upgrade and fresh bootstrap retire only the selected metadata live engine"
     await client.query(`CREATE SCHEMA "${application}"`);
     await client.query(`CREATE TABLE "${application}".tasks(id integer PRIMARY KEY, title text)`);
     await client.query(`INSERT INTO "${metadata}".table_revisions VALUES('${application}','tasks',1)`);
-    await client.query(`CREATE TRIGGER loom_table_revision AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE
+    await client.query(`CREATE TRIGGER kello_table_revision AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE
       ON "${application}".tasks FOR EACH STATEMENT EXECUTE FUNCTION "${metadata}".advance_table_revision()`);
     // Same historical name, different function: this trigger is not Kello's revision engine.
     await client.query(`CREATE TABLE "${application}".other(id integer)`);
     await client.query(`CREATE TABLE "${application}".audit(id integer)`);
     await client.query(`CREATE FUNCTION "${application}".audit_write() RETURNS trigger LANGUAGE plpgsql AS
       $$ BEGIN INSERT INTO "${application}".audit VALUES(NEW.id); RETURN NEW; END $$`);
-    await client.query(`CREATE TRIGGER loom_table_revision AFTER INSERT ON "${application}".other
+    await client.query(`CREATE TRIGGER kello_table_revision AFTER INSERT ON "${application}".other
       FOR EACH ROW EXECUTE FUNCTION "${application}".audit_write()`);
     await client.query(`INSERT INTO "${application}".tasks VALUES(1,'before')`);
     const job = crypto.randomUUID();

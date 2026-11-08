@@ -2,10 +2,10 @@ import { expect, test } from "vite-plus/test";
 import { prepareMutationReplay, validateIdempotencyOptions } from "../../../apps/kello/src/core/server/idempotency";
 import type { JsonValue } from "kello/server";
 
-const options = { deployment: "test", metadataNamespace: "loom_meta" };
+const options = { deployment: "test", metadataNamespace: "kello_meta" };
 test("idempotency configuration and keys reject invalid or unbounded identifiers", () => {
   expect(() => validateIdempotencyOptions(options)).not.toThrow();
-  for (const metadataNamespace of ["public", "loom_meta; DROP SCHEMA public", `loom_${"x".repeat(59)}`]) {
+  for (const metadataNamespace of ["public", "kello_meta; DROP SCHEMA public", `kello_${"x".repeat(59)}`]) {
     expect(() => validateIdempotencyOptions({ ...options, metadataNamespace })).toThrow();
   }
   for (const deployment of ["", "x".repeat(257)]) {

@@ -52,8 +52,8 @@ export async function callExample(
       : options,
   );
   const headers = new Headers({
-    "x-loom-protocol": "loom-orpc-2",
-    "x-loom-version": runtime.version,
+    "x-kello-protocol": "kello-orpc-2",
+    "x-kello-version": runtime.version,
     "idempotency-key": crypto.randomUUID(),
   });
   if (identity) headers.set("authorization", "Bearer fixture");

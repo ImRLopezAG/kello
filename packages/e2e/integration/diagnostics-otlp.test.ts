@@ -787,7 +787,7 @@ test("an unavailable collector does not delay native RPC and exporter stop stays
     const link = new RPCLink({
       origin: server.url.origin,
       url: "/api/kello/rpc",
-      headers: { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version },
+      headers: { "x-kello-protocol": "kello-orpc-2", "x-kello-version": version },
     });
     assert.equal(await link.call(["ping"], undefined, { context: {} }), 1);
     await until("first RPC observation", async () => observations === 1);
@@ -862,7 +862,7 @@ test("integrated telemetry leaves native RPC available during collector failure 
     const link = new RPCLink({
       origin: server.url.origin,
       url: "/api/kello/rpc",
-      headers: { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version },
+      headers: { "x-kello-protocol": "kello-orpc-2", "x-kello-version": version },
     });
     assert.equal(await link.call(["ping"], undefined, { context: {} }), 1);
     await entered.promise;

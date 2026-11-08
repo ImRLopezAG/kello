@@ -23,20 +23,20 @@ type ClientTree = {
   left: { internal: { entries: { insert: Client<Record<never, never>, { text: string }, unknown, Error> } } };
 };
 
-test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
+test.skipIf(process.env.KELLO_CLOUD_COMPONENTS !== "1")(
   "packed components survive real Neon isolation, transport and release boundaries",
   async () => {
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
-    const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
-    const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
-    const runtimeRole = process.env.LOOM_CLOUD_RUNTIME_ROLE;
+    const branchId = process.env.KELLO_CLOUD_BRANCH_ID;
+    const connectionString = process.env.KELLO_MIGRATION_DATABASE_URL;
+    const runtimeRole = process.env.KELLO_CLOUD_RUNTIME_ROLE;
     assert(projectId && branchId && connectionString && runtimeRole);
     assert.match(runtimeRole, /^runtime_[a-f0-9]{32}$/);
     const target = await inspectDeploymentTarget(
       defineConfig({ project: "components", provider: { projectId, targets: { preview: { branchId } } } }),
       "preview",
     );
-    assert(!target.protected && target.branchName.startsWith("loom-acceptance-"));
+    assert(!target.protected && target.branchName.startsWith("kello-acceptance-"));
     const neonApi = createKelloNeonApi();
     let submissionFailure: { status?: number; code?: string; name: string } | undefined;
     const provider: ReturnType<typeof createKelloNeonApi> = {
@@ -57,7 +57,6 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
                 "NEON_SESSION_REVOKED",
                 "NEON_PERMISSION_DENIED",
                 "NEON_LOGIN_REQUIRED",
-                "NEON_REFRESH_FAILED",
                 "NEON_CREDENTIAL_UNAVAILABLE",
               ]),
             }),
@@ -72,12 +71,12 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
         }
       },
     };
-    const root = await mkdtemp(join(tmpdir(), "loom-cloud-components-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-cloud-components-"));
     const admin = new pg.Client({ connectionString, connectionTimeoutMillis: 15000 });
     const oldEnvironment = {
       secret: process.env.SIGNING_SECRET,
-      database: process.env.LOOM_DATABASE_URL,
-      activation: process.env.LOOM_ACTIVATION_TOKEN,
+      database: process.env.KELLO_DATABASE_URL,
+      activation: process.env.KELLO_ACTIVATION_TOKEN,
     };
     const origin = `https://components-${crypto.randomUUID()}.test`;
     const secret = crypto.randomUUID();
@@ -104,10 +103,10 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
       const address = new URL(connectionString);
       await writeFile(
         join(root, "kello.config.ts"),
-        `import {defineConfig} from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "components", openapi: true, provider: { projectId, targets: { preview: { branchId } } }, auth: { origins: [origin], audience: "loom-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] }, deployment: { environment: "preview", deployment: "preview", databaseName: decodeURIComponent(address.pathname.slice(1)), migrationRole: decodeURIComponent(address.username), runtimeRole, quarantine: "preserve" } })});`,
+        `import {defineConfig} from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "components", openapi: true, provider: { projectId, targets: { preview: { branchId } } }, auth: { origins: [origin], audience: "kello-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] }, deployment: { environment: "preview", deployment: "preview", databaseName: decodeURIComponent(address.pathname.slice(1)), migrationRole: decodeURIComponent(address.username), runtimeRole, quarantine: "preserve" } })});`,
       );
       process.env.SIGNING_SECRET = secret;
-      process.env.LOOM_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
+      process.env.KELLO_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
       await generateRelease(root, "initial");
       async function migrate(includeComponents = true) {
         const project = await loadProject(root);
@@ -129,7 +128,7 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
       await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD '${password}'`);
       address.username = runtimeRole;
       address.password = password;
-      process.env.LOOM_DATABASE_URL = address.href;
+      process.env.KELLO_DATABASE_URL = address.href;
       async function deploy(file = "kello.config.ts") {
         const started = performance.now();
         const generated = await generateProject(root);
@@ -144,7 +143,7 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
       }
       stage = "initial deployment";
       let current = await deploy();
-      const token = await issuer.token("owner", "loom-acceptance", "30m");
+      const token = await issuer.token("owner", "kello-acceptance", "30m");
       async function request(
         path: string,
         input: Target | { text: string } | Record<never, never>,
@@ -158,8 +157,8 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
             authorization: `Bearer ${bearer}`,
             origin,
             "content-type": "application/json",
-            "x-loom-protocol": "loom-orpc-2",
-            "x-loom-version": version,
+            "x-kello-protocol": "kello-orpc-2",
+            "x-kello-version": version,
           },
           body: JSON.stringify(input),
           signal: AbortSignal.timeout(20000),
@@ -244,8 +243,8 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
           headers: {
             authorization: `Bearer ${token}`,
             origin,
-            "x-loom-protocol": "loom-orpc-2",
-            "x-loom-version": current.version,
+            "x-kello-protocol": "kello-orpc-2",
+            "x-kello-version": current.version,
           },
         }),
       );
@@ -314,14 +313,14 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
             schema,
           })),
         slugs: { service: `s${current.version.slice(0, 19)}`, worker: `w${current.version.slice(0, 19)}` },
-        activationTokenEnv: "LOOM_ACTIVATION_TOKEN",
+        activationTokenEnv: "KELLO_ACTIVATION_TOKEN",
         variables,
       };
       await writeFile(join(root, "compatible.json"), JSON.stringify(declaration));
       await declareProjectCompatibility(root, "compatible.json", provider);
       const beforeHistory = (
         await admin.query(
-          "SELECT namespace,ordinal,name,hash FROM loom_meta.migration_history ORDER BY namespace,ordinal",
+          "SELECT namespace,ordinal,name,hash FROM kello_meta.migration_history ORDER BY namespace,ordinal",
         )
       ).rows;
       await migrate();
@@ -361,16 +360,16 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
       );
       const afterHistory = (
         await admin.query(
-          "SELECT namespace,ordinal,name,hash FROM loom_meta.migration_history ORDER BY namespace,ordinal",
+          "SELECT namespace,ordinal,name,hash FROM kello_meta.migration_history ORDER BY namespace,ordinal",
         )
       ).rows;
       assert(afterHistory.length > beforeHistory.length);
       for (const row of beforeHistory)
         assert(afterHistory.some((candidate) => JSON.stringify(candidate) === JSON.stringify(row)));
       checks.push("compatible-retained-code-rollback", "migration-history-retained", "independent-mount-retained");
-      if (process.env.LOOM_CLOUD_RECEIPT)
+      if (process.env.KELLO_CLOUD_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_RECEIPT,
+          process.env.KELLO_CLOUD_RECEIPT,
           JSON.stringify(
             {
               projectId,
@@ -379,7 +378,7 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
               checks,
               releases,
               serviceUrl: current.service,
-              fixtureRoot: process.env.LOOM_CLOUD_KEEP_FIXTURE === "1" ? root : undefined,
+              fixtureRoot: process.env.KELLO_CLOUD_KEEP_FIXTURE === "1" ? root : undefined,
               completedAt: new Date().toISOString(),
             },
             null,
@@ -399,22 +398,21 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
             "NEON_SESSION_REVOKED",
             "NEON_PERMISSION_DENIED",
             "NEON_LOGIN_REQUIRED",
-            "NEON_REFRESH_FAILED",
             "NEON_CREDENTIAL_UNAVAILABLE",
           ]),
         }),
         cause,
       );
-      if (process.env.LOOM_CLOUD_RECEIPT)
+      if (process.env.KELLO_CLOUD_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_RECEIPT,
+          process.env.KELLO_CLOUD_RECEIPT,
           JSON.stringify(
             {
               projectId,
               branchId,
               passed: false,
               stage,
-              fixtureRoot: process.env.LOOM_CLOUD_KEEP_FIXTURE === "1" ? root : undefined,
+              fixtureRoot: process.env.KELLO_CLOUD_KEEP_FIXTURE === "1" ? root : undefined,
               checks,
               releases,
               error: cause instanceof Error ? cause.name : "UnknownError",
@@ -437,14 +435,14 @@ test.skipIf(process.env.LOOM_CLOUD_COMPONENTS !== "1")(
     } finally {
       for (const [key, value] of Object.entries({
         SIGNING_SECRET: oldEnvironment.secret,
-        LOOM_DATABASE_URL: oldEnvironment.database,
-        LOOM_ACTIVATION_TOKEN: oldEnvironment.activation,
+        KELLO_DATABASE_URL: oldEnvironment.database,
+        KELLO_ACTIVATION_TOKEN: oldEnvironment.activation,
       })) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
       }
       await admin.end();
-      if (process.env.LOOM_CLOUD_KEEP_FIXTURE !== "1") await rm(root, { recursive: true, force: true });
+      if (process.env.KELLO_CLOUD_KEEP_FIXTURE !== "1") await rm(root, { recursive: true, force: true });
     }
   },
   900000,

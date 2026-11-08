@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 test("deployment health verifies both HTTPS endpoints and refuses stale provider or build identity", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "loom-health-"));
+  const directory = await mkdtemp(join(tmpdir(), "kello-health-"));
   try {
     const config = join(directory, "openssl.cnf");
     const certificate = join(directory, "certificate.pem");

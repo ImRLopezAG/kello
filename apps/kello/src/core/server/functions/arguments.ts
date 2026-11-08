@@ -19,7 +19,7 @@ export function argumentSchema(declaration: ArgumentDeclaration = {}): StandardS
   return {
     "~standard": {
       version: 1,
-      vendor: "loom-arguments",
+      vendor: "kello-arguments",
       async validate(input) {
         const parsed = v.safeParse(v.record(v.string(), v.unknown()), input);
         if (!parsed.success) return { issues: [{ message: "Expected an argument object" }] };

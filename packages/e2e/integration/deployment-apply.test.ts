@@ -8,9 +8,10 @@ import type { NeonApi } from "@neon/config-runtime/v1";
 import { defineConfig, readNeonFunctionReceipt } from "kello-cli";
 import { applyNeonFunctions } from "../../../apps/kello-cli/src/tooling/deploy/neon/apply";
 import { createDevelopmentCoordinator } from "../../../apps/kello-cli/src/tooling/dev/coordinator";
+import { NeonCredentialError } from "../../../apps/kello-cli/src/tooling/neon/credentials";
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), "loom-function-apply-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-function-apply-"));
   const hash = "b".repeat(64);
   const directory = join(root, ".kello/deploy", hash);
   await mkdir(directory, { recursive: true });
@@ -44,10 +45,10 @@ async function fixture() {
       assert.equal(input.environment.NEON_BRANCH, "");
       for (const name of ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL_S3", "AWS_REGION"])
         assert.equal(input.environment[name], "");
-      assert.equal(input.environment.LOOM_ACTIVATION_TOKEN, "c".repeat(64));
+      assert.equal(input.environment.KELLO_ACTIVATION_TOKEN, "c".repeat(64));
       assert.ok(input.bundle.byteLength > 0);
       state.calls.push(slug);
-      if (slug === "loomworker" && state.failWorker) throw new Error("secret provider failure");
+      if (slug === "kelloworker" && state.failWorker) throw new Error("secret provider failure");
       const deployment = { id: state.nextId++, status: state.pending ? ("pending" as const) : ("completed" as const) };
       remote.set(slug, {
         id: `fn-${slug}`,
@@ -71,7 +72,7 @@ async function fixture() {
       directory,
       hash,
       binding: {
-        metadataNamespace: "loom_meta",
+        metadataNamespace: "kello_meta",
         deployment: "preview",
         version: "a".repeat(64),
         projectId: "project",
@@ -83,10 +84,10 @@ async function fixture() {
       service: join(directory, "service.mjs"),
       worker: join(directory, "worker.mjs"),
     },
-    slugs: { service: "loomservice", worker: "loomworker" },
+    slugs: { service: "kelloservice", worker: "kelloworker" },
     variables: {
-      LOOM_DATABASE_URL: "postgresql://runtime:secret-password@ep-preview.example.test/neondb",
-      LOOM_ACTIVATION_TOKEN: "c".repeat(64),
+      KELLO_DATABASE_URL: "postgresql://runtime:secret-password@ep-preview.example.test/neondb",
+      KELLO_ACTIVATION_TOKEN: "c".repeat(64),
       APPLICATION_SECRET: "private-app-value",
     },
   };
@@ -106,12 +107,25 @@ test("function apply persists partial results, resumes only unfinished work and 
     await writeFile(f.options.entries.worker, "invalid source after the immutable archive was saved");
     const result = await applyNeonFunctions(f.root, f.options, f.provider);
     expect(result.receipt.functions.map((fn) => fn.state)).toEqual(["completed", "completed"]);
-    expect(f.state.calls).toEqual(["loomservice", "loomworker", "loomworker"]);
+    expect(f.state.calls).toEqual(["kelloservice", "kelloworker", "kelloworker"]);
     await applyNeonFunctions(f.root, f.options, f.provider);
     expect(f.state.calls).toHaveLength(3);
     f.options.variables.APPLICATION_SECRET = "changed-secret";
     await assert.rejects(applyNeonFunctions(f.root, f.options, f.provider), /receipt inputs/i);
     expect(f.state.calls).toHaveLength(3);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test("credential failures during function apply surface unchanged", async () => {
+  const f = await fixture();
+  try {
+    const revoked = new NeonCredentialError("NEON_SESSION_REVOKED");
+    f.provider.deployBranchFunction = async () => {
+      throw revoked;
+    };
+    await assert.rejects(applyNeonFunctions(f.root, f.options, f.provider), (cause) => cause === revoked);
   } finally {
     await f.cleanup();
   }
@@ -125,7 +139,7 @@ test("unacknowledged provider changes remain uncertain and are not overwritten o
     expect((await readNeonFunctionReceipt(f.root, f.options.entries.hash)).functions[0].state).toBe("submitting");
     f.state.loseResponse = false;
     await assert.rejects(applyNeonFunctions(f.root, f.options, f.provider));
-    expect(f.state.calls).toEqual(["loomservice"]);
+    expect(f.state.calls).toEqual(["kelloservice"]);
   } finally {
     await f.cleanup();
   }
@@ -138,12 +152,12 @@ test("function apply waits for provider completion and resumes a submitted deplo
     f.state.pending = true;
     await assert.rejects(applyNeonFunctions(f.root, { ...f.options, timeoutMs: 20 }, f.provider));
     expect((await readNeonFunctionReceipt(f.root, f.options.entries.hash)).functions[0].state).toBe("submitted");
-    const service = f.remote.get("loomservice");
+    const service = f.remote.get("kelloservice");
     assert.ok(service?.currentDeployment);
     service.currentDeployment.status = "completed";
     f.state.pending = false;
     await applyNeonFunctions(f.root, f.options, f.provider);
-    expect(f.state.calls).toEqual(["loomservice", "loomworker"]);
+    expect(f.state.calls).toEqual(["kelloservice", "kelloworker"]);
   } finally {
     await f.cleanup();
   }
@@ -175,7 +189,7 @@ test("function apply rejects identity overrides and tampered archived bundles", 
     await writeFile(join(f.options.entries.directory, `${receipt.functions[1].bundleHash}.zip`), "tampered");
     f.state.failWorker = false;
     await assert.rejects(applyNeonFunctions(f.root, f.options, f.provider));
-    expect(f.state.calls).toEqual(["loomservice", "loomworker"]);
+    expect(f.state.calls).toEqual(["kelloservice", "kelloworker"]);
   } finally {
     await f.cleanup();
   }
@@ -193,7 +207,7 @@ test("a stalled completion read times out with the acknowledged deployment prese
     };
     await assert.rejects(applyNeonFunctions(f.root, { ...f.options, timeoutMs: 20 }, f.provider));
     expect((await readNeonFunctionReceipt(f.root, f.options.entries.hash)).functions[0].deploymentId).toBe(1);
-    expect(f.state.calls).toEqual(["loomservice"]);
+    expect(f.state.calls).toEqual(["kelloservice"]);
   } finally {
     await f.cleanup();
   }
@@ -210,17 +224,17 @@ test("apply stops after target drift and refuses to overwrite a newer completed 
       return result;
     };
     await assert.rejects(applyNeonFunctions(f.root, f.options, f.provider));
-    expect(f.state.calls).toEqual(["loomservice"]);
+    expect(f.state.calls).toEqual(["kelloservice"]);
     expect((await readNeonFunctionReceipt(f.root, f.options.entries.hash)).functions[0].state).toBe("completed");
     f.branch.name = "preview";
     f.provider.deployBranchFunction = deploy;
     await applyNeonFunctions(f.root, f.options, f.provider);
-    const service = f.remote.get("loomservice");
+    const service = f.remote.get("kelloservice");
     assert.ok(service?.currentDeployment);
     service.currentDeployment.id = 100;
     service.activeDeploymentId = 100;
     await assert.rejects(applyNeonFunctions(f.root, f.options, f.provider));
-    expect(f.state.calls).toEqual(["loomservice", "loomworker"]);
+    expect(f.state.calls).toEqual(["kelloservice", "kelloworker"]);
   } finally {
     await f.cleanup();
   }
@@ -247,7 +261,7 @@ test("a terminal provider failure can retry while retaining every acknowledged d
     failBuild = false;
     const result = await applyNeonFunctions(f.root, f.options, f.provider);
     expect(result.receipt.functions[0].deploymentIds).toEqual([1, 2]);
-    expect(f.state.calls).toEqual(["loomservice", "loomservice", "loomworker"]);
+    expect(f.state.calls).toEqual(["kelloservice", "kelloservice", "kelloworker"]);
   } finally {
     await f.cleanup();
   }
@@ -281,7 +295,7 @@ test("concurrent apply is locked and cancellation retains a late mutation acknow
     expect(partial.functions[0].deploymentId).toBe(1);
     f.provider.deployBranchFunction = deploy;
     await applyNeonFunctions(f.root, f.options, f.provider);
-    expect(f.state.calls).toEqual(["loomservice", "loomworker"]);
+    expect(f.state.calls).toEqual(["kelloservice", "kelloworker"]);
   } finally {
     release.resolve();
     await f.cleanup();
@@ -317,7 +331,7 @@ for (const mode of ["polling timer", "pending read", "superseded", "cleanup fail
       await new Promise<void>((resolve) => setImmediate(resolve));
       if (mode === "superseded") {
         f.state.pending = false;
-        const service = f.remote.get("loomservice");
+        const service = f.remote.get("kelloservice");
         assert.ok(service?.currentDeployment);
         service.currentDeployment.status = "completed";
         coordinator.invalidate();

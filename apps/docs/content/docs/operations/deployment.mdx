@@ -5,7 +5,9 @@ description: Apply an explicit release and preserve enough evidence to resume it
 
 ## Prepare the target
 
-Run `kello login`, then `kello link --project-id <id> --branch <branch-id>`. Kello reuses the official Neon login and discovers the database and migration owner. A linked unprotected, nondefault branch is the default preview target. Production requires an explicit target in optional `kello.config.ts`. CI can supply `NEON_API_KEY` instead of an interactive login.
+Run `kello login`, then `kello link --project-id <id> --branch <branch-id>`. Login uses a one-time Neon browser sign-in to create a personal Neon API key, stores it at `~/.config/kello/credentials.json` (mode 0600), and discards the browser session. Kello never refreshes or reads the Neon CLI session. `kello logout` revokes the key and removes it. Linking discovers the database and migration owner. A linked unprotected, nondefault branch is the default preview target. Production requires an explicit target in optional `kello.config.ts`.
+
+CI and hooks set `NEON_API_KEY`, which takes precedence over a stored key unless `--profile` is passed. Prefer a project-scoped key there: `neon api-keys create --name ci --project-id <id>`. A key Neon rejects fails with `NEON_SESSION_REVOKED`; run `kello login --force` to replace a stored key, or replace `NEON_API_KEY`.
 
 Use `kello provision --branch <declaration.json> --dry-run --json` to inspect branch infrastructure creation; omit `--dry-run` to apply or resume. A declaration contains target identifiers and environment-variable names, not raw secrets. Provisioning and release deployment are separate steps.
 
@@ -47,7 +49,7 @@ The strict release declaration accepts these required fields:
 | `activationTokenEnv`                           | Local variable containing the 64-character lowercase hexadecimal activation secret.              |
 | `variables`                                    | Map from deployed variable names to local environment-variable names.                            |
 
-Include the configured runtime database URL in `variables`, for example `"LOOM_DATABASE_URL": "PREVIEW_RUNTIME_URL"`. Do not map migration credentials, the provider API key or activation token as application variables. Unknown fields and raw secret fields are rejected.
+Include the configured runtime database URL in `variables`, for example `"KELLO_DATABASE_URL": "PREVIEW_RUNTIME_URL"`. Do not map migration credentials, the provider API key or activation token as application variables. Unknown fields and raw secret fields are rejected.
 
 ## Retry and rollback
 

@@ -13,14 +13,14 @@ export async function deployLiveServices(options: {
   provider: NeonApi;
   environment: Record<string, string>;
 }) {
-  const source = join(options.root, ".loom/deploy", options.artifactHash, "service.mjs");
+  const source = join(options.root, ".kello/deploy", options.artifactHash, "service.mjs");
   const result = [];
   const existing = await options.provider.listBranchFunctions(options.projectId, options.branchId);
-  for (const slug of ["loomlivea", "loomliveb"]) {
+  for (const slug of ["kellolivea", "kelloliveb"]) {
     assert(!existing.some((fn) => fn.slug === slug), "Live test requires unused owned function slugs");
     const bundle = await buildFunctionBundle({
       slug,
-      name: "Loom live acceptance",
+      name: "Kello live acceptance",
       source,
       env: {},
       runtime: "nodejs24",

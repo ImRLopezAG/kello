@@ -87,7 +87,7 @@ export function storageControlPlaneFixture() {
         {
           id: "fn-worker",
           name: "worker",
-          slug: "loomworker",
+          slug: "kelloworker",
           invocationUrl: "https://example.test",
           activeDeploymentId: 1,
           currentDeployment: { id: 1, status: "completed" as const },

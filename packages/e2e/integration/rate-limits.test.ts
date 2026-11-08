@@ -28,12 +28,12 @@ import type { RateLimitScope } from "../../../apps/kello/src/core/server/rate-li
 import { RateLimitExceeded, RateLimitUnavailable } from "../../../apps/kello/src/core/server/rate-limits/errors";
 import { bootstrapDatabase } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 if (!connectionString)
-  throw new Error("Rate-limit acceptance requires LOOM_TEST_DATABASE_URL for disposable PostgreSQL 18");
+  throw new Error("Rate-limit acceptance requires KELLO_TEST_DATABASE_URL for disposable PostgreSQL 18");
 const schema = defineSchema(() => ({}));
 const relations = defineRelations(schema.tables);
-const namespace = `loom_limit_fit_${crypto.randomUUID().replaceAll("-", "")}`;
+const namespace = `kello_limit_fit_${crypto.randomUUID().replaceAll("-", "")}`;
 const role = `${namespace}_runtime`;
 const admin = new pg.Client({ connectionString });
 let connection: Awaited<ReturnType<typeof connectDatabase<typeof relations>>>;
@@ -283,7 +283,7 @@ test("local HTTP and WebSocket preserve native limiter errors", async () => {
     ] as const) {
       const response = await fetch(new URL(`/api/kello/rpc/${name}`, server.url), {
         method: "POST",
-        headers: { "x-loom-protocol": rpcProtocolVersion, "x-loom-version": version, origin: "https://client.test" },
+        headers: { "x-kello-protocol": rpcProtocolVersion, "x-kello-version": version, origin: "https://client.test" },
       });
       expect(response.status).toBe(status);
       expect(response.headers.get("retry-after")).toBe(name === "denied" ? "2" : null);

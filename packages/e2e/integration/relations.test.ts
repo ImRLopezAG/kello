@@ -18,12 +18,12 @@ import { pgSchema } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
 import pg from "pg";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "native RQB v2 covers self, multiple-target and junction relations inside transactions",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
-    const namespace = `loom_rel_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_rel_${crypto.randomUUID().replaceAll("-", "")}`;
     const schema = defineSchema(
       (s) => ({
         users: { name: s.text().notNull(), managerId: s.reference("users") },
@@ -102,7 +102,7 @@ test.skipIf(!connectionString)(
         const context = { ...invocation, "effect/context": Context.make(Invocation, invocation) };
         const options = {
           connection,
-          replay: { metadataNamespace: "loom_meta", deployment: "relations" },
+          replay: { metadataNamespace: "kello_meta", deployment: "relations" },
           authorize: async () => {},
         };
         const registered = bindRpcDatabaseProcedure(

@@ -22,13 +22,13 @@ import {
 import type { InvocationStorage } from "kello/server";
 import { storageProviderFixture } from "../fixtures/storage-provider";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "native storage services bind identity and drain invocation work",
   async () => {
     assert(connectionString);
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_storage_${suffix}`;
+    const metadataNamespace = `kello_storage_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     const provider = storageProviderFixture();
@@ -40,13 +40,13 @@ test.skipIf(!connectionString)(
     await admin.connect();
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       await admin.query(`CREATE TABLE "${metadataNamespace}".scope_counter(value integer NOT NULL)`);
       await admin.query(`INSERT INTO "${metadataNamespace}".scope_counter VALUES (0)`);
       await admin.query(`GRANT SELECT, UPDATE ON "${metadataNamespace}".scope_counter TO "${runtimeRole}"`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const relations = defineRelations(schema.tables);
       const { procedure } = createProjectProcedures(schema);
@@ -141,10 +141,10 @@ test.skipIf(!connectionString)(
           origin: "https://scope.test",
           url: "/api/kello/rpc",
           headers: () => ({
-            "x-loom-operation": operation,
+            "x-kello-operation": operation,
             authorization: "Bearer verified-fixture",
-            "x-loom-protocol": "loom-orpc-2",
-            "x-loom-version": version,
+            "x-kello-protocol": "kello-orpc-2",
+            "x-kello-version": version,
             "idempotency-key": "storage-scope",
           }),
           fetch: (url, init) => app.fetch(new Request(url, init)),

@@ -8,7 +8,7 @@ import { createClient } from "../kello/_generated/react";
 import { SignIn } from "./sign-in";
 import "./style.css";
 
-const serviceUrl = import.meta.env.VITE_LOOM_URL ?? configuration.serviceUrl;
+const serviceUrl = import.meta.env.VITE_KELLO_URL ?? configuration.serviceUrl;
 const kello = serviceUrl ? createKelloNeonReact(createClient, { serviceUrl }) : undefined;
 
 type Connection = ReturnType<NonNullable<typeof kello>["useKello"]>;
@@ -131,7 +131,7 @@ function App() {
     return (
       <main>
         <h1>Connect your journal</h1>
-        <p>Run kello link and deploy, then set VITE_LOOM_URL.</p>
+        <p>Run kello link and deploy, then set VITE_KELLO_URL.</p>
       </main>
     );
   return (

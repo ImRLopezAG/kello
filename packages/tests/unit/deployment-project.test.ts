@@ -45,7 +45,7 @@ vi.mock("../../../apps/kello-cli/src/tooling/project/load", async () => {
             deployment: "preview",
             databaseName: "neondb",
             migrationRole: "migrator",
-            runtimeRole: "loom_runtime",
+            runtimeRole: "kello_runtime",
             componentScopes: [],
           },
         }),
@@ -64,7 +64,7 @@ vi.mock("../../../apps/kello-cli/src/tooling/migrations/connection", async (impo
     return operation({
       async query(text: string) {
         state.queries.push(text);
-        return { rows: [{ token: "d".repeat(64), runtime_role: "loom_runtime" }] };
+        return { rows: [{ token: "d".repeat(64), runtime_role: "kello_runtime" }] };
       },
     });
   },
@@ -120,12 +120,12 @@ const expected = {
   endpointId: "ep-preview",
   databaseName: "neondb",
   migrationRole: "migrator",
-  runtimeRole: "loom_runtime",
+  runtimeRole: "kello_runtime",
   deployment: "preview",
 };
 beforeEach(() => {
-  delete process.env.LOOM_DATABASE_URL;
-  delete process.env.LOOM_ACTIVATION_TOKEN;
+  delete process.env.KELLO_DATABASE_URL;
+  delete process.env.KELLO_ACTIVATION_TOKEN;
   state.endpoints = ["ep-preview"];
   state.branch = "br-preview";
   state.queries = [];

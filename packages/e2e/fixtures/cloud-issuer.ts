@@ -10,7 +10,7 @@ import { exportJWK, generateKeyPair, SignJWT } from "jose";
 /** Deploys only a public verification key; the signing key stays in this test process. */
 export async function createCloudIssuer(root: string, projectId: string, branchId: string) {
   const api = createKelloNeonApi();
-  const slug = "loomissuer";
+  const slug = "kelloissuer";
   assert(!(await api.listBranchFunctions(projectId, branchId)).some((fn) => fn.slug === slug));
   const keys = await generateKeyPair("ES256");
   const kid = crypto.randomUUID();
@@ -47,7 +47,7 @@ export async function createCloudIssuer(root: string, projectId: string, branchI
       return {
         issuer,
         jwksUrl: freshJwksUrl,
-        token: (subject: string, audience = "loom-acceptance", expiresIn = "5m") =>
+        token: (subject: string, audience = "kello-acceptance", expiresIn = "5m") =>
           new SignJWT({})
             .setProtectedHeader({ alg: "ES256", kid })
             .setIssuer(issuer)
