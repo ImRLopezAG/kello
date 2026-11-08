@@ -94,6 +94,11 @@ async function fixture() {
   return { root, options, state, provider, remote, branch, cleanup: () => rm(root, { recursive: true, force: true }) };
 }
 
+// timeoutMs also bounds the work before submission, including the fsynced
+// "submitting" receipt. Tests that time out after an acknowledged submission
+// need a budget that covers fsync tail latency on shared CI disks.
+const postSubmissionTimeoutMs = 1000;
+
 test("function apply persists partial results, resumes only unfinished work and never stores secrets", async () => {
   const f = await fixture();
   try {
@@ -150,7 +155,7 @@ test("function apply waits for provider completion and resumes a submitted deplo
   try {
     f.state.failWorker = false;
     f.state.pending = true;
-    await assert.rejects(applyNeonFunctions(f.root, { ...f.options, timeoutMs: 20 }, f.provider));
+    await assert.rejects(applyNeonFunctions(f.root, { ...f.options, timeoutMs: postSubmissionTimeoutMs }, f.provider));
     expect((await readNeonFunctionReceipt(f.root, f.options.entries.hash)).functions[0].state).toBe("submitted");
     const service = f.remote.get("kelloservice");
     assert.ok(service?.currentDeployment);
@@ -205,7 +210,7 @@ test("a stalled completion read times out with the acknowledged deployment prese
       if (f.state.calls.length && ++readsAfterSubmission >= 1) return new Promise(() => {});
       return [...f.remote.values()];
     };
-    await assert.rejects(applyNeonFunctions(f.root, { ...f.options, timeoutMs: 20 }, f.provider));
+    await assert.rejects(applyNeonFunctions(f.root, { ...f.options, timeoutMs: postSubmissionTimeoutMs }, f.provider));
     expect((await readNeonFunctionReceipt(f.root, f.options.entries.hash)).functions[0].deploymentId).toBe(1);
     expect(f.state.calls).toEqual(["kelloservice"]);
   } finally {

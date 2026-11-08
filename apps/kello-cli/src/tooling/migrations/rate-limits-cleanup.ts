@@ -92,52 +92,60 @@ export async function cleanupRateLimits(options: CleanupRateLimitsOptions): Prom
   function shutdown(): Promise<void> {
     // Install the shared promise before any driver callback can reenter stop.
     return (shutdownPromise ??= Promise.resolve().then(async () => {
-      const draining = activeQuery;
-      if (draining) {
-        try {
-          // Never pass zero/negative or extend the absolute run budget. Required
-          // close/drain still runs if no cancellation budget remains.
-          const cancellationBudget = deadline - performance.now() - closeReserveMs;
-          if (cancellationBudget <= 0) throw new Error("Rate limit cleanup failed");
-          await cancelDatabaseStatement(client, cancellationBudget);
-        } catch (error) {
-          cleanupFailures.push({ phase: "cancel", error });
+      // Bun can defer promise reactions queued from socket close callbacks until
+      // an unrelated event wakes the loop; at worst that is the watchdog at the
+      // deadline. Keep the loop turning while shutdown owns the sockets.
+      const wake = setInterval(() => {}, 5);
+      try {
+        const draining = activeQuery;
+        if (draining) {
+          try {
+            // Never pass zero/negative or extend the absolute run budget. Required
+            // close/drain still runs if no cancellation budget remains.
+            const cancellationBudget = deadline - performance.now() - closeReserveMs;
+            if (cancellationBudget <= 0) throw new Error("Rate limit cleanup failed");
+            await cancelDatabaseStatement(client, cancellationBudget);
+          } catch (error) {
+            cleanupFailures.push({ phase: "cancel", error });
+          }
         }
-      }
-      if (connectionAttempt && !connected) {
-        // pg.end() marks a connecting Client as ending and can suppress its
-        // connect rejection. Destroy first, then await that rejection before end.
+        if (connectionAttempt && !connected) {
+          // pg.end() marks a connecting Client as ending and can suppress its
+          // connect rejection. Destroy first, then await that rejection before end.
+          try {
+            client.connection.stream.destroy();
+          } catch (error) {
+            cleanupFailures.push({ phase: "destroy", error });
+          }
+          await connectionAttempt.catch((error) => {
+            cleanupFailures.push({ phase: "connect-drain", error });
+          });
+        }
+        // Attach the close rejection immediately, even while query drain is still
+        // pending. A close failure must not strand either owned promise.
+        let closing: Promise<void> | undefined;
+        try {
+          closing = client.end().catch((error) => {
+            cleanupFailures.push({ phase: "close", error });
+          });
+        } catch (error) {
+          cleanupFailures.push({ phase: "close", error });
+        }
+        // Cancel has settled; this dedicated socket may now be destroyed. Await
+        // end's native close event rather than wait indefinitely for a peer EOF.
         try {
           client.connection.stream.destroy();
         } catch (error) {
           cleanupFailures.push({ phase: "destroy", error });
         }
-        await connectionAttempt.catch((error) => {
-          cleanupFailures.push({ phase: "connect-drain", error });
-        });
+        if (draining)
+          await draining.catch((error) => {
+            cleanupFailures.push({ phase: "query-drain", error });
+          });
+        await closing;
+      } finally {
+        clearInterval(wake);
       }
-      // Attach the close rejection immediately, even while query drain is still
-      // pending. A close failure must not strand either owned promise.
-      let closing: Promise<void> | undefined;
-      try {
-        closing = client.end().catch((error) => {
-          cleanupFailures.push({ phase: "close", error });
-        });
-      } catch (error) {
-        cleanupFailures.push({ phase: "close", error });
-      }
-      // Cancel has settled; this dedicated socket may now be destroyed. Await
-      // end's native close event rather than wait indefinitely for a peer EOF.
-      try {
-        client.connection.stream.destroy();
-      } catch (error) {
-        cleanupFailures.push({ phase: "destroy", error });
-      }
-      if (draining)
-        await draining.catch((error) => {
-          cleanupFailures.push({ phase: "query-drain", error });
-        });
-      await closing;
     }));
   }
   const stop = () => {
