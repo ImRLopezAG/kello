@@ -19,7 +19,7 @@ const manifestSchema = v.object({
 });
 
 test("Frontend examples build as independent consumers of matching packed runtime and CLI artifacts", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-packed-frameworks-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-packed-frameworks-"));
   const archive = join(root, "kello.tgz");
   const cliArchive = join(root, "kello-cli.tgz");
   const privateMarker = `server-secret-${crypto.randomUUID()}`;
@@ -109,12 +109,12 @@ test("Frontend examples build as independent consumers of matching packed runtim
       }
       applications.push({ name, root: target });
     }
-    if (process.env.LOOM_PACKED_RECEIPT)
+    if (process.env.KELLO_PACKED_RECEIPT)
       await writeFile(
-        process.env.LOOM_PACKED_RECEIPT,
+        process.env.KELLO_PACKED_RECEIPT,
         JSON.stringify({ root, archive, digest, applications, passed: true, at: new Date().toISOString() }, null, 2),
       );
   } finally {
-    if (!process.env.LOOM_PACKED_RECEIPT) await rm(root, { recursive: true, force: true });
+    if (!process.env.KELLO_PACKED_RECEIPT) await rm(root, { recursive: true, force: true });
   }
 }, 600000);

@@ -16,7 +16,7 @@ export function sqlName(name: string): string {
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .toLowerCase();
   if (Buffer.byteLength(result) > 63) throw new Error(`Schema identifier exceeds PostgreSQL's 63-byte limit: ${name}`);
-  if (result.startsWith("loom_")) throw new Error(`Reserved schema identifier: ${name}`);
+  if (result.startsWith("kello_")) throw new Error(`Reserved schema identifier: ${name}`);
   return result;
 }
 

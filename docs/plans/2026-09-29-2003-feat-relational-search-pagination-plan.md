@@ -13,7 +13,7 @@ execution: code
 ## Goal Capsule
 
 - **Objective:** Developers can build typed, authorized lists with related records, load further pages, and keep loaded results live without maintaining duplicate search schemas.
-- **Means:** Extend Loom's generated contracts and invocation context around native Drizzle relational queries and native oRPC/TanStack options (KTD1, KTD2, KTD3).
+- **Means:** Extend Kello's generated contracts and invocation context around native Drizzle relational queries and native oRPC/TanStack options (KTD1, KTD2, KTD3).
 - **Authority:** Product behavior belongs to R1–R19. KTDs own implementation mechanisms within those requirements. Units and test cases cannot weaken either contract.
 - **Execution profile:** Prove the public typing boundary first, then implement dependency-ordered units with unit, type, database, browser, packed-consumer, and hosted Neon verification.
 - **Stop conditions:** If U1 cannot preserve selection-dependent types with the agreed native oRPC surface, stop dependent implementation and present the exact incompatibility. Stop cloud mutations when the target is protected, branch ownership is unverified, or credentials cannot be obtained securely. Routine implementation details remain the executor's responsibility.
@@ -25,18 +25,18 @@ execution: code
 
 ### Summary
 
-Add schema-derived relational search contracts, a transaction-bound executor, and cursor pagination through Loom's generated API. Preserve native oRPC options and prove exact client-selected result types before expanding the implementation. Cover finite pagination and explicitly declared live subscriptions with the test matrix below.
+Add schema-derived relational search contracts, a transaction-bound executor, and cursor pagination through Kello's generated API. Preserve native oRPC options and prove exact client-selected result types before expanding the implementation. Cover finite pagination and explicitly declared live subscriptions with the test matrix below.
 
 ### Problem Frame
 
 Ontology's search API demonstrates useful filtering, sorting, and pagination, but its manually assembled search schemas and broad partial-row output do not deliver the requested contract-to-client relation typing. Its cursor implementation also supplies concrete regression cases: omitted ordering keys, guessed uniqueness, truncated fractional numeric values, and weak query binding.
 
-Loom already compiles tables, validates their native relation graph, generates oRPC contracts, and owns request transactions. The missing feature is a search boundary that connects those capabilities without exposing every database table or requiring consumers to recreate their schema on the client.
+Kello already compiles tables, validates their native relation graph, generates oRPC contracts, and owns request transactions. The missing feature is a search boundary that connects those capabilities without exposing every database table or requiring consumers to recreate their schema on the client.
 
 ### Key Decisions
 
-- **Native oRPC client options.** Governs R3, R4. (session-settled: user-directed — chosen over Loom-specific query/mutation wrappers: consumers should use the upstream options and their overrides.)
-- **Generated schema and relation knowledge.** Governs R1, R2. (session-settled: user-approved — chosen over manually maintained search field schemas: the Loom schema is already authoritative.)
+- **Native oRPC client options.** Governs R3, R4. (session-settled: user-directed — chosen over Kello-specific query/mutation wrappers: consumers should use the upstream options and their overrides.)
+- **Generated schema and relation knowledge.** Governs R1, R2. (session-settled: user-approved — chosen over manually maintained search field schemas: the Kello schema is already authoritative.)
 - **Explicit streaming contracts.** Governs R12. (session-settled: user-directed — chosen over automatically generated live endpoints: subscriptions are declared intentionally.)
 - **Authorization stays server-owned.** Governs R8, R9. (session-settled: user-approved — chosen over making a declared relation automatically public: relation knowledge does not grant permission.)
 
@@ -44,7 +44,7 @@ Loom already compiles tables, validates their native relation graph, generates o
 
 **Authoring and typing**
 
-- R1. Derive search field codecs, nullability, ID brands, and eligible relation paths from Loom's compiled schema and validated Drizzle relation graph.
+- R1. Derive search field codecs, nullability, ID brands, and eligible relation paths from Kello's compiled schema and validated Drizzle relation graph.
 - R2. Inject the generated search contract factory into contract authoring and the typed search executor into handler context, including component-local contexts.
 - R3. Keep native oRPC contracts, errors, metadata, transports, and TanStack `queryOptions`, `infiniteOptions`, and `liveOptions` as the public integration surface.
 - R4. Infer exactly the requested root and nested projection through raw client calls and native options, including nullability and ID brands; do not substitute `Partial<Row>`, `any`, `unknown` result fields, or consumer casts.
@@ -56,7 +56,7 @@ Loom already compiles tables, validates their native relation graph, generates o
 - R7. Resolve direct and many-to-many relations through the declared graph, keeping junction internals out of responses unless intentionally exposed by a contract.
 - R8. Let each contract restrict selectable, filterable, orderable, searchable, and reachable fields; hidden fields must not become filter or count oracles.
 - R9. Combine server-owned root and relation authorization policies with client filters, and reauthorize every request and live reevaluation.
-- R10. Execute search within Loom's active read invocation, with no independent database client, write escalation, or query work escaping the invocation lifetime.
+- R10. Execute search within Kello's active read invocation, with no independent database client, write escalation, or query work escaping the invocation lifetime.
 
 **Pagination and liveness**
 
@@ -69,7 +69,7 @@ Loom already compiles tables, validates their native relation graph, generates o
 
 **Delivery and proof**
 
-- R17. Work through the public packed `loom/...` package and generated browser API, without client runtime imports of database schemas or server-only dependencies.
+- R17. Work through the public packed `kello/...` package and generated browser API, without client runtime imports of database schemas or server-only dependencies.
 - R18. Demonstrate supported pagination behavior across type, unit, database, native-client, browser, SSR/non-SSR, component, and actual Neon Functions tests.
 - R19. Document the complete authoring-to-client flow and the finite/live consistency guarantees, with tested examples and public JSDoc.
 
@@ -98,8 +98,8 @@ The implementation covers generated relational search, finite cursor traversal i
 #### Deferred to Follow-Up Work
 
 - Indexed full-text ranking, facets, vector search, arbitrary aggregate ordering, and database-specific search extensions. Initial text search is an explicit bounded string operator over allowed fields.
-- Resumable historical event replay and minimal row patches. Live subscriptions publish current windows, using Loom's existing invalidation mechanism.
-- Independent component schemas beyond the relation boundaries already accepted by Loom.
+- Resumable historical event replay and minimal row patches. Live subscriptions publish current windows, using Kello's existing invalidation mechanism.
+- Independent component schemas beyond the relation boundaries already accepted by Kello.
 
 ---
 
@@ -107,18 +107,18 @@ The implementation covers generated relational search, finite cursor traversal i
 
 ### Current Baseline and Evidence
 
-The owning manifest is `apps/loom/package.json`: oRPC `2.0.0-beta.40`, Drizzle ORM/Kit `1.0.0-rc.4`, Effect `4.0.0-rc.117`, TypeScript `7.0.2`, and TanStack Query `5.103.2`. Retain these pins for the first compatibility proof. Changes to pins require a separate justified decision.
+The owning manifest is `apps/kello/package.json`: oRPC `2.0.0-beta.40`, Drizzle ORM/Kit `1.0.0-rc.4`, Effect `4.0.0-rc.117`, TypeScript `7.0.2`, and TanStack Query `5.103.2`. Retain these pins for the first compatibility proof. Changes to pins require a separate justified decision.
 
 | Existing boundary | Evidence | Consequence for this plan |
 |---|---|---|
-| Table and field compilation | `apps/loom/src/core/schema/compile.ts`, `define-schema.ts`, `table.ts` | Reuse metadata and literal table types; do not create a second authoring schema. |
-| Whole public-row validation | `apps/loom/src/core/validation/derive.ts` | A partial projection needs its own derived shape; the whole-row validator is insufficient. |
-| Native relation validation | `apps/loom/src/core/server/database/relations.ts` | Search uses the accepted graph, including namespaces and through edges. |
-| Contract callback and context construction | `apps/loom/src/core/contract/index.ts`, `server/rpc/procedure.ts` | Currently injects table validators derived before relations are available. Attach search after validating the project graph, within the existing validators object. |
-| Generated registrations and client | `apps/loom/src/tooling/codegen/application.ts`, `contracts.ts` | Currently use `RouterContractClient` and `RouterUtils`; selection-dependent output is not established. |
-| Invocation-owned database access | `apps/loom/src/core/server/rpc/database.ts`, `transactions.ts` | Bind search to the active read transaction and its cancellation/lifetime guards. |
-| Explicit live reevaluation | `apps/loom/src/core/server/rpc/live-context.ts`, `snapshot.ts` | Reuse the subscription lifecycle rather than creating a second engine. |
-| Conservative revision capture | `apps/loom/src/core/server/rpc-runtime.ts` | Current scope-wide table tracking can cover nested/junction reads; query-specific invalidation is not promised. |
+| Table and field compilation | `apps/kello/src/core/schema/compile.ts`, `define-schema.ts`, `table.ts` | Reuse metadata and literal table types; do not create a second authoring schema. |
+| Whole public-row validation | `apps/kello/src/core/validation/derive.ts` | A partial projection needs its own derived shape; the whole-row validator is insufficient. |
+| Native relation validation | `apps/kello/src/core/server/database/relations.ts` | Search uses the accepted graph, including namespaces and through edges. |
+| Contract callback and context construction | `apps/kello/src/core/contract/index.ts`, `server/rpc/procedure.ts` | Currently injects table validators derived before relations are available. Attach search after validating the project graph, within the existing validators object. |
+| Generated registrations and client | `apps/kello/src/tooling/codegen/application.ts`, `contracts.ts` | Currently use `RouterContractClient` and `RouterUtils`; selection-dependent output is not established. |
+| Invocation-owned database access | `apps/kello/src/core/server/rpc/database.ts`, `transactions.ts` | Bind search to the active read transaction and its cancellation/lifetime guards. |
+| Explicit live reevaluation | `apps/kello/src/core/server/rpc/live-context.ts`, `snapshot.ts` | Reuse the subscription lifecycle rather than creating a second engine. |
+| Conservative revision capture | `apps/kello/src/core/server/rpc-runtime.ts` | Current scope-wide table tracking can cover nested/junction reads; query-specific invalidation is not promised. |
 | Native client compatibility coverage | `packages/tests/types/rpc-options.test-d.ts` | Add search assertions for native options, select, cache, and suspense. |
 | Hosted acceptance runner | `packages/e2e/cloud/run.ts`, `orpc-live.test.ts` | Add a search suite with required project/branch checks and actual hosted transports. |
 
@@ -130,7 +130,7 @@ The Ontology explanation supplies regression inputs. The subsequent [U1 characte
 
 - KTD2. **Gate dependent work on generated selection typing with native runtime options.** The proposed mechanism specializes the generated raw client and the existing generated connection's `rpc` declarations from KTD1's descriptor. Runtime creation still uses native `createORPCClient` and `createTanstackQueryUtils`; no replacement option factory, cache, transport, or global upstream type augmentation is introduced. The installed `ProcedureUtils` has a fixed `TOutput`, and `RouterUtils` extracts that output: directly reconstructing upstream utilities from a specialized raw client loses the input/output relationship. P009 records that boundary honestly; the generated `connection.rpc` is the proposed selection-aware options entry point. U1 must prove this declaration specialization in a packed consumer using exported native option types, retaining errors, context, selection callbacks, page parameters, cancellation, and ordinary non-search procedures. Handwritten DTOs or stand-alone generic declarations cannot satisfy the gate. This is an unproven technical proposal, not an accepted compatibility result. If it requires changed option runtime behavior, excludes required native controls, or cannot satisfy KTD13, stop dependent work and surface the exact decision. [Native options](https://orpc.dev/docs/integrations/tanstack-query).
 
-- KTD3. **Keep native contract identity and bind search policy to the procedure.** Descriptor-derived input and output schemas carry Loom-owned identity so native input/output chaining can register the matching descriptor without inspecting third-party validator ASTs. Discovery rejects mixed descriptors, substituted output schemas, or finite/stream mismatches and preserves identity through errors/meta chaining. Context execution obtains the active procedure policy rather than accepting client-provided policy or losing restrictions when the handler calls a generic table executor. Require a server scope for the root and each reachable relation; intentionally public data uses an explicit public policy, never a missing-policy default. This implements R3, R8, R9, and R10. [Contract-first procedures](https://orpc.dev/docs/contract-first).
+- KTD3. **Keep native contract identity and bind search policy to the procedure.** Descriptor-derived input and output schemas carry Kello-owned identity so native input/output chaining can register the matching descriptor without inspecting third-party validator ASTs. Discovery rejects mixed descriptors, substituted output schemas, or finite/stream mismatches and preserves identity through errors/meta chaining. Context execution obtains the active procedure policy rather than accepting client-provided policy or losing restrictions when the handler calls a generic table executor. Require a server scope for the root and each reachable relation; intentionally public data uses an explicit public policy, never a missing-policy default. This implements R3, R8, R9, and R10. [Contract-first procedures](https://orpc.dev/docs/contract-first).
 
 - KTD4. **Derive a bounded declarative input language.** Reuse native Drizzle column and relation types for field/operator eligibility and runtime metadata for validation. Support scalar comparisons, membership, null checks, Boolean composition, explicit literal text matching, and relation predicates that the declared graph can compile safely. Keep selection, filter, order, and relation permissions separate. Unknown keys and empty explicit projections fail validation; omitted projection selects the contract's allowed default fields. Validate depth, list size, predicate count, and response budget before executing. This implements R5, R6, R8, and R16. [Relational queries](https://orm.drizzle.team/docs/rqb), [Standard Schema](https://standardschema.dev/schema).
 
@@ -140,15 +140,15 @@ The Ontology explanation supplies regression inputs. The subsequent [U1 characte
 
 - KTD7. **Finite pages share a snapshot only within one invocation.** Repeating a page with an unchanged database is deterministic. Between page requests, inserts before the cursor are not backfilled, deletes are skipped, and updates that cross the cursor may cause an already seen row to reappear or an unseen row to move behind it. The cursor is a boundary value, not a reference requiring the boundary row to still exist. Refresh restarts the traversal. Count describes the current authorized snapshot, not the original traversal snapshot. This defines R11 and R15's finite consistency limits.
 
-- KTD8. **Authenticate and conceal cursor contents.** Use the existing `jose` dependency for an authenticated encrypted, versioned token; do not build cryptography or use a short sort hash. Bind it to the contract policy version, logical entity/component namespace, canonical membership query, projection, ordered keys, and server authorization scope. The identity binding uses stable issuer/subject and relevant organization/policy inputs; ordinary access-token refresh does not invalidate a cursor. Content revisions do not invalidate finite cursors, while incompatible schema/policy changes do. Transport only exact typed key values, including decimal/bigint values and null markers. Page size and loaded-page count are excluded from query bindings and may change within budget; direction is checked against the token's intended boundary use. Set a finite server-owned token lifetime and test issuance/expiry with a controlled clock. A dedicated branch-stable server key is provisioned through existing Loom environment/deployment facilities, never derived from a user's access token or a Neon management credential. Missing keys fail startup for exposed search procedures. Rotation deliberately invalidates old cursors with a typed restart error. This implements R8, R9, R11, and R16; tokens do not replace authorization.
+- KTD8. **Authenticate and conceal cursor contents.** Use the existing `jose` dependency for an authenticated encrypted, versioned token; do not build cryptography or use a short sort hash. Bind it to the contract policy version, logical entity/component namespace, canonical membership query, projection, ordered keys, and server authorization scope. The identity binding uses stable issuer/subject and relevant organization/policy inputs; ordinary access-token refresh does not invalidate a cursor. Content revisions do not invalidate finite cursors, while incompatible schema/policy changes do. Transport only exact typed key values, including decimal/bigint values and null markers. Page size and loaded-page count are excluded from query bindings and may change within budget; direction is checked against the token's intended boundary use. Set a finite server-owned token lifetime and test issuance/expiry with a controlled clock. A dedicated branch-stable server key is provisioned through existing Kello environment/deployment facilities, never derived from a user's access token or a Neon management credential. Missing keys fail startup for exposed search procedures. Rotation deliberately invalidates old cursors with a typed restart error. This implements R8, R9, R11, and R16; tokens do not replace authorization.
 
 - KTD9. **Publish a live loaded window from one snapshot.** An explicit live contract accepts the search plus an anchor and a requested loaded-page count. It issues its own boundary tokens under KTD8; a finite endpoint's cursor cannot be reused across the streaming contract. Each event contains the whole currently loaded window, partitioned into display pages, with continuation metadata. Recompute all its roots in one read invocation, then atomically replace the native live query value. Increasing loaded pages preserves the anchor and opens a replacement stream; cancel the old stream and accept only the active request epoch. This provides R12 and R13 without stitching independently revised finite pages or requiring a finite bootstrap request. Finite traversal still uses native `infiniteOptions`. This is bounded current-window reactivity, not Convex's historical per-page range retention. [Native live options](https://orpc.dev/docs/integrations/tanstack-query), [Convex reactive pagination](https://docs.convex.dev/database/pagination).
 
-- KTD10. **Use native Drizzle execution and Loom's existing revision system.** Read through the invocation's database and register the root, related, junction, and authorization-table dependencies. Initial scope-wide revision capture is acceptable and must remain conservative. Reevaluate on relevant external SQL commits as well as Loom writes. Cancellation releases all work and reconnect starts with a fresh authorized window. This implements R7, R9, R10, R12, and R13 without new polling or transport machinery.
+- KTD10. **Use native Drizzle execution and Kello's existing revision system.** Read through the invocation's database and register the root, related, junction, and authorization-table dependencies. Initial scope-wide revision capture is acceptable and must remain conservative. Reevaluate on relevant external SQL commits as well as Kello writes. Cancellation releases all work and reconnect starts with a fresh authorized window. This implements R7, R9, R10, R12, and R13 without new polling or transport machinery.
 
-- KTD11. **Validate selection-dependent results at the shared RPC boundary.** Before serialization or any validator that can strip fields, check the complete result against KTD1's descriptor and the normalized validated input. Cover arbitrary handler returns, internal/direct calls, Effect handlers, and every streaming yield; calling the search executor must not be a prerequisite for validation. Reject hidden/extra fields, missing selected fields, wrong scalars, and wrong relation shapes. The native output schema also validates the envelope and eligible public values. Input transforms must not be reapplied to stored values. Standard Schema's validation interface does not supply JSON Schema conversion; its separate Standard JSON Schema interface may be used where the pinned oRPC adapter supports it. U2 proves conversion from the Loom-owned descriptor without inspecting Zod, Valibot, or Effect ASTs. This implements R4 and R5. [OpenAPI generation](https://orpc.dev/docs/openapi/specification), [Standard Schema interfaces](https://standardschema.dev/).
+- KTD11. **Validate selection-dependent results at the shared RPC boundary.** Before serialization or any validator that can strip fields, check the complete result against KTD1's descriptor and the normalized validated input. Cover arbitrary handler returns, internal/direct calls, Effect handlers, and every streaming yield; calling the search executor must not be a prerequisite for validation. Reject hidden/extra fields, missing selected fields, wrong scalars, and wrong relation shapes. The native output schema also validates the envelope and eligible public values. Input transforms must not be reapplied to stored values. Standard Schema's validation interface does not supply JSON Schema conversion; its separate Standard JSON Schema interface may be used where the pinned oRPC adapter supports it. U2 proves conversion from the Kello-owned descriptor without inspecting Zod, Valibot, or Effect ASTs. This implements R4 and R5. [OpenAPI generation](https://orpc.dev/docs/openapi/specification), [Standard Schema interfaces](https://standardschema.dev/).
 
-- KTD12. **Bound work without silently changing results.** Reuse existing Loom invocation timeout/cancellation and validate contract-owned limits for root page size, live loaded-window size, nested relation size/depth, input size, and encoded output bytes. A relation limit cannot bound the complete query cost by itself. An exhausted budget fails the request/event with a typed error; it must not present a truncated result as exhausted pagination. Test indexed root traversal, relation fanout, and counts on Neon, recording query plans and cold/warm timings without claiming an unmeasured speed improvement. This implements R10, R16, and R18.
+- KTD12. **Bound work without silently changing results.** Reuse existing Kello invocation timeout/cancellation and validate contract-owned limits for root page size, live loaded-window size, nested relation size/depth, input size, and encoded output bytes. A relation limit cannot bound the complete query cost by itself. An exhausted budget fails the request/event with a typed error; it must not present a truncated result as exhausted pagination. Test indexed root traversal, relation fanout, and counts on Neon, recording query plans and cold/warm timings without claiming an unmeasured speed improvement. This implements R10, R16, and R18.
 
 - KTD13. **Prove native cache controls cannot falsify projection typing.** Native `keepPreviousData` can return a title-only page while a done-only request is pending, even when keys differ. Typing that placeholder as the new selection violates R4. U1 must prove a type-only option specialization whose previous-data input represents every authorized prior projection and whose callback result satisfies the current projection. Cover native observer reuse, defaults, scoped utility options, initial data, and custom query functions; do not silently drop placeholder support or add an unapproved runtime wrapper. Extra properties in structurally compatible initial data are permitted by native types; missing selected fields and wrong scalars are not. Default keys partition projection and identity; explicit custom keys remain caller-owned and documentation must explain their collision risks. Ordinary unsafe downstream overrides cannot be claimed as verified by generated declarations. If the required native surfaces cannot express these guarantees, record the failing boundary and stop under KTD2. [TanStack paginated queries](https://tanstack.com/query/latest/docs/framework/react/guides/paginated-queries).
 
@@ -162,7 +162,7 @@ These sketches describe the boundaries and data flow. Names in the API grammar a
 
 ```mermaid
 flowchart TB
-  S[Loom schema and Drizzle relations] --> M[Compiled search metadata]
+  S[Kello schema and Drizzle relations] --> M[Compiled search metadata]
   M --> C[Declared oRPC search contracts]
   C --> G[Generated public client types]
   G --> N[Native oRPC and TanStack options]
@@ -180,7 +180,7 @@ flowchart TB
 ```mermaid
 sequenceDiagram
   participant Client as Native client
-  participant RPC as Loom oRPC procedure
+  participant RPC as Kello oRPC procedure
   participant Search as Search executor
   participant DB as Neon PostgreSQL
   Client->>RPC: Selection, filters, order, page boundary
@@ -274,7 +274,7 @@ Client
 The following are technical defaults, not additional session-settled product choices:
 
 - Bidirectional keysets and a live loaded-window representation are the proposed mechanisms for the pagination coverage requested. U1 proves their compatibility with the accepted native options surface.
-- Conservative initial budgets should use existing Loom limit conventions. Choose and document concrete defaults during U2; test each default and boundary. Increasing nested reach requires an explicit contract decision.
+- Conservative initial budgets should use existing Kello limit conventions. Choose and document concrete defaults during U2; test each default and boundary. Increasing nested reach requires an explicit contract decision.
 - The dedicated cursor key extends environment validation and release secret handling in `tooling/deploy/neon/environment.ts` and `prepare-release.ts`. U4 must prove stable provisioning across redeployments without making it a browser or provider-injected variable. Token lifetime and contract budgets get concrete documented defaults during U2/U4 and exact boundary tests.
 - The pinned Drizzle version's accepted ordering scalar set and relation predicate forms must be established in U3 and U4. Reject unsupported forms in both types and runtime validation rather than emitting approximate SQL.
 - U1 resolves KTD2 and KTD13 with a packed positive proof. The reviewed declaration sketch and its placeholder restriction are candidates, not proven solutions. A failure cannot be settled by retaining an expected-error annotation or removing a native control.
@@ -318,7 +318,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 **Requirements:** R1–R5, R17; AE1. **Dependencies:** None.
 
-**Files:** `packages/tests/types/search-contracts.test-d.ts`, `packages/tests/types/rpc-options.test-d.ts`, `packages/tests/types/orpc-compatibility.test-d.ts`, `packages/e2e/integration/packed-search.test.ts`, `packages/tests/unit/search-options.test.ts` (new), `apps/loom/src/tooling/codegen/application.ts` as the generation boundary to study.
+**Files:** `packages/tests/types/search-contracts.test-d.ts`, `packages/tests/types/rpc-options.test-d.ts`, `packages/tests/types/orpc-compatibility.test-d.ts`, `packages/e2e/integration/packed-search.test.ts`, `packages/tests/unit/search-options.test.ts` (new), `apps/kello/src/tooling/codegen/application.ts` as the generation boundary to study.
 
 **Approach:**
 
@@ -349,7 +349,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 **Requirements:** R1–R5, R8, R16; AE1. **Dependencies:** U1 passing.
 
-**Files:** `apps/loom/src/core/contract/index.ts`, `apps/loom/src/core/schema/compile.ts`, `apps/loom/src/core/validation/types.ts`, `apps/loom/src/core/server/rpc/procedure.ts`, `apps/loom/src/core/search/types.ts` (new), `metadata.ts` (new), `contract.ts` (new), `validation.ts` (new), `packages/tests/unit/search-contracts.test.ts` (new), `packages/tests/types/search-contracts.test-d.ts`, `packages/e2e/integration/search-openapi.test.ts` (new).
+**Files:** `apps/kello/src/core/contract/index.ts`, `apps/kello/src/core/schema/compile.ts`, `apps/kello/src/core/validation/types.ts`, `apps/kello/src/core/server/rpc/procedure.ts`, `apps/kello/src/core/search/types.ts` (new), `metadata.ts` (new), `contract.ts` (new), `validation.ts` (new), `packages/tests/unit/search-contracts.test.ts` (new), `packages/tests/types/search-contracts.test-d.ts`, `packages/e2e/integration/search-openapi.test.ts` (new).
 
 **Approach:**
 
@@ -377,7 +377,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 **Requirements:** R6–R9, R14–R16; AE2, AE3. **Dependencies:** U2.
 
-**Files:** `apps/loom/src/core/search/compiler.ts` (new), `projection.ts` (new), `apps/loom/src/core/server/database/relations.ts`, `packages/tests/unit/search-compiler.test.ts` (new), `packages/e2e/integration/search-relations.test.ts` (new), `packages/e2e/fixtures/search-schema.ts` (new).
+**Files:** `apps/kello/src/core/search/compiler.ts` (new), `projection.ts` (new), `apps/kello/src/core/server/database/relations.ts`, `packages/tests/unit/search-compiler.test.ts` (new), `packages/e2e/integration/search-relations.test.ts` (new), `packages/e2e/fixtures/search-schema.ts` (new).
 
 **Approach:**
 
@@ -386,7 +386,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 3. Compile membership and optional count from the same canonical predicate rather than a domain-specific search router.
 4. Establish the supported relation predicate and scalar operator set against the pinned Drizzle version.
 
-**Execution note:** Characterize the Ontology regressions as Loom behavior tests; do not import Ontology's production code.
+**Execution note:** Characterize the Ontology regressions as Kello behavior tests; do not import Ontology's production code.
 
 **Patterns to follow:** Native relations-v2 handling and current schema/database test fixtures.
 
@@ -407,7 +407,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 **Requirements:** R8, R9, R11, R16; AE2, AE3. **Dependencies:** U3.
 
-**Files:** `apps/loom/src/core/search/cursor.ts` (new), `ordering.ts` (new), `apps/loom/src/tooling/deploy/neon/environment.ts`, `prepare-release.ts`, `packages/tests/unit/search-cursor.test.ts` (new), `packages/e2e/integration/search-pagination.test.ts` (new).
+**Files:** `apps/kello/src/core/search/cursor.ts` (new), `ordering.ts` (new), `apps/kello/src/tooling/deploy/neon/environment.ts`, `prepare-release.ts`, `packages/tests/unit/search-cursor.test.ts` (new), `packages/e2e/integration/search-pagination.test.ts` (new).
 
 **Approach:**
 
@@ -434,7 +434,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 **Requirements:** R2, R5, R8–R11, R15, R16; AE2, AE3. **Dependencies:** U4.
 
-**Files:** `apps/loom/src/core/server/rpc/procedure.ts`, `database.ts`, `snapshot.ts`, `apps/loom/src/core/search/executor.ts` (new), `apps/loom/src/core/server/rpc-runtime.ts`, `packages/tests/unit/search-executor.test.ts` (new), `packages/e2e/integration/search-transactions.test.ts` (new), `search-pagination.test.ts`.
+**Files:** `apps/kello/src/core/server/rpc/procedure.ts`, `database.ts`, `snapshot.ts`, `apps/kello/src/core/search/executor.ts` (new), `apps/kello/src/core/server/rpc-runtime.ts`, `packages/tests/unit/search-executor.test.ts` (new), `packages/e2e/integration/search-transactions.test.ts` (new), `search-pagination.test.ts`.
 
 **Approach:**
 
@@ -462,7 +462,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 **Requirements:** R1–R5, R7–R10, R17; AE1, AE2. **Dependencies:** U5.
 
-**Files:** `apps/loom/src/tooling/codegen/application.ts`, `contracts.ts`, `components.ts`, `apps/loom/src/core/server/application/definition.ts`, `apps/loom/src/core/server/rpc-runtime.ts`, `apps/loom/package.json`, `packages/e2e/integration/search-codegen.test.ts` (new), `search-components.test.ts` (new), `packed-search.test.ts`, `packages/tests/types/components.test-d.ts`, `search-contracts.test-d.ts`.
+**Files:** `apps/kello/src/tooling/codegen/application.ts`, `contracts.ts`, `components.ts`, `apps/kello/src/core/server/application/definition.ts`, `apps/kello/src/core/server/rpc-runtime.ts`, `apps/kello/package.json`, `packages/e2e/integration/search-codegen.test.ts` (new), `search-components.test.ts` (new), `packed-search.test.ts`, `packages/tests/types/components.test-d.ts`, `search-contracts.test-d.ts`.
 
 **Approach:**
 
@@ -478,7 +478,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 - A new table field or relation becomes available after generation; old/removed fields stop typechecking.
 - Two mounts of the same component retain local types and separate physical namespace/query bindings.
 - Unmounted/internal component search procedures are unreachable from the public generated client.
-- A packed browser consumer uses only `loom/...` and generated API imports and resolves no PostgreSQL/node runtime modules.
+- A packed browser consumer uses only `kello/...` and generated API imports and resolves no PostgreSQL/node runtime modules.
 - P077–P082 and P125–P127 cover generation, components, public graph masking, and unchanged ordinary procedures.
 
 **Verification:** Generation and packed type/runtime tests reproduce the requested API without workspace-source resolution shortcuts.
@@ -489,7 +489,7 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 **Requirements:** R5, R7, R9, R10, R12, R13, R16; AE4, AE5. **Dependencies:** U6.
 
-**Files:** `apps/loom/src/core/search/live.ts` (new), `apps/loom/src/core/server/rpc/live-context.ts`, `snapshot.ts`, `apps/loom/src/core/server/rpc-runtime.ts`, `packages/e2e/integration/search-live.test.ts` (new), `packages/tests/unit/search-live.test.ts` (new), `packages/e2e/browser/search-client.test.ts` (new), `packages/e2e/browser/fixture/search-client.tsx` (new).
+**Files:** `apps/kello/src/core/search/live.ts` (new), `apps/kello/src/core/server/rpc/live-context.ts`, `snapshot.ts`, `apps/kello/src/core/server/rpc-runtime.ts`, `packages/e2e/integration/search-live.test.ts` (new), `packages/tests/unit/search-live.test.ts` (new), `packages/e2e/browser/search-client.test.ts` (new), `packages/e2e/browser/fixture/search-client.tsx` (new).
 
 **Approach:**
 
@@ -517,11 +517,11 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 **Requirements:** R1–R19; AE1–AE5. **Dependencies:** U7.
 
-**Files:** `packages/e2e/cloud/search.test.ts` (new), `packages/e2e/cloud/run.ts`, `packages/e2e/fixtures/cloud-search.ts` (new), `packages/e2e/integration/packed-search.test.ts`, `packages/e2e/browser/search-client.test.ts`, `packages/examples/tasks/loom/schema.ts`, `relations.ts`, `contracts/tasks.ts`, `functions/tasks.ts`, generated migration outputs, `apps/docs/content/docs/authoring/search.mdx` (new), `clients/pagination.mdx` (new), `authoring/relations.mdx`, documentation navigation, public search JSDoc in `apps/loom/src/core/search/`.
+**Files:** `packages/e2e/cloud/search.test.ts` (new), `packages/e2e/cloud/run.ts`, `packages/e2e/fixtures/cloud-search.ts` (new), `packages/e2e/integration/packed-search.test.ts`, `packages/e2e/browser/search-client.test.ts`, `packages/examples/tasks/kello/schema.ts`, `relations.ts`, `contracts/tasks.ts`, `functions/tasks.ts`, generated migration outputs, `apps/docs/content/docs/authoring/search.mdx` (new), `clients/pagination.mdx` (new), `authoring/relations.mdx`, documentation navigation, public search JSDoc in `apps/kello/src/core/search/`.
 
 **Approach:**
 
-1. Extend the existing required cloud runner with a search suite and use an owned disposable branch in the Loom Neon project.
+1. Extend the existing required cloud runner with a search suite and use an owned disposable branch in the Kello Neon project.
 2. Deploy the packed library and generated functions, verify finite HTTP and live WebSocket paths, and collect redacted acceptance receipts.
 3. Add the tasks/labels/junction example with normal generated migrations and native finite/live consumers.
 4. Exercise SSR, suspense, and client-only consumers against the same public contracts, keeping live stream iteration out of blocking SSR work.
@@ -547,12 +547,12 @@ The tasks example gains a shared label catalog and a junction table for M2M proo
 
 | Layer | Repository entry point | Required evidence |
 |---|---|---|
-| Types | `@loom/tests` typecheck; workspace typecheck | TS7 positive/negative assertions for generated raw/native option results. |
-| Unit | `@loom/tests` test through Vite+ | Canonicalization, codecs, validation, bounds, token parsing, and selected-output checks. |
-| Database integration | `@loom/e2e` `test:integration` with a verified test database | Actual PostgreSQL comparisons, relations, transaction barriers, and counts. |
-| Browser | `@loom/e2e` `test:browser` | Native finite/live/suspense state, cancellation, identity isolation, and no duplicate bootstrap. |
+| Types | `@kello/tests` typecheck; workspace typecheck | TS7 positive/negative assertions for generated raw/native option results. |
+| Unit | `@kello/tests` test through Vite+ | Canonicalization, codecs, validation, bounds, token parsing, and selected-output checks. |
+| Database integration | `@kello/e2e` `test:integration` with a verified test database | Actual PostgreSQL comparisons, relations, transaction barriers, and counts. |
+| Browser | `@kello/e2e` `test:browser` | Native finite/live/suspense state, cancellation, identity isolation, and no duplicate bootstrap. |
 | Packed consumers | Existing packed integration harness plus `packed-search.test.ts` | Installed package resolution and schema-derived generated raw/`rpc` declarations; direct upstream utility reconstruction has separately labeled characterization. |
-| Cloud | `@loom/e2e` `test:cloud` through `cloud/run.ts` after adding the search suite | Real hosted Neon Functions and Neon database receipts, including transport and replica behavior. |
+| Cloud | `@kello/e2e` `test:cloud` through `cloud/run.ts` after adding the search suite | Real hosted Neon Functions and Neon database receipts, including transport and replica behavior. |
 | Repository static gates | Root build, typecheck, test, lint, and format/static checks | Owning package and impacted consumer checks pass with the configured Oxlint anti-slop rules. |
 | Documentation | Existing docs example generation/build and affected example checks | All shown API snippets compile against the packed/current package, with public JSDoc present. |
 
@@ -566,7 +566,7 @@ Use deterministic tasks, projects, labels, task-label junctions, optional one re
 
 For stable datasets, compare concatenated forward pages and reversed backward traversal with one canonical authorized, ordered database result. Assert root uniqueness, full coverage, display order, and correct terminal cursors across varied page sizes. Seed reproducible randomized cases and retain failing seeds. Do not require the same invariant across a changing finite traversal; P070–P074 enforce KTD7 instead.
 
-For live tests, place writes behind deterministic barriers, wait for a committed revision, and compare each accepted window with its authorized snapshot oracle. Validate one coherent event at a time rather than independently sampling pages. Use external SQL writes, not only Loom mutations, and include junction and authorization-table commits.
+For live tests, place writes behind deterministic barriers, wait for a committed revision, and compare each accepted window with its authorized snapshot oracle. Validate one coherent event at a time rather than independently sampling pages. Use external SQL writes, not only Kello mutations, and include junction and authorization-table commits.
 
 ### Pagination Scenario Matrix
 
@@ -689,7 +689,7 @@ The matrix defines supported cases and rejection behavior. It is comprehensive a
 | P086 | Delete first/last/boundary roots or empty the dataset; window refills or shrinks consistently and terminal metadata updates. | U7 database/property |
 | P087 | Change sort/filter membership across a boundary; atomic replacement contains the correct current window. | U7 database/property |
 | P088 | Modify only child content or M2M junction membership; subscribed projection/membership updates on its declared dependencies. | U7 integration |
-| P089 | External SQL commits outside Loom; existing revision invalidation publishes the resulting authorized window. | U7 integration/U8 cloud |
+| P089 | External SQL commits outside Kello; existing revision invalidation publishes the resulting authorized window. | U7 integration/U8 cloud |
 | P090 | Lose/reconnect transport, refresh the same user's token, or restart a Function; a valid streaming anchor survives and the first resumed value is a fresh authorized window. A finite contract's cursor is rejected as a live anchor. | U7 browser/U8 cloud |
 | P091 | Revoke auth or switch identity during a delayed reevaluation; no late value from the prior identity is accepted. | U7 browser/security |
 | P092 | Change selection/filter/order while the old request is delayed; old data cannot overwrite the active query epoch. | U7 browser |
@@ -732,7 +732,7 @@ These cases extend P001–P107 without changing their IDs. U1's proof cases bloc
 | P117 | Root/component contract callbacks receive graph-aware table validators; schema fields, codecs, ID brands, and relation shapes come from a single descriptor. | U2 unit/types |
 | P118 | A graph contains a table from another compiled schema, mount, or namespace; descriptor construction rejects it before discovering a public contract. | U2 unit/security |
 | P119 | Chain native input/output/errors/meta using one descriptor; retain identity. Mix two descriptors or substitute finite/stream schemas; reject discovery before serving requests. | U2 unit/codegen |
-| P120 | Compose descriptor schemas with supported Zod, Valibot, and Effect authoring; output checks and OpenAPI conversion use public interfaces/Loom metadata without inspecting third-party ASTs. | U2 unit/integration |
+| P120 | Compose descriptor schemas with supported Zod, Valibot, and Effect authoring; output checks and OpenAPI conversion use public interfaces/Kello metadata without inspecting third-party ASTs. | U2 unit/integration |
 | P121 | Filter or authorization removes a graph-required one relation; public output accounts for nullability, root remains scoped, and forbidden child data never appears to satisfy a non-null declaration. | U2 types/U3 database |
 | P122 | Handler returns manually constructed hidden/extra fields without calling search; shared RPC validation rejects before an output schema can strip them, for direct, HTTP, and WebSocket paths. | U5 integration/security |
 | P123 | A native or Effect handler omits a selected field or returns a wrong nested scalar/cardinality; finite response fails at KTD11's boundary. | U5 unit/integration |
@@ -746,7 +746,7 @@ These cases extend P001–P107 without changing their IDs. U1's proof cases bloc
 
 ### Hosted Acceptance and Resource Ownership
 
-Use Loom's existing Neon project `late-moon-6948364` only after confirming the authenticated CLI/SDK profile can read it. Create/select an owned unprotected disposable acceptance branch using the existing cloud runner conventions. Verify endpoint identity against the connection URL before DDL, use separate migration/runtime roles, and deploy Functions from the packed candidate.
+Use Kello's existing Neon project `late-moon-6948364` only after confirming the authenticated CLI/SDK profile can read it. Create/select an owned unprotected disposable acceptance branch using the existing cloud runner conventions. Verify endpoint identity against the connection URL before DDL, use separate migration/runtime roles, and deploy Functions from the packed candidate.
 
 Keep access tokens, database URLs, cursor keys, and provider credentials in local/provider environment configuration. Acceptance records contain branch/Function IDs, package/source revision, scenario IDs, assertions, query metrics, and redacted logs. Cleanup removes only resources created for this run; preserve failed fixtures for diagnosis under the existing harness policy. Production branches and unrelated provider apps are outside the test target.
 
@@ -783,6 +783,6 @@ Keep access tokens, database URLs, cursor keys, and provider credentials in loca
 - [oRPC Effect integration](https://orpc.dev/docs/integrations/effect) informs Standard Schema/Effect consumer tests without a separate execution engine.
 - [oRPC OpenAPI generation](https://orpc.dev/docs/openapi/specification) informs KTD11's explicit converter requirement.
 - [Standard Schema interfaces](https://standardschema.dev/) distinguishes runtime validation from Standard JSON Schema conversion in KTD11 and P120; it does not imply arbitrary validator AST introspection.
-- [Convex pagination](https://docs.convex.dev/database/pagination) and [reactive query range semantics](https://docs.convex.dev/api/interfaces/server.Query) expose the live page-boundary issue addressed by KTD9. Loom's loaded-window contract deliberately states its own semantics.
+- [Convex pagination](https://docs.convex.dev/database/pagination) and [reactive query range semantics](https://docs.convex.dev/api/interfaces/server.Query) expose the live page-boundary issue addressed by KTD9. Kello's loaded-window contract deliberately states its own semantics.
 
 All new paths in the units identify planned additions; they are not claims that search already exists. Review and execution progress belongs in separate receipts and version control, not mutable status fields in this plan.

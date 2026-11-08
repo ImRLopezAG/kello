@@ -154,7 +154,7 @@ test("live declarations force read-only acquisition even when the caller request
   const leaf = base.list.use(rpcErrorBoundary).live(() => db.select({ id: table.id, title: table.title }).from(table));
   const bound = bindRpcDatabaseProcedure(leaf, {
     connection: { db, pool, transaction, close: () => pool.end() },
-    replay: { deployment: "test", metadataNamespace: "loom_test" },
+    replay: { deployment: "test", metadataNamespace: "kello_test" },
     authorize: async () => {},
   });
   try {
@@ -260,7 +260,7 @@ test("application environment binds the managed Realtime secret and the genuine 
   });
   const prepared = await prepareApplicationEnvironment(
     app,
-    { LOOM_REALTIME_SECRET: "private-test-value" },
+    { KELLO_REALTIME_SECRET: "private-test-value" },
     { database: "test-db", deployment: "test-deployment" },
   );
   expect(prepared.liveQueries?.secret).toBe("private-test-value");

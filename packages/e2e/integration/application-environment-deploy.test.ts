@@ -16,7 +16,7 @@ test("application environment forwards declared custom variables and preserves p
   const sources = applicationEnvironmentSources(declaration);
   expect(sources).toEqual({ PORT: "PORT", OPTIONAL: "OPTIONAL" });
   const result = await resolveReleaseEnvironment(
-    { ...sources, PORT: "DEPLOY_PORT", LOOM_DATABASE_URL: "RUNTIME_URL" },
+    { ...sources, PORT: "DEPLOY_PORT", KELLO_DATABASE_URL: "RUNTIME_URL" },
     declaration,
     {
       DEPLOY_PORT: "3000",
@@ -26,7 +26,7 @@ test("application environment forwards declared custom variables and preserves p
       UNDECLARED: "must-not-forward",
     },
   );
-  expect(result).toEqual({ PORT: "3000", OPTIONAL: "", LOOM_DATABASE_URL: "runtime-url" });
+  expect(result).toEqual({ PORT: "3000", OPTIONAL: "", KELLO_DATABASE_URL: "runtime-url" });
 });
 
 test("deployment validates effective custom values without exposing credentials", async () => {

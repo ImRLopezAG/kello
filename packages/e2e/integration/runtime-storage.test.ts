@@ -23,13 +23,13 @@ import { createNeonRpcWorker } from "kello/neon";
 import { storageProviderFixture } from "../fixtures/storage-provider";
 import { storageControlPlaneFixture } from "../fixtures/storage-control-plane";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "runtime storage captures inputs, dispatches provider events and drains before closing",
   async () => {
     if (!connectionString) throw new Error("Missing database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     const provider = storageProviderFixture();
@@ -48,7 +48,11 @@ test.skipIf(!connectionString)(
       };
       const bucketOptions = { ...target, buckets: ["uploads"] };
       await prepareNeonStorageBuckets(bucketOptions, control.provider);
-      const triggerOptions = { ...target, workerSlug: "loomworker", buckets: [{ name: "uploads", bucket: "uploads" }] };
+      const triggerOptions = {
+        ...target,
+        workerSlug: "kelloworker",
+        buckets: [{ name: "uploads", bucket: "uploads" }],
+      };
       const prepared = await prepareNeonStorageTriggers(triggerOptions, control.provider);
       const trigger = prepared.triggers[0];
       assert.ok(trigger?.prefix);
@@ -58,10 +62,10 @@ test.skipIf(!connectionString)(
       assert.deepEqual(repeated.bindings, prepared.bindings);
       assert.deepEqual(control.writes, ["bucket", "trigger"]);
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const version = "a".repeat(64);
       let active = true;

@@ -19,7 +19,7 @@ const statusOptions = v.strictObject({
   root: v.string(),
   migrations: v.string(),
   namespace: databaseIdentifier,
-  metadataNamespace: v.optional(v.pipe(databaseIdentifier, v.regex(/^loom_/)), "loom_meta"),
+  metadataNamespace: v.optional(v.pipe(databaseIdentifier, v.regex(/^kello_/)), "kello_meta"),
 });
 export type MigrationStatusOptions = v.InferInput<typeof statusOptions>;
 const sessionOptions = v.omit(statusOptions, ["connectionString"]);
@@ -71,7 +71,7 @@ export async function migrationStatusOnConnection(
 ): Promise<MigrationStatus> {
   assertMigrationConnection(client);
   const config = v.parse(sessionOptions, options);
-  await acquireMigrationLock(client, `loom:migrations:${config.namespace}`, true);
+  await acquireMigrationLock(client, `kello:migrations:${config.namespace}`, true);
   await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
   try {
     const artifacts = await readMigrations(config.root, config.migrations);

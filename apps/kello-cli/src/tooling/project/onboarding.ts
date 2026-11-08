@@ -1,7 +1,8 @@
 import { mkdir, readFile, lstat } from "node:fs/promises";
 import * as v from "valibot";
 import { loadProjectConfig } from "./load";
-import { createKelloNeonClient } from "../neon/api";
+import { createKelloNeonClient, neonCall, waitForProvisioning } from "../neon/api";
+import { NeonCredentialError } from "../neon/credentials";
 import { withProjectConfigurationLock } from "../config/environment-file";
 import { resolveProjectPath } from "../config/paths";
 import { readResolvedProject } from "../config/resolve";
@@ -25,6 +26,8 @@ export interface OnboardingProvider {
   projects(orgId: string): Promise<readonly { id: string; name: string; orgId: string }[]>;
   create(input: { name: string; orgId: string; region: string }): Promise<{ id: string }>;
   rename(id: string, name: string): Promise<void>;
+  /** Waits for a created project's provisioning; runs after its id is recorded. */
+  ready?(id: string): Promise<void>;
 }
 export class OnboardingError extends Error {
   constructor(
@@ -37,18 +40,26 @@ export class OnboardingError extends Error {
 }
 export function createOnboardingProvider(): OnboardingProvider {
   const client = createKelloNeonClient();
+  // Recorded just before the create POST so readiness can skip operations that predate it.
+  let createdSince: number | undefined;
   return {
-    organizations: () => client.user.organizations(),
+    organizations: () => neonCall(client.user.organizations()),
     projects: async (orgId) =>
-      (await client.projects.list({ org_id: orgId }).all()).map(({ id, name, org_id }) => ({
+      (await neonCall(client.projects.list({ org_id: orgId }).all())).map(({ id, name, org_id }) => ({
         id,
         name,
         orgId: org_id ?? "",
       })),
-    create: ({ name, orgId, region }) =>
-      client.projects.create({ name, org_id: orgId, region_id: region, pg_version: 18 }),
+    create: ({ name, orgId, region }) => {
+      createdSince = Date.now();
+      // Only the POST: its result is recorded before readiness is awaited separately.
+      return neonCall(
+        client.projects.create({ name, org_id: orgId, region_id: region, pg_version: 18 }, { waitForReadiness: false }),
+      );
+    },
+    ready: (projectId) => waitForProvisioning(client, projectId, undefined, createdSince),
     rename: async (projectId, name) => {
-      await client.projects.update({ projectId, name });
+      await neonCall(client.projects.update({ projectId, name }));
     },
   };
 }
@@ -97,7 +108,7 @@ export async function createNeonProject(
         "This directory has a different project creation operation. Resume its original arguments.",
       );
     const save = () => writeReceiptFile(directory, "onboarding.json", JSON.stringify(receipt, null, 2) + "\n");
-    const temporaryName = `loom-${receipt.operation}`;
+    const temporaryName = `kello-${receipt.operation}`;
     if (receipt.phase === "prepared") {
       receipt.phase = "attempted";
       await save();
@@ -105,6 +116,12 @@ export async function createNeonProject(
         const project = await provider.create({ ...parsed, name: temporaryName });
         receipt.projectId = v.parse(identifier, project.id);
       } catch (cause) {
+        // A credential failure means Neon refused the request before applying it.
+        if (cause instanceof NeonCredentialError) {
+          receipt.phase = "prepared";
+          await save();
+          throw cause;
+        }
         const rejection = v.safeParse(
           v.object({ kind: v.picklist(["api", "auth"]), status: v.picklist([400, 401, 403, 422]) }),
           cause,
@@ -139,6 +156,8 @@ export async function createNeonProject(
       await save();
     }
     if (receipt.phase !== "complete") {
+      // The create is acknowledged: a failure here, credentials included, resumes on the known id.
+      await provider.ready?.(receipt.projectId);
       await provider.rename(receipt.projectId, parsed.name);
       receipt.phase = "complete";
       await save();

@@ -22,13 +22,13 @@ import {
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
 
 /** Assembled REST and invocation services on a real storage-enabled branch. */
-test.skipIf(process.env.LOOM_CLOUD_SERVICES !== "1")(
+test.skipIf(process.env.KELLO_CLOUD_SERVICES !== "1")(
   "Neon REST invokes identity-bound Promise and Effect storage",
   async () => {
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
-    const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
-    const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
-    const runtimeRole = process.env.LOOM_CLOUD_RUNTIME_ROLE;
+    const branchId = process.env.KELLO_CLOUD_BRANCH_ID;
+    const connectionString = process.env.KELLO_MIGRATION_DATABASE_URL;
+    const runtimeRole = process.env.KELLO_CLOUD_RUNTIME_ROLE;
     const apiKey = process.env.NEON_API_KEY;
     assert(projectId && branchId && connectionString && runtimeRole && apiKey);
     assert.match(runtimeRole, /^runtime_[a-f0-9]{32}$/);
@@ -40,11 +40,11 @@ test.skipIf(process.env.LOOM_CLOUD_SERVICES !== "1")(
       }),
       "preview",
     );
-    assert.match(target.branchName, /^loom-acceptance-/);
+    assert.match(target.branchName, /^kello-acceptance-/);
     assert(!target.protected);
     const provider = createNeonApiFromOptions("Kello hosted service acceptance", { apiKey });
     const origin = `https://services-${crypto.randomUUID()}.test`;
-    const root = await mkdtemp(join(tmpdir(), "loom-cloud-services-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-cloud-services-"));
     const admin = new pg.Client({ connectionString, connectionTimeoutMillis: 15000 });
     let stage = "prepare";
     try {
@@ -63,11 +63,11 @@ test.skipIf(process.env.LOOM_CLOUD_SERVICES !== "1")(
         `import { defineApplication } from "kello/server";
 import * as v from "valibot";
 export default defineApplication({
- env: { LOOM_ACCEPTANCE_NUMBER: v.pipe(v.string(), v.transform(Number), v.integer()), NEON_BRANCH: v.string() },
+ env: { KELLO_ACCEPTANCE_NUMBER: v.pipe(v.string(), v.transform(Number), v.integer()), NEON_BRANCH: v.string() },
  rpc: ({os}) => ({os}),
 });`,
       );
-      process.env.LOOM_ACCEPTANCE_NUMBER = "42";
+      process.env.KELLO_ACCEPTANCE_NUMBER = "42";
       await rm(join(root, "kello/functions"), { recursive: true });
       await rm(join(root, "kello/contracts/files.ts"));
       await writeFile(
@@ -92,14 +92,14 @@ import { Effect } from "effect";
 export default os.probe.router({
  create: os.probe.create.handler(async ({context,input}) => ({id:(await context.storage.create(input.upload,input.key)).id})),
  status: os.probe.status.effect(function* ({input}) {const storage=yield* Storage; const saved=yield* Effect.tryPromise({try:()=>storage.status(input.id),catch:cause=>cause}); return {id:saved.id,state:saved.state};}),
- environment: os.probe.environment.handler(({context})=>({number:context.env.LOOM_ACCEPTANCE_NUMBER,branch:context.env.NEON_BRANCH})),
+ environment: os.probe.environment.handler(({context})=>({number:context.env.KELLO_ACCEPTANCE_NUMBER,branch:context.env.NEON_BRANCH})),
  large: os.probe.large.handler(async ()=>{await new Promise(resolve=>setTimeout(resolve,2000));return "x".repeat(262144);}),
 });`,
       );
       const address = new URL(connectionString);
       await writeFile(
         join(root, "kello.config.ts"),
-        `import {defineConfig} from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "jobs-storage", database: { migrations: "kello/migrations" }, openapi: true, provider: { projectId, targets: { preview: { branchId } } }, auth: { origins: [origin], audience: "loom-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] }, deployment: { environment: "preview", deployment: "preview", databaseName: decodeURIComponent(address.pathname.slice(1)), migrationRole: decodeURIComponent(address.username), runtimeRole, quarantine: "preserve" } })});`,
+        `import {defineConfig} from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "jobs-storage", database: { migrations: "kello/migrations" }, openapi: true, provider: { projectId, targets: { preview: { branchId } } }, auth: { origins: [origin], audience: "kello-acceptance", issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }] }, deployment: { environment: "preview", deployment: "preview", databaseName: decodeURIComponent(address.pathname.slice(1)), migrationRole: decodeURIComponent(address.username), runtimeRole, quarantine: "preserve" } })});`,
       );
       const generated = await generateProject(root);
       // Typecheck backend independently: this fixture deliberately replaces frontend routes.
@@ -121,8 +121,8 @@ export default os.probe.router({
       await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD '${password}'`);
       address.username = runtimeRole;
       address.password = password;
-      process.env.LOOM_DATABASE_URL = address.href;
-      process.env.LOOM_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
+      process.env.KELLO_DATABASE_URL = address.href;
+      process.env.KELLO_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
       const release = await deployProjectRelease(root, "kello.config.ts", provider, AbortSignal.timeout(240000));
       const functions = release.completed.find((entry) => entry.stage === "functions");
       assert(functions);
@@ -130,7 +130,7 @@ export default os.probe.router({
       const service = receipt.functions[0].invocationUrl;
       assert(service);
       const serviceUrl = new URL(service);
-      const token = await issuer.token("services-owner", "loom-acceptance", "10m");
+      const token = await issuer.token("services-owner", "kello-acceptance", "10m");
       async function request(
         path: string,
         input: { id: string } | { upload: StorageUpload; key: string } | Record<never, never>,
@@ -143,8 +143,8 @@ export default os.probe.router({
             authorization: `Bearer ${bearer}`,
             origin,
             "content-type": "application/json",
-            "x-loom-protocol": "loom-orpc-2",
-            "x-loom-version": version,
+            "x-kello-protocol": "kello-orpc-2",
+            "x-kello-version": version,
           },
           body: JSON.stringify(input),
           signal: AbortSignal.timeout(15000),
@@ -165,7 +165,7 @@ export default os.probe.router({
       const status = await request("probe/status", intent);
       assert.equal(status.status, 200);
       assert.deepEqual(await status.json(), { ...intent, state: "pending" });
-      const other = await issuer.token("services-other", "loom-acceptance", "10m");
+      const other = await issuer.token("services-other", "kello-acceptance", "10m");
       const denied = await request("probe/status", intent, other);
       assert.equal(denied.status, 403);
       await denied.body?.cancel();
@@ -178,15 +178,15 @@ export default os.probe.router({
       const privateRoute = await request("files/created", intent);
       assert.equal(privateRoute.status, 404);
       await privateRoute.body?.cancel();
-      if (process.env.LOOM_CLOUD_RECEIPT)
+      if (process.env.KELLO_CLOUD_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_RECEIPT,
+          process.env.KELLO_CLOUD_RECEIPT,
           JSON.stringify(
             {
               projectId,
               branchId,
               version: generated.version,
-              region: process.env.LOOM_CLOUD_REGION,
+              region: process.env.KELLO_CLOUD_REGION,
               passed: true,
               checks: [
                 "assembled-openapi",
@@ -206,9 +206,9 @@ export default os.probe.router({
           ),
         );
     } catch (cause) {
-      if (process.env.LOOM_CLOUD_RECEIPT)
+      if (process.env.KELLO_CLOUD_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_RECEIPT,
+          process.env.KELLO_CLOUD_RECEIPT,
           JSON.stringify({
             projectId,
             branchId,
@@ -240,7 +240,7 @@ export default os.probe.router({
           : "unclassified";
       throw new Error(`Hosted service acceptance failed during ${stage}; health: ${health}; owned branch retained`);
     } finally {
-      delete process.env.LOOM_ACCEPTANCE_NUMBER;
+      delete process.env.KELLO_ACCEPTANCE_NUMBER;
       await admin.end();
       await rm(root, { recursive: true, force: true });
     }

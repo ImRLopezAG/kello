@@ -118,12 +118,15 @@ export function applicationClientArtifacts(
     return rows ? [{ path: entry.path, vendor: rows["~standard"].vendor, rows: liveRowsSource(rows) }] : [];
   });
   const livePaths = JSON.stringify(live.map(({ path }) => path));
-  const plugin = search.length
-    ? `, plugins: [createSearchQueryPlugin(${JSON.stringify(search)}.map(({ path, node }) => createSearchDataGuard(path, node)))]`
-    : "";
+  // Streamed and live queries settle at their first data during SSR, then reopen in the browser.
+  const plugin = `, plugins: [new StreamQuerySSRUtilsPlugin()${
+    search.length
+      ? `, createSearchQueryPlugin(${JSON.stringify(search)}.map(({ path, node }) => createSearchDataGuard(path, node)))`
+      : ""
+  }]`;
   const files: ClientArtifactFiles = {
     "api.js": `import { createORPCClient, createRpcHttpTransport } from "kello/client";
-import { createTanstackQueryUtils } from "kello/client";
+import { createTanstackQueryUtils, StreamQuerySSRUtilsPlugin } from "kello/client";
 ${live.length ? 'import { createNeonLiveClient } from "kello/client";' : ""}
 ${search.length ? 'import { createSearchQueryPlugin, createSearchDataGuard } from "kello/client";' : ""}
 export const version = ${JSON.stringify(project.version)};

@@ -1,3 +1,4 @@
+import { NeonCredentialError } from "../../neon/credentials";
 import { createKelloNeonApi } from "../../neon/api";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { open, readFile, realpath, rename, rm } from "node:fs/promises";
@@ -48,7 +49,7 @@ function deploymentVariables(options: NeonFunctionApplyOptions) {
     reserved.includes(options.config.database.runtimeUrlEnv)
   )
     throw new Error("Function environment overrides a reserved credential or identity variable");
-  const token = variables.LOOM_ACTIVATION_TOKEN;
+  const token = variables.KELLO_ACTIVATION_TOKEN;
   if (!v.is(v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/)), token)) throw new Error("Invalid function activation token");
   const connection = URL.parse(variables[options.config.database.runtimeUrlEnv] ?? "");
   const binding = options.entries.binding;
@@ -304,6 +305,7 @@ export async function applyNeonFunctions(root: string, input: NeonFunctionApplyO
       await assertTarget();
     } catch (cause) {
       rethrowSignalCancellation(cause, signal);
+      if (cause instanceof NeonCredentialError) throw cause;
       throw new Error("Function deployment incomplete; inspect the saved function receipt before resuming");
     }
     return Object.freeze({ path: join(directory, "functions.json"), receipt: structuredClone(progress) });

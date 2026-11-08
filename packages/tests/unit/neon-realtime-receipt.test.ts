@@ -51,7 +51,7 @@ function fixture(failCommit = false) {
     secret: "test-secret",
     database: "db",
     deployment: "deployment",
-    metadataNamespace: "loom_test",
+    metadataNamespace: "kello_test",
     operation: "tasks.update.v1",
     idempotencyKey: "request1",
     input: { id: "1", title: "next" },

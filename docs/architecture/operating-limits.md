@@ -1,12 +1,12 @@
 # Historical operating limits and cloud evidence
 
-This records the pre-oRPC architecture and its September 23 acceptance. Its legacy client APIs, opt-in commands and polling measurements are historical, not instructions for the native runtime. Current acceptance uses `LOOM_CLOUD_SUITE` and the required runner described in the [README](../../README.md); see [native execution evidence](orpc-execution.md) for outstanding release gates.
+This records the pre-oRPC architecture and its September 23 acceptance. Its legacy client APIs, opt-in commands and polling measurements are historical, not instructions for the native runtime. Current acceptance uses `KELLO_CLOUD_SUITE` and the required runner described in the [README](../../README.md); see [native execution evidence](orpc-execution.md) for outstanding release gates.
 
-Loom has a bounded local and Neon acceptance baseline, not a production capacity guarantee. Sequential cloud writes passed; burst writes can exhaust bounded transaction retries and return HTTP 409 `TRANSACTION_CONFLICT`, including at four concurrent writers. Measurements record successful and rejected operations separately. They do not promise sustained throughput, a subscriber ceiling or a workload cost.
+Kello has a bounded local and Neon acceptance baseline, not a production capacity guarantee. Sequential cloud writes passed; burst writes can exhaust bounded transaction retries and return HTTP 409 `TRANSACTION_CONFLICT`, including at four concurrent writers. Measurements record successful and rejected operations separately. They do not promise sustained throughput, a subscriber ceiling or a workload cost.
 
 ## Neon burst measurements
 
-On September 23, 2026, the tasks application ran on actual Neon Node 24 Functions in `aws-us-east-1`, project `late-moon-69483649`, against a disposable PostgreSQL 18 branch with 0.25 CU. Chromium pages connected through Loom's authenticated live-query client. Each workload ran three batches with one browser page per concurrent writer. Every successful task creation had to appear in every page. Administrative SQL checked persisted row counts and absence of rejected writes. HTTP calls used one attempt; runtime transactions retained their default bounded retry policy.
+On September 23, 2026, the tasks application ran on actual Neon Node 24 Functions in `aws-us-east-1`, project `late-moon-69483649`, against a disposable PostgreSQL 18 branch with 0.25 CU. Chromium pages connected through Kello's authenticated live-query client. Each workload ran three batches with one browser page per concurrent writer. Every successful task creation had to appear in every page. Administrative SQL checked persisted row counts and absence of rejected writes. HTTP calls used one attempt; runtime transactions retained their default bounded retry policy.
 
 | Writers / browser pages | Successful / attempted writes | Transaction conflicts | Successful write p50 / p95 ms | Peak runtime connections |
 | ----------------------- | ----------------------------- | --------------------- | ----------------------------- | ------------------------ |
@@ -18,7 +18,7 @@ All successful writes converged and rejected writes left no rows. The final run 
 
 No HTTP 429 was observed in the final workload. Eight concurrent browser pages held live subscriptions, but this does not measure the provider's account-wide ceiling or how those sockets are billed. Sampled lock waiters were zero at every level; the 100 ms sampler plus network delay can miss short waits. Connection counts are role-scoped and include the deployment's runtime pools, not an inferred isolate count. All three cloud tests passed in this measured run; branch absence and temporary API-key revocation were verified afterward, including after failed attempts.
 
-Reproduce with `LOOM_CLOUD_FUNCTIONS=1 LOOM_CLOUD_EXAMPLE=tasks LOOM_CLOUD_CAPACITY=1 bun run test:cloud` and the disposable branch credentials described below. This is an opt-in characterization: rejected writes are reported, not relabeled as successful. Unknown INTERNAL responses, transport failures, missing successful rows, committed rejected writes, failed convergence and a failing sequential baseline still fail acceptance.
+Reproduce with `KELLO_CLOUD_FUNCTIONS=1 KELLO_CLOUD_EXAMPLE=tasks KELLO_CLOUD_CAPACITY=1 bun run test:cloud` and the disposable branch credentials described below. This is an opt-in characterization: rejected writes are reported, not relabeled as successful. Unknown INTERNAL responses, transport failures, missing successful rows, committed rejected writes, failed convergence and a failing sequential baseline still fail acceptance.
 
 ## Process loss and slow readers
 
@@ -38,11 +38,11 @@ On September 23, 2026, `packages/e2e/integration/capacity.test.ts` passed three 
 
 All subscribers converged to the exact committed sum without an error close, and no pool waiters remained. The middle workload sampled two simultaneous PostgreSQL lock waiters; the larger workload sampled zero despite recording 29 serialization retries. Sampling can miss short lock waits, and zero samples do not establish absence of contention. The largest workload made 1,191 acquisitions, 850 evaluations and 1,082 revision reads after warmup. The largest single write took 832.97 ms, including retries. This illustrates retry tail cost; it is not a latency promise.
 
-The [raw measurements](evidence/local-capacity-2026-09-23.json) retain counts, p50/p95/max durations and activity samples. Warmup is excluded; elapsed time includes final subscriber convergence. Connections exclude the single administrative/sampling connection. These short, single-run bursts do not establish sustained throughput, a supported subscriber maximum, memory bounds, multi-process scaling, Node 24 behavior or Neon capacity. Reproduce with `LOOM_TEST_DATABASE_URL=<disposable-postgres-18-url> bun test packages/e2e/integration/capacity.test.ts`. The test removes its uniquely named schemas and runtime role after each run.
+The [raw measurements](evidence/local-capacity-2026-09-23.json) retain counts, p50/p95/max durations and activity samples. Warmup is excluded; elapsed time includes final subscriber convergence. Connections exclude the single administrative/sampling connection. These short, single-run bursts do not establish sustained throughput, a supported subscriber maximum, memory bounds, multi-process scaling, Node 24 behavior or Neon capacity. Reproduce with `KELLO_TEST_DATABASE_URL=<disposable-postgres-18-url> bun test packages/e2e/integration/capacity.test.ts`. The test removes its uniquely named schemas and runtime role after each run.
 
 ## Verified Neon database baseline
 
-On September 23, 2026, `packages/e2e/cloud/database.test.ts` passed against a disposable schema-only branch of project `late-moon-69483649` (`loom`):
+On September 23, 2026, `packages/e2e/cloud/database.test.ts` passed against a disposable schema-only branch of project `late-moon-69483649` (`kello`):
 
 | Property           | Observed value                                                                                               |
 | ------------------ | ------------------------------------------------------------------------------------------------------------ |
@@ -57,7 +57,7 @@ On September 23, 2026, `packages/e2e/cloud/database.test.ts` passed against a di
 | Refused operations | Create a metadata table, update activation grants, delete migration history; SQLSTATE 42501                  |
 | Cleanup            | Test schemas and role removed; branch deletion acknowledged and subsequent branch list contained only `main` |
 
-The tested branch was `br-lingering-glitter-awtmj1g6`, named `loom-acceptance-20260923-bootstrap`, with expiration set before creation. It no longer exists. The test took approximately 13 seconds, including CLI and network setup; this is not a latency benchmark. The default branch was also supplied deliberately to verify refusal before database connection or mutation.
+The tested branch was `br-lingering-glitter-awtmj1g6`, named `kello-acceptance-20260923-bootstrap`, with expiration set before creation. It no longer exists. The test took approximately 13 seconds, including CLI and network setup; this is not a latency benchmark. The default branch was also supplied deliberately to verify refusal before database connection or mutation.
 
 The first isolation attempt used owner-session `SET ROLE`, which Neon refused with SQLSTATE 42501. The final test opens a real runtime-role connection with a temporary random password. It does not grant the migration owner membership in the runtime role or widen runtime privileges. A requested 60-second suspend interval was rejected by the account plan before branch creation; 300 seconds was accepted.
 
@@ -65,16 +65,16 @@ Current [Neon region documentation](https://neon.com/docs/introduction/regions) 
 
 ## Reproduce the database check
 
-Authenticate Neon CLI locally or supply its supported API-key credentials. Create a disposable branch with a name beginning `loom-acceptance-`, an explicit parent, and a future expiration:
+Authenticate Neon CLI locally or supply its supported API-key credentials. Create a disposable branch with a name beginning `kello-acceptance-`, an explicit parent, and a future expiration:
 
 ```sh
 bunx neon@6.0.0 branches create \
   --project-id <project-id> --parent <parent-branch-id> \
-  --name loom-acceptance-database --schema-only \
+  --name kello-acceptance-database --schema-only \
   --cu 0.25 --suspend-timeout 300 \
   --expires-at <future-ISO-8601-timestamp> --no-secrets --output json
 
-KELLO_CLOUD_PROJECT_ID=<project-id> LOOM_CLOUD_BRANCH_ID=<created-branch-id> \
+KELLO_CLOUD_PROJECT_ID=<project-id> KELLO_CLOUD_BRANCH_ID=<created-branch-id> \
   bun run --cwd packages/e2e test:cloud
 
 bunx neon@6.0.0 branches delete <created-branch-id> --project-id <project-id>
@@ -143,7 +143,7 @@ The tasks example passed the public deployment coordinator, health/activation, a
 
 On September 23, 2026, the jobs-storage selection passed all three cloud tests in approximately 245 seconds, including its application scenario in 228 seconds. It used actual browser PUTs, provider storage events and scheduled worker wakes; the harness did not invoke workers manually. Checks covered all three ready catalog entries, normal completion in one attempt, retry completion in two attempts, exhausted failure after three attempts, exact downloaded bytes, foreign-owner upload/download signing denial and an empty catalog after switching users. This run also passed database bootstrap through metadata version 21 and exercised the durable trigger-binding fix on Neon. It is correctness evidence, not a throughput or latency benchmark.
 
-Run either selection with `LOOM_CLOUD_FUNCTIONS=1 LOOM_CLOUD_EXAMPLE=tasks bun run test:cloud` or `LOOM_CLOUD_FUNCTIONS=1 LOOM_CLOUD_EXAMPLE=jobs-storage bun run test:cloud`, supplying the disposable project/branch variables above and a project-scoped `NEON_API_KEY`. The pinned SDK does not read the local CLI profile. These rehearsals used temporary keys, deleted the branch and revoked the key afterward, and verified both absences. The CI matrix covers both selections, but hosted CI has not yet run.
+Run either selection with `KELLO_CLOUD_FUNCTIONS=1 KELLO_CLOUD_EXAMPLE=tasks bun run test:cloud` or `KELLO_CLOUD_FUNCTIONS=1 KELLO_CLOUD_EXAMPLE=jobs-storage bun run test:cloud`, supplying the disposable project/branch variables above and a project-scoped `NEON_API_KEY`. The pinned SDK does not read the local CLI profile. These rehearsals used temporary keys, deleted the branch and revoked the key afterward, and verified both absences. The CI matrix covers both selections, but hosted CI has not yet run.
 
 ## HTTP throttling
 
@@ -155,6 +155,6 @@ Mutations reuse their captured body and idempotency key. Actions retain one atte
 
 [Neon's runtime limits](https://neon.com/docs/compute/functions/reference/runtime-limits) specify Node 24, 2048 MiB per isolate, a default account-wide 100 concurrent invocations, and HTTP 429 with Retry-After when that concurrency limit is exceeded. The effective ceiling may be modestly higher. First-byte, silent-connection heartbeat and waitUntil limits are each 15 minutes. Shutdown sends SIGINT with five seconds before forced termination. Isolate memory is neither shared nor durable; each isolate's database pool contributes to the total connection count.
 
-[Neon's WebSocket guidance](https://neon.com/docs/compute/functions/websockets) says connections keep the function running while data flows, and eviction can drop connections without a clean close frame. Loom's 25-second heartbeat and reconnect protocol fit the documented lifecycle, but local reconnect tests do not establish provider eviction behavior or socket quota accounting.
+[Neon's WebSocket guidance](https://neon.com/docs/compute/functions/websockets) says connections keep the function running while data flows, and eviction can drop connections without a clean close frame. Kello's 25-second heartbeat and reconnect protocol fit the documented lifecycle, but local reconnect tests do not establish provider eviction behavior or socket quota accounting.
 
-The [pricing page](https://neon.com/pricing) lists Launch active/waiting compute at $0.10/$0.025 per Capacity-Hour, Scale at $0.12/$0.03, and invocations at $0.60 per million on both. Free allowances are 10 active Capacity-Hours, 400 waiting Capacity-Hours and one million invocations monthly. These are documented rates, not a Loom workload cost estimate. Actual active/waiting capacity consumption, persistent-socket invocation accounting, database compute and network transfer must be measured together before publishing a cost envelope. No account-wide saturation experiment or billing observation has been performed for this acceptance increment.
+The [pricing page](https://neon.com/pricing) lists Launch active/waiting compute at $0.10/$0.025 per Capacity-Hour, Scale at $0.12/$0.03, and invocations at $0.60 per million on both. Free allowances are 10 active Capacity-Hours, 400 waiting Capacity-Hours and one million invocations monthly. These are documented rates, not a Kello workload cost estimate. Actual active/waiting capacity consumption, persistent-socket invocation accounting, database compute and network transfer must be measured together before publishing a cost envelope. No account-wide saturation experiment or billing observation has been performed for this acceptance increment.

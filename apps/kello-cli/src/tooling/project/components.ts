@@ -199,10 +199,10 @@ export function componentBundleSource(scopes: readonly ComponentSourceScope[]): 
       ) => `export { default as componentSchema${scope.index} } from ${JSON.stringify(componentVirtual(scope, "schema"))};
 export { default as componentRelations${scope.index} } from ${JSON.stringify(componentVirtual(scope, "relations"))};
 export { contract as componentContract${scope.index} } from ${JSON.stringify(componentVirtual(scope, "contracts"))};
-${scope.cronsFile ? `export { default as componentCrons${scope.index} } from ${JSON.stringify(`loom-component-file:${scope.index}:${scope.cronsFile}`)};` : ""}
-${scope.storageFile ? `export { default as componentStorage${scope.index} } from ${JSON.stringify(`loom-component-file:${scope.index}:${scope.storageFile}`)};` : ""}
-${scope.rateLimitsFile ? `export { default as componentRateLimits${scope.index} } from ${JSON.stringify(`loom-component-file:${scope.index}:${scope.rateLimitsFile}`)};` : ""}
-${scope.procedureModules.map((module, index) => `export * as component${scope.index}Module${index} from ${JSON.stringify(`loom-component-file:${scope.index}:${module.file}`)};`).join("\n")}`,
+${scope.cronsFile ? `export { default as componentCrons${scope.index} } from ${JSON.stringify(`kello-component-file:${scope.index}:${scope.cronsFile}`)};` : ""}
+${scope.storageFile ? `export { default as componentStorage${scope.index} } from ${JSON.stringify(`kello-component-file:${scope.index}:${scope.storageFile}`)};` : ""}
+${scope.rateLimitsFile ? `export { default as componentRateLimits${scope.index} } from ${JSON.stringify(`kello-component-file:${scope.index}:${scope.rateLimitsFile}`)};` : ""}
+${scope.procedureModules.map((module, index) => `export * as component${scope.index}Module${index} from ${JSON.stringify(`kello-component-file:${scope.index}:${module.file}`)};`).join("\n")}`,
     )
     .join("\n");
 }

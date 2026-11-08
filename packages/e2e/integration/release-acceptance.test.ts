@@ -32,7 +32,7 @@ globalThis.fetch = async (url) => {
   assert.equal(new URL(url).origin, 'https://registry.npmjs.org');
   if (scenario === 'offline') throw new Error('offline');
   if (scenario === 'server-error') return new Response('', {status:503});
-  if (String(url).endsWith('/dist-tags')) return Response.json({alpha: scenario === 'wrong-tag' ? '0.0.0' : version});
+  if (String(url).endsWith('/dist-tags')) return Response.json({beta: scenario === 'wrong-tag' ? '0.0.0' : version});
   if (String(url).endsWith('.tgz')) return new Response(scenario === 'changed-bytes' ? 'changed' : 'verified CLI bytes');
   if (scenario === 'absent') return new Response('', {status:404});
   return Response.json({name:'kello-cli', version:scenario === 'wrong-version' ? '0.0.0' : version,

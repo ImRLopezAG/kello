@@ -6,7 +6,7 @@ import { join } from "node:path";
 export async function browserBundle(
   fixture: "rpc-transport.tsx" | "search-finite.tsx" = "rpc-transport.tsx",
 ): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), "loom-react-consumer-"));
+  const directory = await mkdtemp(join(tmpdir(), "kello-react-consumer-"));
   try {
     const archive = join(directory, "kello.tgz");
     const packed = Bun.spawn([process.execPath, "pm", "pack", "--filename", archive, "--quiet", "--ignore-scripts"], {

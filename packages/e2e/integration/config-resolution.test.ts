@@ -30,7 +30,7 @@ function discovery(): DiscoveryProvider {
   };
 }
 test("config is optional and discovery keeps service, auth, and data URLs separate", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-resolution-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-resolution-"));
   try {
     const empty = await loadProjectConfig(root);
     expect(empty.config.backend).toBe("kello");
@@ -50,13 +50,13 @@ test("config is optional and discovery keeps service, auth, and data URLs separa
     expect(linked.config.development).toMatchObject({
       databaseName: "neondb",
       migrationRole: "neondb_owner",
-      runtimeRole: "loom_runtime",
+      runtimeRole: "kello_runtime",
     });
     expect(linked.config.deployment).toMatchObject({
       environment: "preview",
       databaseName: "neondb",
       migrationRole: "neondb_owner",
-      runtimeRole: "loom_runtime",
+      runtimeRole: "kello_runtime",
     });
     expect(await readFile(join(root, ".kello/project.json"), "utf8")).not.toContain("secret-sentinel");
     await writeFile(
@@ -72,7 +72,7 @@ test("config is optional and discovery keeps service, auth, and data URLs separa
 });
 
 test("conflicting projects, multiple databases, and absent selected functions fail closed", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-ambiguous-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-ambiguous-"));
   try {
     await writeFile(join(root, ".neon"), JSON.stringify({ projectId: "project-test" }));
     await assert.rejects(resolveNeonProject(root, defineConfig({ projectId: "project-other" }), {}, discovery()), {
@@ -101,31 +101,31 @@ test("conflicting projects, multiple databases, and absent selected functions fa
 });
 
 test("managed public env writes retain comments and unrelated CRLF content, rejecting secrets and duplicates", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-public-env-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-public-env-"));
   try {
     const path = join(root, ".env.local");
     await writeFile(
       path,
-      '# retained\r\nUNRELATED="keep#this"\r\nLOOM_URL="https://old.example.test" # retained inline\r\n',
+      '# retained\r\nUNRELATED="keep#this"\r\nKELLO_URL="https://old.example.test" # retained inline\r\n',
     );
     await writeManagedPublicEnvironment(root, {
-      LOOM_URL: "https://new.example.test",
+      KELLO_URL: "https://new.example.test",
       NEON_PROJECT_ID: "project-test",
     });
     expect(await readFile(path, "utf8")).toBe(
-      '# retained\r\nUNRELATED="keep#this"\r\nLOOM_URL="https://new.example.test" # retained inline\r\nNEON_PROJECT_ID="project-test"\r\n',
+      '# retained\r\nUNRELATED="keep#this"\r\nKELLO_URL="https://new.example.test" # retained inline\r\nNEON_PROJECT_ID="project-test"\r\n',
     );
-    await assert.rejects(writeManagedPublicEnvironment(root, { LOOM_URL: "https://secret@host.example.test" }));
-    await writeFile(path, 'LOOM_URL="https://a.test"\nLOOM_URL="https://b.test"\n');
+    await assert.rejects(writeManagedPublicEnvironment(root, { KELLO_URL: "https://secret@host.example.test" }));
+    await writeFile(path, 'KELLO_URL="https://a.test"\nKELLO_URL="https://b.test"\n');
     const before = await readFile(path, "utf8");
-    await assert.rejects(writeManagedPublicEnvironment(root, { LOOM_URL: "https://new.test" }));
+    await assert.rejects(writeManagedPublicEnvironment(root, { KELLO_URL: "https://new.test" }));
     expect(await readFile(path, "utf8")).toBe(before);
-    await writeManagedPublicEnvironment(root, { LOOM_URL: undefined });
+    await writeManagedPublicEnvironment(root, { KELLO_URL: undefined });
     expect(await readFile(path, "utf8")).toBe(before);
     await rm(path);
     await writeFile(join(root, "private.env"), "SECRET=preserve\n");
     await symlink("private.env", path);
-    await assert.rejects(writeManagedPublicEnvironment(root, { LOOM_URL: "https://new.test" }), /non-file/);
+    await assert.rejects(writeManagedPublicEnvironment(root, { KELLO_URL: "https://new.test" }), /non-file/);
     expect(await readFile(join(root, "private.env"), "utf8")).toBe("SECRET=preserve\n");
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -133,10 +133,10 @@ test("managed public env writes retain comments and unrelated CRLF content, reje
 });
 
 test("relink removes an old public endpoint when the new branch has none", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-clear-env-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-clear-env-"));
   try {
-    await writeFile(join(root, ".env.local"), 'LOOM_URL="https://old.test" # old deployment\nOTHER=retained\n');
-    await writeManagedPublicEnvironment(root, { LOOM_URL: null, NEON_AUTH_URL: null });
+    await writeFile(join(root, ".env.local"), 'KELLO_URL="https://old.test" # old deployment\nOTHER=retained\n');
+    await writeManagedPublicEnvironment(root, { KELLO_URL: null, NEON_AUTH_URL: null });
     expect(await readFile(join(root, ".env.local"), "utf8")).toBe("# old deployment\nOTHER=retained\n");
   } finally {
     await rm(root, { recursive: true, force: true });

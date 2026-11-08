@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "bun:test";
 
 test("packed generated search infers selected results through native options", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-search-generated-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-search-generated-"));
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, { cwd, stdout: "pipe", stderr: "pipe", timeout: 120_000 });
     const [stdout, stderr, code] = await Promise.all([
@@ -41,15 +41,15 @@ test("packed generated search infers selected results through native options", a
         dependencies: {
           kello: "file:./kello.tgz",
           "kello-cli": "file:./kello-cli.tgz",
-          "@orpc/client": "2.0.0-beta.46",
-          "@orpc/server": "2.0.0-beta.46",
-          "@orpc/tanstack-query": "2.0.0-beta.46",
-          "@tanstack/react-query": "5.104.3",
+          "@orpc/client": "2.0.0-beta.49",
+          "@orpc/server": "2.0.0-beta.49",
+          "@orpc/tanstack-query": "2.0.0-beta.49",
+          "@tanstack/react-query": "5.107.1",
           "drizzle-orm": "1.0.0-rc.5",
           valibot: "1.5.0",
-          react: "19.3.0",
-          "react-dom": "19.3.0",
-          effect: "4.0.6",
+          react: "19.3.1",
+          "react-dom": "19.3.1",
+          effect: "4.1.2",
         },
         devDependencies: { typescript: "7.0.2", "@types/react": "19.3.0" },
       }),
@@ -122,7 +122,7 @@ export default app;`,
     // errors while upstream declarations keep their consumer compatibility setting.
     const declaration = join(root, "app/kello/_generated/current/api.d.ts");
     await writeFile(join(root, "app/kello/_generated/current/checked-api.ts"), await readFile(declaration));
-    const copy = join(dirname(await realpath(join(root, "node_modules/kello"))), "loom-copy/dist");
+    const copy = join(dirname(await realpath(join(root, "node_modules/kello"))), "kello-copy/dist");
     await cp(join(root, "node_modules/kello/dist"), copy, { recursive: true });
     await writeFile(
       join(root, "copies.mjs"),
@@ -315,7 +315,7 @@ client.tasks.list({ with: { labels: { orderBy: [{ field: "name", direction: "asc
 const result = await Bun.build({ entrypoints: ["./app/kello/_generated/api.js"], target: "browser" });
 assert.equal(result.success, true, String(result.logs));
 const output = (await Promise.all(result.outputs.map(file => file.text()))).join("\\n");
-assert.match(output, /loom-search-projections/);
+assert.match(output, /kello-search-projections/);
 assert.doesNotMatch(output, /taskLabels|projectId|organizationId|DATABASE_URL|node:fs|node:crypto|pg-protocol|kello.search.descriptor/);
 console.info(JSON.stringify({ proof: "search-browser-bundle", bytes: Buffer.byteLength(output) }));
 `,

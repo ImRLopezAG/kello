@@ -3,11 +3,11 @@ import { test } from "bun:test";
 import pg from "pg";
 import { bootstrapDatabase, frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 if (!connectionString) throw new Error("Rate-limit schema acceptance requires disposable PostgreSQL 18");
 
 test("rate-limit metadata appends once, upgrades without rewriting history, and restricts runtime grants", async () => {
-  const namespace = `loom_limit_schema_${crypto.randomUUID().replaceAll("-", "")}`;
+  const namespace = `kello_limit_schema_${crypto.randomUUID().replaceAll("-", "")}`;
   const runtimeRole = `${namespace}_rt`;
   const owner = new pg.Client({ connectionString });
   await owner.connect();
@@ -19,10 +19,10 @@ test("rate-limit metadata appends once, upgrades without rewriting history, and 
     );
     const options = { connectionString: connectionString!, metadataNamespace: namespace, runtimeRole };
     await bootstrapDatabase(options);
-    assert.equal(frameworkMigrations("loom_meta").length, 29);
+    assert.equal(frameworkMigrations("kello_meta").length, 29);
     assert.equal(
-      frameworkMigrations("loom_meta")[26]!.hash,
-      "f50a24458564feb24a4db10d1bebd0414c583f6b7d1f4cfc689623bf675bc9f3",
+      frameworkMigrations("kello_meta")[26]!.hash,
+      "85e19f59a5ddcaa398aae62f098cc382fa05748a506c21b8852a3e141bf1d396",
     );
     const history = (
       await owner.query(`SELECT version,hash,applied_at FROM "${namespace}".framework_migrations ORDER BY version`)

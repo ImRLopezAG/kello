@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { NeonCredentialError } from "../../neon/credentials";
 import { databaseIdentifier, withMigrationConnection } from "../../migrations/connection";
 import type { DeploymentDatabaseIdentity } from "./connection";
 
@@ -25,7 +26,7 @@ export async function inspectRuntimeDatabase(input: RuntimeDatabaseOptions) {
     );
     const runtimeRole = v.parse(databaseIdentifier, options.runtimeRole);
     const namespace = v.parse(databaseIdentifier, options.namespace);
-    const metadataNamespace = v.parse(v.pipe(databaseIdentifier, v.regex(/^loom_/)), options.metadataNamespace);
+    const metadataNamespace = v.parse(v.pipe(databaseIdentifier, v.regex(/^kello_/)), options.metadataNamespace);
     if (namespace === metadataNamespace) throw new Error("Namespaces overlap");
     const address = new URL(options.connectionString);
     if (
@@ -125,7 +126,8 @@ export async function inspectRuntimeDatabase(input: RuntimeDatabaseOptions) {
         postgresVersion: 18 as const,
       });
     });
-  } catch {
-    throw new Error("Runtime database preflight failed");
+  } catch (cause) {
+    if (cause instanceof NeonCredentialError) throw cause;
+    throw new Error("Runtime database preflight failed", { cause });
   }
 }

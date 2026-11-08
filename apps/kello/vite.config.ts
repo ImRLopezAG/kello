@@ -30,8 +30,8 @@ export default defineConfig({
     },
     deps: {
       neverBundle: true,
-      alwaysBundle: [/^(@neon\/realtime-drizzle)(\/|$)/],
-      onlyBundle: [/^(@neon\/realtime-drizzle)(\/|$)/],
+      alwaysBundle: [/^(@neon\/realtime-drizzle|@orpc\/effect)(\/|$)/],
+      onlyBundle: [/^(@neon\/realtime-drizzle|@orpc\/effect)(\/|$)/],
     },
   },
 });

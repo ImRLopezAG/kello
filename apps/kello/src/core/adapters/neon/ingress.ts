@@ -8,7 +8,7 @@ import type { NeonActivationOptions } from "./activation";
 export function neonIngressLockKey(
   binding: Pick<NeonActivationOptions, "metadataNamespace" | "projectId" | "branchId" | "deployment">,
 ): string {
-  return `loom:ingress:${JSON.stringify([binding.metadataNamespace, binding.projectId, binding.branchId, binding.deployment])}`;
+  return `kello:ingress:${JSON.stringify([binding.metadataNamespace, binding.projectId, binding.branchId, binding.deployment])}`;
 }
 
 /** Call inside a read-committed enqueue transaction; its shared lock lasts through commit or rollback. */

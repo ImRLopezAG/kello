@@ -26,15 +26,15 @@ import type { ProcedureContext } from "kello/server";
 import { bootstrapDatabase } from "kello-cli";
 import { createSearchFixture } from "../fixtures/search-schema";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "search owns authorization, exact output and a read snapshot (U5)",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const namespace = `loom_search_tx_${suffix}`;
-    const metadataNamespace = `loom_search_meta_${suffix}`;
-    const role = `loom_search_reader_${suffix}`;
+    const namespace = `kello_search_tx_${suffix}`;
+    const metadataNamespace = `kello_search_meta_${suffix}`;
+    const role = `kello_search_reader_${suffix}`;
     const { schema, relations } = createSearchFixture(namespace);
     const owner = new pg.Pool({ connectionString });
     const seed = drizzle({ client: owner, relations });
@@ -49,7 +49,7 @@ test.skipIf(!connectionString)(
       const ownerName = actor.rows[0]?.name;
       if (!ownerName) throw new Error("Missing fixture owner");
       await owner.query(`GRANT "${role}" TO "${ownerName.replaceAll('"', '""')}"`);
-      await owner.query(`ALTER ROLE "${role}" LOGIN PASSWORD 'loom-test-only'`);
+      await owner.query(`ALTER ROLE "${role}" LOGIN PASSWORD 'kello-test-only'`);
       const tables = Object.values(schema.tables)
         .map((table) => `"${namespace}"."${getTableName(table)}"`)
         .join(", ");
@@ -71,7 +71,7 @@ test.skipIf(!connectionString)(
       ]);
       const address = new URL(connectionString);
       address.username = role;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const connection = await connectDatabase({
         schema,
         relations,

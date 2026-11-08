@@ -83,7 +83,10 @@ export async function registerRateLimitPolicies(
       )::text || 'ms', true)
       FROM unnest(ARRAY['lock_timeout','statement_timeout']) AS setting`);
     const deadline = performance.now() + 5000;
-    for (const key of ["loom:component-ownership", ...namespaces.map((namespace) => `loom:migrations:${namespace}`)]) {
+    for (const key of [
+      "kello:component-ownership",
+      ...namespaces.map((namespace) => `kello:migrations:${namespace}`),
+    ]) {
       for (;;) {
         signal?.throwIfAborted();
         if (performance.now() >= deadline) throw new Error("Timed out waiting for the migration lock");

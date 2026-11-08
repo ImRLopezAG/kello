@@ -16,12 +16,12 @@ import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/se
 import { connectDatabase } from "../../../apps/kello/src/core/server/database/connection";
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "assembled component calls preserve one retry owner and automatic calls execute once",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
-    const namespace = `loom_scope_retry_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_scope_retry_${crypto.randomUUID().replaceAll("-", "")}`;
     const role = `${namespace}_role`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();

@@ -58,7 +58,7 @@ test("durable callbacks carry the mount identity at compilation", async () => {
   }
 });
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "mounted schedules rollback with their parent and replay receipts remain isolated",
   async () => {
@@ -75,7 +75,7 @@ test.skipIf(!connectionString)(
     const { createEffectRuntime, Invocation } = await import("../../../apps/kello/src/core/server/effect/runtime");
     const { createRpcJobQueue } = await import("../../../apps/kello/src/core/server/jobs/rpc-queue");
     const { createTransactionalRpcScheduler } = await import("../../../apps/kello/src/core/server/jobs/rpc-service");
-    const namespace = `loom_durable_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_durable_${crypto.randomUUID().replaceAll("-", "")}`;
     const role = `${namespace}_role`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
@@ -321,7 +321,7 @@ test.skipIf(!connectionString)(
     const { defineApplication } = await import("../../../apps/kello/src/core/server/application/definition");
     const { defineComponent } = await import("../../../apps/kello/src/core/server/components/definition");
     const { defineRpcAuth } = await import("../../../apps/kello/src/core/server/auth/rpc-definition");
-    const namespace = `loom_assembled_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_assembled_${crypto.randomUUID().replaceAll("-", "")}`;
     const role = `${namespace}_role`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
@@ -425,7 +425,7 @@ test("assembled runtime rejects root and component cron identity collisions befo
   const { createRpcRuntime } = await import("../../../apps/kello/src/core/server/rpc-runtime");
   const { procedureCron } = await import("../../../apps/kello/src/core/server/rpc/capabilities");
   const schema = defineSchema(() => ({}));
-  const childSchema = defineSchema(() => ({}), { namespace: "loom_component_collision" });
+  const childSchema = defineSchema(() => ({}), { namespace: "kello_component_collision" });
   const cron = procedureCron("* * * * *", procedure, "tick");
   let activated = false;
   await assert.rejects(
@@ -434,13 +434,13 @@ test("assembled runtime rejects root and component cron identity collisions befo
       relations: defineRelations(schema.tables),
       version,
       deployment: "collision",
-      metadataNamespace: "loom_collision",
+      metadataNamespace: "kello_collision",
       connectionString: "postgresql://unused:unused@127.0.0.1:1/unused",
       assertActive: async () => {
         activated = true;
         throw new Error("Must reject before activation");
       },
-      crons: { "loom_component_collision-tick": cron },
+      crons: { "kello_component_collision-tick": cron },
       scopes: [
         { name: "", dependencies: { child: "child" }, schema },
         { name: "child", dependencies: {}, schema: childSchema, crons: { tick: cron } },

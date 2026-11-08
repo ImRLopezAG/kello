@@ -7,8 +7,9 @@ import { quoteIdentifier } from "../../../apps/kello-cli/src/tooling/migrations/
 import { registerRateLimitPolicies } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits";
 import { componentNamespace } from "../../../apps/kello-cli/src/tooling/project/component-namespace";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
-if (!connectionString) throw new Error("Rate limit registration requires LOOM_TEST_DATABASE_URL (local PostgreSQL 18)");
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
+if (!connectionString)
+  throw new Error("Rate limit registration requires KELLO_TEST_DATABASE_URL (local PostgreSQL 18)");
 const suffix = crypto.randomUUID().replaceAll("-", "");
 const metadataNamespace = `rl_reg_${suffix}`;
 const runtimeRole = `rl_role_${suffix}`;
@@ -209,7 +210,7 @@ test("cancellation while waiting for ownership rolls back and pooled clients ret
   const pooled = await pool.connect();
   const controller = new AbortController();
   try {
-    await blocker.query("SELECT pg_advisory_lock(hashtextextended('loom:component-ownership',0))");
+    await blocker.query("SELECT pg_advisory_lock(hashtextextended('kello:component-ownership',0))");
     const pending = registerRateLimitPolicies(pooled, { ...input, signal: controller.signal });
     setTimeout(() => controller.abort(), 100);
     await assert.rejects(pending);
@@ -233,10 +234,10 @@ test("cancellation while waiting for ownership rolls back and pooled clients ret
 test("caller session locks are reentrant and mounted namespace locks serialize registration", async () => {
   const blocker = new pg.Client({ connectionString });
   await blocker.connect();
-  const namespaceKey = `loom:migrations:${componentNamespace("locked")}`;
+  const namespaceKey = `kello:migrations:${componentNamespace("locked")}`;
   try {
-    await client.query("SELECT pg_advisory_lock(hashtextextended($1,0))", ["loom:component-ownership"]);
-    await client.query("SELECT pg_advisory_lock(hashtextextended($1,0))", ["loom:migrations:app"]);
+    await client.query("SELECT pg_advisory_lock(hashtextextended($1,0))", ["kello:component-ownership"]);
+    await client.query("SELECT pg_advisory_lock(hashtextextended($1,0))", ["kello:migrations:app"]);
     await registerRateLimitPolicies(client, input);
     expect(
       (

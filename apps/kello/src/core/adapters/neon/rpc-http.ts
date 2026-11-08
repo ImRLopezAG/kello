@@ -1,5 +1,6 @@
 import { RPCHandler, BodyLimitPlugin } from "@orpc/server/fetch";
 import type { FetchHandler } from "@orpc/server/fetch";
+import { HeadMethodHandlerPlugin } from "@orpc/server/plugins";
 import type { StandardHandlerOptions } from "@orpc/server/standard";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import type { OpenAPIDocument } from "@orpc/openapi";
@@ -58,7 +59,11 @@ export async function createRpcOpenApiApp(options: RpcHttpOptions): Promise<{
   const handler = new OpenAPIHandler(options.router, {
     ...rateLimitInterceptors(),
     errorStatusMap: rpcErrorStatusMap,
-    plugins: [new BodyLimitPlugin({ maxBodySize: options.maxRequestBytes ?? 1_048_576 })],
+    plugins: [
+      new BodyLimitPlugin({ maxBodySize: options.maxRequestBytes ?? 1_048_576 }),
+      // HEAD runs the matching GET procedure, including authorization and rate limits, without a body.
+      new HeadMethodHandlerPlugin(),
+    ],
   });
   return {
     ...createHttpIngress(options, handler, "/api/kello/openapi", ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]),
@@ -136,10 +141,10 @@ function createHttpIngress(
   const permittedHeaders = [
     "authorization",
     "content-type",
-    "x-loom-protocol",
-    "x-loom-version",
+    "x-kello-protocol",
+    "x-kello-version",
     "idempotency-key",
-    "x-loom-operation",
+    "x-kello-operation",
   ];
   return {
     async fetch(request: Request): Promise<Response> {
@@ -147,6 +152,8 @@ function createHttpIngress(
       const sessionRequest = prefix === "/api/kello/rpc" && pathname === "/api/kello/session";
       const headers = new Headers({ "cache-control": "no-store", vary: "Origin" });
       const fail = (code: string, status: number) => {
+        // HEAD answers never carry a body, including ingress-level refusals.
+        if (request.method === "HEAD") return new Response(null, { status, headers });
         return prefix === "/api/kello/openapi"
           ? Response.json(new ORPCError(code).toJSON(), { status, headers })
           : rpcFailure(code, status, headers);
@@ -176,8 +183,8 @@ function createHttpIngress(
       }
       if (!methods.includes(request.method)) return fail("METHOD_NOT_SUPPORTED", 405);
       if (
-        request.headers.get("x-loom-protocol") !== rpcProtocolVersion ||
-        request.headers.get("x-loom-version") !== options.version
+        request.headers.get("x-kello-protocol") !== rpcProtocolVersion ||
+        request.headers.get("x-kello-version") !== options.version
       )
         return fail("RPC_VERSION_MISMATCH", 409);
       const deadline = timedInvocationSignal(timeout);
@@ -252,7 +259,7 @@ function createHttpIngress(
               session,
               signal,
               request.headers.get("idempotency-key") ?? undefined,
-              request.headers.get("x-loom-operation") ?? undefined,
+              request.headers.get("x-kello-operation") ?? undefined,
               login,
             );
             return options.liveQueries ? { ...context, liveQueries: options.liveQueries } : context;

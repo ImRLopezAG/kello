@@ -14,7 +14,7 @@ export { createQueryClient } from "./query-client";
 export { createCookieSession } from "./cookie-session";
 export type { KelloAuth } from "./cookie-session";
 
-export { createTanstackQueryUtils } from "@orpc/tanstack-query";
+export { createTanstackQueryUtils, StreamQuerySSRUtilsPlugin } from "@orpc/tanstack-query";
 export type { RouterUtils } from "@orpc/tanstack-query";
 export { createSearchQueryPlugin, createSearchDataGuard } from "./search-query-plugin";
 export type { SearchDataGuard, SearchCacheEntry } from "./search-query-plugin";

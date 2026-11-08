@@ -2,7 +2,7 @@
 import * as v from "valibot";
 import { onboardingCommand } from "./commands/onboarding";
 import { OnboardingError } from "./tooling";
-import { neonLogin, neonProfiles } from "./commands/login";
+import { kelloLogin, kelloLogout, kelloProfiles } from "./commands/login";
 import { withNeonCredentials } from "./tooling";
 import { NeonCredentialError, ProjectResolutionError, RealtimeError } from "./tooling";
 import { realtimeEnableCommand, realtimeStatusCommand } from "./commands/realtime";
@@ -33,8 +33,9 @@ import {
 
 const help = `Usage: kello <command> [--cwd <directory>] [--json]
 
-  login [--profile <name>]       Sign in through the official Neon CLI
-  profile list                  List official Neon credential profiles
+  login [--profile <name>] [--force]  Sign in once in a browser and store a personal Neon API key
+  logout [--profile <name>]      Revoke and remove the stored key for a profile
+  profile list                  List stored Kello profiles (never keys)
   create [directory] --name <name> --region <region>  Create and link a Neon project
   link [--project-id <id>]       Discover and link an existing Neon project
   integrate [--apply]            Preview or add Kello files to an existing frontend
@@ -57,6 +58,9 @@ const help = `Usage: kello <command> [--cwd <directory>] [--json]
   realtime enable --origin <origin> [--allow-protected]  Enable Realtime and wait for readiness
   doctor                        Validate configuration, schema, and registered functions
 
+Neon commands use NEON_API_KEY when set, otherwise the key kello login stored for the profile
+(--profile <name> or KELLO_PROFILE, default "default"; an explicit --profile ignores NEON_API_KEY).
+Keys live in --config-dir <directory>, default $XDG_CONFIG_HOME/kello or ~/.config/kello.
 Schema diff and migration generation accept --renames <project-relative JSON file>.
 Migration application accepts repeated --reviewed-hash <hash> for reviewed changes.
 Use --recover-nontransactional with migrations apply for reviewed concurrent column B-tree indexes.
@@ -96,7 +100,7 @@ async function runCommand(args: readonly string[]): Promise<number> {
       options: {
         profile: { type: "string" },
         "config-dir": { type: "string" },
-        keyring: { type: "boolean" },
+        force: { type: "boolean" },
         "project-id": { type: "string" },
         "org-id": { type: "string" },
         region: { type: "string" },
@@ -133,8 +137,14 @@ async function runCommand(args: readonly string[]): Promise<number> {
     command = first;
     const root = resolve(parsed.values.cwd ?? process.cwd());
     const credentialOptions = { profile: parsed.values.profile, configDir: parsed.values["config-dir"] };
-    if (first === "login" && !second) return await neonLogin({ ...credentialOptions, keyring: parsed.values.keyring });
-    if (first === "profile" && second === "list" && !extra.length) return await neonProfiles(credentialOptions);
+    const accountOptions = { ...credentialOptions, structured, force: parsed.values.force };
+    if (first === "login" && !second) return await kelloLogin(accountOptions);
+    if (parsed.values.force !== undefined) {
+      reportFailure(structured, command, "USAGE", "--force is accepted only by kello login", 2);
+      return 2;
+    }
+    if (first === "logout" && !second) return await kelloLogout(accountOptions);
+    if (first === "profile" && second === "list" && !extra.length) return await kelloProfiles(accountOptions);
     delete parsed.values.profile;
     delete parsed.values["config-dir"];
     if (["create", "link", "integrate"].includes(first)) {

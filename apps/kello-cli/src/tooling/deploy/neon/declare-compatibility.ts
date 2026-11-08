@@ -32,9 +32,9 @@ export async function declareProjectCompatibility(
   return withDeploymentConnection(
     signal ? { ...connection, signal } : connection,
     async (client, target, database) => {
-      await acquireMigrationLock(client, "loom:component-ownership", false, signal);
+      await acquireMigrationLock(client, "kello:component-ownership", false, signal);
       for (const scope of projectMigrationScopes(project))
-        await acquireMigrationLock(client, `loom:migrations:${scope.namespace}`, false, signal);
+        await acquireMigrationLock(client, `kello:migrations:${scope.namespace}`, false, signal);
       await assertGeneratedVersion(project.root, declaration.version);
       const inspection = await inspectReleaseSchema(project.root, {
         namespace,

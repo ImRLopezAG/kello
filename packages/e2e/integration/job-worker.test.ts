@@ -18,15 +18,15 @@ import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
 import pg from "pg";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "Node worker termination recovers claims and replays committed mutations without repeated effects",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_worker_${suffix}`;
+    const metadataNamespace = `kello_worker_${suffix}`;
     const applicationNamespace = `app_worker_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
@@ -36,10 +36,10 @@ test.skipIf(!connectionString)(
       await admin.query(`INSERT INTO "${applicationNamespace}".effects VALUES (0)`);
       await admin.query(`GRANT USAGE ON SCHEMA "${applicationNamespace}" TO "${runtimeRole}"`);
       await admin.query(`GRANT SELECT, UPDATE ON "${applicationNamespace}".effects TO "${runtimeRole}"`);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const relations = defineRelations(schema.tables);
       const connection = await connectDatabase({
@@ -136,10 +136,10 @@ test.skipIf(!connectionString)(
             const child = Bun.spawn(["node", fileURLToPath(new URL("../fixtures/job-worker.ts", import.meta.url))], {
               env: {
                 ...process.env,
-                LOOM_TEST_DATABASE_URL: address.href,
-                LOOM_TEST_JOB_METADATA: metadataNamespace,
-                LOOM_TEST_JOB_SCHEMA: applicationNamespace,
-                LOOM_TEST_JOB_CRASH: crash,
+                KELLO_TEST_DATABASE_URL: address.href,
+                KELLO_TEST_JOB_METADATA: metadataNamespace,
+                KELLO_TEST_JOB_SCHEMA: applicationNamespace,
+                KELLO_TEST_JOB_CRASH: crash,
               },
               stdout: "pipe",
               stderr: "pipe",
@@ -183,7 +183,7 @@ test.skipIf(!connectionString)(
             expect(await queue.inspect(id)).toMatchObject({
               state: "succeeded",
               attempts: manual ? 1 : 2,
-              result: { protocol: "loom-orpc-2", payload: { json: expectedEffects } },
+              result: { protocol: "kello-orpc-2", payload: { json: expectedEffects } },
             });
           }
           const revoked = await queue.enqueue(connection.db, call, identity, {

@@ -16,10 +16,10 @@ assert.equal(Number(process.versions.node.split(".")[0]), 24);
 assert.equal("Bun" in globalThis, false);
 const config = v.parse(
   v.object({
-    LOOM_TEST_DATABASE_URL: v.string(),
-    LOOM_TEST_JOB_METADATA: v.string(),
-    LOOM_TEST_JOB_SCHEMA: v.string(),
-    LOOM_TEST_JOB_CRASH: v.picklist(["claimed", "committed"]),
+    KELLO_TEST_DATABASE_URL: v.string(),
+    KELLO_TEST_JOB_METADATA: v.string(),
+    KELLO_TEST_JOB_SCHEMA: v.string(),
+    KELLO_TEST_JOB_CRASH: v.picklist(["claimed", "committed"]),
   }),
   process.env,
 );
@@ -28,11 +28,11 @@ const relations = defineRelations(schema.tables);
 const connection = await connectDatabase({
   schema,
   relations,
-  connectionString: config.LOOM_TEST_DATABASE_URL,
+  connectionString: config.KELLO_TEST_DATABASE_URL,
 });
 const version = "a".repeat(64);
 const deployment = "worker-test";
-const metadataNamespace = config.LOOM_TEST_JOB_METADATA;
+const metadataNamespace = config.KELLO_TEST_JOB_METADATA;
 const { procedure } = createProjectProcedures(schema);
 const authorize = async (context: { identity: { subject: string } | null }) => {
   if (context.identity?.subject !== "alice") throw new ORPCError("FORBIDDEN");
@@ -45,7 +45,7 @@ const write = procedure
     assert.ok(context.job);
     assert.equal(context.job.attempt, 1);
     const result = await context.db.execute<{ value: number }>(
-      sql`UPDATE ${sql.identifier(config.LOOM_TEST_JOB_SCHEMA)}.effects SET value=value+1 RETURNING value`,
+      sql`UPDATE ${sql.identifier(config.KELLO_TEST_JOB_SCHEMA)}.effects SET value=value+1 RETURNING value`,
     );
     return result.rows[0]?.value ?? -1;
   });
@@ -57,7 +57,7 @@ const internal = [
 ];
 const queue = createRpcJobQueue({ db: connection.db, version, internal, deployment, metadataNamespace });
 async function pause(stage: "claimed" | "committed"): Promise<void> {
-  if (stage !== config.LOOM_TEST_JOB_CRASH) return;
+  if (stage !== config.KELLO_TEST_JOB_CRASH) return;
   process.stdout.write(`${stage}\n`);
   await new Promise<void>(() => {});
 }

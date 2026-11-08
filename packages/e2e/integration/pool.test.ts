@@ -6,7 +6,7 @@ import { connectDatabase, defineSchema, runFunctionTransaction } from "kello/ser
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)("pool measures acquisition separately from query execution", async () => {
   if (!connectionString) throw new Error("Missing database URL");
   const schema = defineSchema(() => ({}));

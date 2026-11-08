@@ -1,6 +1,6 @@
 # Framework acceptance review
 
-Plan: `docs/plans/2026-09-22-1141-feat-loom-full-framework-plan.md`.
+Plan: `docs/plans/2026-09-22-1141-feat-kello-full-framework-plan.md`.
 
 This index reconciles the implementation journal's historical partial entries with the final acceptance work. It distinguishes local implementation, disposable Neon acceptance and public publication. The journal remains chronological.
 
@@ -58,7 +58,7 @@ The separate simplification pass checked reuse, quality and resource ownership i
 
 ## Operational validation for a later deployment
 
-The deploying maintainer owns validation for the selected branch. Before traffic, inspect the release receipt, live health identity, migration history and runtime-role authority. During the first workload, observe `loom.runtime.metric` and `loom.deployment.metric`: dispatch errors, transaction retries, pool waiting, revision reads, job age and lost/recovered leases. Exercise authenticated reads/writes, two-user isolation, socket reconnect and one durable job through the application.
+The deploying maintainer owns validation for the selected branch. Before traffic, inspect the release receipt, live health identity, migration history and runtime-role authority. During the first workload, observe `kello.runtime.metric` and `kello.deployment.metric`: dispatch errors, transaction retries, pool waiting, revision reads, job age and lost/recovered leases. Exercise authenticated reads/writes, two-user isolation, socket reconnect and one durable job through the application.
 
 Use the explicit acceptance workload as the initial validation window, then set a sustained observation window for the application's actual traffic; no production traffic baseline exists yet. Stop rollout for owner-data exposure, schema/activation mismatch, unbounded resource growth or failed committed-write convergence. Pause new traffic and use the documented deployment recovery/retirement commands after inspecting durable state. Do not reverse applied DDL blindly. Burst rejection is a measured capacity limitation and must be accounted for before choosing production traffic levels.
 

@@ -46,8 +46,8 @@ test("HTTP guards bound body reads, reject forged envelopes, and cancel stalled 
   const headers = {
     "content-type": "application/json",
     authorization: "Bearer token",
-    "x-loom-protocol": "loom-orpc-2",
-    "x-loom-version": version,
+    "x-kello-protocol": "kello-orpc-2",
+    "x-kello-version": version,
     origin: "https://app.example.test",
   };
   const post = (body: string, extra: Readonly<Record<string, string>> = {}) =>
@@ -55,7 +55,7 @@ test("HTTP guards bound body reads, reject forged envelopes, and cancel stalled 
   expect((await post(JSON.stringify(payload))).status).toBe(200);
   expect((await post(JSON.stringify({ json: { identity: { subject: "other" } } }))).status).toBe(400);
   expect((await post("{")).status).toBe(400);
-  expect((await post(JSON.stringify(payload), { "x-loom-protocol": "unknown" })).status).toBe(409);
+  expect((await post(JSON.stringify(payload), { "x-kello-protocol": "unknown" })).status).toBe(409);
   expect((await post("x".repeat(1025), { "content-length": "1" })).status).toBe(413);
   expect((await post(JSON.stringify(payload), { authorization: "Basic token" })).status).toBe(401);
   expect(
@@ -150,8 +150,8 @@ test("session introspection derives identity scope from verified claims and refu
         method: "POST",
         headers: {
           authorization: "Bearer token",
-          "x-loom-protocol": "loom-orpc-2",
-          "x-loom-version": version,
+          "x-kello-protocol": "kello-orpc-2",
+          "x-kello-version": version,
           ...extra,
         },
       }),
@@ -165,7 +165,7 @@ test("session introspection derives identity scope from verified claims and refu
   expect(v.parse(schema, await (await request()).json()).key).not.toBe(alice.key);
   subject = "bob";
   expect(v.parse(schema, await (await request()).json()).key).not.toBe(alice.key);
-  expect((await request({ "x-loom-version": "b".repeat(64) })).status).toBe(409);
+  expect((await request({ "x-kello-version": "b".repeat(64) })).status).toBe(409);
   expect((await request({ authorization: "" })).status).toBe(401);
   expect((await request({ origin: "https://evil.test" })).status).toBe(403);
   expect(calls).toBe(0);

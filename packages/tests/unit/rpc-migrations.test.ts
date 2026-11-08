@@ -23,7 +23,7 @@ test("migration validates both contracts without running procedure effects", asy
       return null;
     });
   const from = {
-    protocol: "loom-legacy-1" as const,
+    protocol: "kello-legacy-1" as const,
     version: "a".repeat(64),
     name: "jobs:run",
     kind: "action" as const,
@@ -57,7 +57,7 @@ test("migration validates both contracts without running procedure effects", asy
 test("native migration matches the complete old route and preserves rich inputs", async () => {
   const { procedure } = createProjectProcedures(defineSchema(() => ({})));
   const target = procedure.input(v.strictObject({ at: v.date(), count: v.bigint() })).handler(() => null);
-  const from = { protocol: "loom-orpc-2" as const, version: "a".repeat(64), path: ["old", "run"] };
+  const from = { protocol: "kello-orpc-2" as const, version: "a".repeat(64), path: ["old", "run"] };
   const migration = defineJobMigration({
     from,
     input: v.strictObject({ at: v.date() }),

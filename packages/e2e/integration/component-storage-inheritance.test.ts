@@ -19,13 +19,13 @@ import {
 } from "kello/server";
 import { storageProviderFixture } from "../fixtures/storage-provider";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "assembled component runtime inherits ready files without exposing sibling storage",
   async () => {
     assert(connectionString);
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_files_${suffix}`;
+    const metadataNamespace = `kello_files_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const schema = defineSchema(() => ({}), { namespace: `app_${suffix}` });
     const componentSchema = defineSchema(() => ({}), { namespace: `files_${suffix}` });
@@ -36,10 +36,10 @@ test.skipIf(!connectionString)(
     await admin.connect();
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const application = defineApplication({ rpc: ({ os }) => ({ os }) });
       const component = defineComponent({ name: "files" });
       application.use(component, { name: "left" });
@@ -100,7 +100,11 @@ test.skipIf(!connectionString)(
           new RPCLink({
             origin: "https://storage.test",
             url: "/api/kello/rpc",
-            headers: { authorization: "Bearer fixture", "x-loom-protocol": "loom-orpc-2", "x-loom-version": version },
+            headers: {
+              authorization: "Bearer fixture",
+              "x-kello-protocol": "kello-orpc-2",
+              "x-kello-version": version,
+            },
             fetch: (url, init) => app.fetch(new Request(url, init)),
           }),
         );

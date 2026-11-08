@@ -131,7 +131,7 @@ function endpoint(variant: Variant = {}) {
   const options = {
     connection,
     scope: variant.component ?? "component-one",
-    replay: { metadataNamespace: "loom_meta", deployment: "fts-cursor" },
+    replay: { metadataNamespace: "kello_meta", deployment: "fts-cursor" },
     search: {
       branchId: variant.branchId ?? "br-one",
       key: variant.key ?? secret,
@@ -189,7 +189,7 @@ async function firstToken() {
 const restart = { code: "INVALID_CURSOR", data: { restart: true } };
 
 beforeAll(async () => {
-  const value = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
+  const value = fullTextLocalTarget(process.env.KELLO_TEST_DATABASE_URL);
   owner = new pg.Pool({ connectionString: value, max: 1 });
   const target = await owner.query<{ version: number; database: string }>(
     "SELECT current_setting('server_version_num')::int AS version, current_database() AS database",

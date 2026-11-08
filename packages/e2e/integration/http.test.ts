@@ -19,22 +19,22 @@ import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import pg from "pg";
 import * as v from "valibot";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)("public HTTP verifies JWTs before atomic mutation dispatch and replay", async () => {
   if (!connectionString) throw new Error("Missing database URL");
   const suffix = crypto.randomUUID().replaceAll("-", "");
-  const metadataNamespace = `loom_http_${suffix}`;
-  const runtimeRole = `loom_runtime_${suffix}`;
+  const metadataNamespace = `kello_http_${suffix}`;
+  const runtimeRole = `kello_runtime_${suffix}`;
   const admin = new pg.Client({ connectionString });
   await admin.connect();
   try {
     await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-    await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+    await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
     await admin.query(`CREATE TABLE "${metadataNamespace}".writes (owner text NOT NULL)`);
     await admin.query(`GRANT INSERT ON "${metadataNamespace}".writes TO "${runtimeRole}"`);
     const address = new URL(connectionString);
     address.username = runtimeRole;
-    address.password = "loom-test-only";
+    address.password = "kello-test-only";
     const schema = defineSchema(() => ({}));
     const relations = defineRelations(schema.tables);
     const connection = await connectDatabase({
@@ -98,8 +98,8 @@ test.skipIf(!connectionString)("public HTTP verifies JWTs before atomic mutation
           "content-type": "application/json",
           authorization: `Bearer ${token}`,
           origin: "https://app.example.test",
-          "x-loom-protocol": "loom-orpc-2",
-          "x-loom-version": version,
+          "x-kello-protocol": "kello-orpc-2",
+          "x-kello-version": version,
           "idempotency-key": key,
         };
         const { authorization: _authorization, ...noAuth } = headers;

@@ -72,7 +72,7 @@ function fixture(
 // Pre-U1 adapter: native generator output, structural identity and append-only lineage.
 async function historicalSnapshot(schema: ReturnType<typeof fixture>, before: MigrationSnapshot) {
   const snapshot = fromDrizzleSnapshot(
-    await generateDrizzleJson({ ...schema.tables, __loomNamespace: pgSchema(schema.namespace) }, before.id, [
+    await generateDrizzleJson({ ...schema.tables, __kelloNamespace: pgSchema(schema.namespace) }, before.id, [
       schema.namespace,
     ]),
   );
@@ -80,11 +80,11 @@ async function historicalSnapshot(schema: ReturnType<typeof fixture>, before: Mi
 }
 
 test("pre-U1 native historical artifacts stay immutable and regenerate unchanged GIN without review", async () => {
-  const connectionString = process.env.LOOM_TEST_DATABASE_URL;
-  if (!connectionString) throw new Error("LOOM_TEST_DATABASE_URL is required for the PG18 historical proof");
+  const connectionString = process.env.KELLO_TEST_DATABASE_URL;
+  if (!connectionString) throw new Error("KELLO_TEST_DATABASE_URL is required for the PG18 historical proof");
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `fts_history_${suffix}`;
-  const metadataNamespace = `loom_history_${suffix}`;
+  const metadataNamespace = `kello_history_${suffix}`;
   const runtimeRole = `fts_history_role_${suffix}`;
   const root = await mkdtemp(join(tmpdir(), "kello-fts-history-"));
   const client = new pg.Client({ connectionString });
@@ -239,12 +239,12 @@ test("pre-U1 native historical artifacts stay immutable and regenerate unchanged
 }, 60_000);
 
 test("native weighted expression GIN round-trips through Kello's migration lifecycle", async () => {
-  const connectionString = process.env.LOOM_TEST_DATABASE_URL;
-  if (!connectionString) throw new Error("LOOM_TEST_DATABASE_URL is required for the PG18 migration proof");
+  const connectionString = process.env.KELLO_TEST_DATABASE_URL;
+  if (!connectionString) throw new Error("KELLO_TEST_DATABASE_URL is required for the PG18 migration proof");
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `fts_${suffix}`;
   const renamedNamespace = `fts_renamed_${suffix}`;
-  const metadataNamespace = `loom_fts_${suffix}`;
+  const metadataNamespace = `kello_fts_${suffix}`;
   const runtimeRole = `fts_role_${suffix}`;
   const root = await mkdtemp(join(tmpdir(), "kello-fts-u1-"));
   const client = new pg.Client({ connectionString });

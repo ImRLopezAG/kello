@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 import { applyMigrations, loadProject } from "kello-cli";
 import pg from "pg";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "example migrations and runtime roles remain isolated in one database",
   async () => {
@@ -12,7 +12,7 @@ test.skipIf(!connectionString)(
     const address = new URL(connectionString);
     assert(["127.0.0.1", "localhost", "[::1]"].includes(address.hostname), "Local test database required");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const database = `loom_examples_${suffix}`;
+    const database = `kello_examples_${suffix}`;
     const admin = new pg.Client({ connectionString });
     const roles: string[] = [];
     let db: pg.Client | undefined;

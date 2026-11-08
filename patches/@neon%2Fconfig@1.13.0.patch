@@ -1,7 +1,8 @@
 diff --git a/dist/lib/neon-api-real.js b/dist/lib/neon-api-real.js
+index 541998150a78dc00747c0f91fc252a6399469446..83ded14a049f14c2e638c72b2cec6ca7825e386c 100644
 --- a/dist/lib/neon-api-real.js
 +++ b/dist/lib/neon-api-real.js
-@@ -1049,11 +1049,12 @@
+@@ -1059,11 +1059,12 @@ function bucketToSnapshot(bucket) {
  }
  /**
  * The Neon API returns `access_level` as a free-form string (per the API guidelines:

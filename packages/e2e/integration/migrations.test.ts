@@ -4,11 +4,11 @@ import { emptySnapshot, planMigration, snapshotHash } from "kello-cli";
 import pg from "pg";
 import { fileURLToPath } from "node:url";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "release planning retains its committed baseline after live schema evolution and preserves renamed data",
   async () => {
-    const namespace = `loom_migration_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_migration_${crypto.randomUUID().replaceAll("-", "")}`;
     const pool = new pg.Pool({ connectionString });
     const baseline = defineSchema((f) => ({ tasks: { title: f.text().notNull() } }), { namespace });
     const expanded = defineSchema((f) => ({ tasks: { title: f.text().notNull(), description: f.text() } }), {

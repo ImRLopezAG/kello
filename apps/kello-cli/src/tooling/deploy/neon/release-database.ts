@@ -114,10 +114,10 @@ export async function withNeonReleaseDatabase<T>(
           migrationHashes: options.migrationHashes,
         },
         async (journal) => {
-          await acquireMigrationLock(client, "loom:component-ownership");
+          await acquireMigrationLock(client, "kello:component-ownership");
           await assertExternalAuthTables(client, project);
           for (const scope of projectMigrationScopes(project))
-            await acquireMigrationLock(client, `loom:migrations:${scope.namespace}`, false, signal);
+            await acquireMigrationLock(client, `kello:migrations:${scope.namespace}`, false, signal);
           await assertGeneratedVersion(project.root, options.version);
           await inspectReleaseSchema(project.root, schemaOptions);
           signal?.throwIfAborted();

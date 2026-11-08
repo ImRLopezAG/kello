@@ -13,7 +13,7 @@ const workspace = fileURLToPath(new URL("../../../", import.meta.url));
 const fixtures = fileURLToPath(new URL("../fixtures/components-package/", import.meta.url));
 
 test("packed components preserve typed per-instance bindings and transitive definitions outside the workspace", async () => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "loom-packed-components-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "kello-packed-components-")));
   async function run(command: string[], cwd = root, env = process.env) {
     const child = Bun.spawn(command, { cwd, env, stdout: "pipe", stderr: "pipe", timeout: 120000 });
     const [stdout, stderr, code] = await Promise.all([
@@ -82,12 +82,12 @@ test("packed components preserve typed per-instance bindings and transitive defi
       JSON.stringify({
         private: true,
         type: "module",
-        overrides: { kello: "file:./kello.tgz", "@loom-test/sdk": "file:./sdk.tgz" },
+        overrides: { kello: "file:./kello.tgz", "@kello-test/sdk": "file:./sdk.tgz" },
         dependencies: {
           kello: "file:./kello.tgz",
           "kello-cli": "file:./kello-cli.tgz",
           valibot: "1.5.0",
-          "@orpc/client": "2.0.0-beta.46",
+          "@orpc/client": "2.0.0-beta.49",
           "drizzle-orm": "1.0.0-rc.5",
         },
         devDependencies: { "@types/node": "24.13.6" },
@@ -99,7 +99,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
     await write(
       join(sdk, "package.json"),
       JSON.stringify({
-        name: "@loom-test/sdk",
+        name: "@kello-test/sdk",
         version: "0.0.0",
         type: "module",
         files: ["dist"],
@@ -111,7 +111,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
     await write(join(sdk, "tsconfig.json"), tsconfig);
     await run([join(workspace, "node_modules/.bin/vp"), "pack"], sdk);
     await run(["bun", "pm", "pack", "--filename", join(root, "sdk.tgz"), "--ignore-scripts"], sdk);
-    await run(["bun", "add", "--ignore-scripts", "@loom-test/sdk@file:./sdk.tgz"]);
+    await run(["bun", "add", "--ignore-scripts", "@kello-test/sdk@file:./sdk.tgz"]);
     const author = join(root, "author");
     await mkdir(author);
     await run([join(root, "node_modules/.bin/kello"), "integrate", "--cwd", author, "--apply", "--json"]);
@@ -133,12 +133,12 @@ test("packed components preserve typed per-instance bindings and transitive defi
     await write(
       join(library, "package.json"),
       JSON.stringify({
-        name: "@loom-test/stateful",
+        name: "@kello-test/stateful",
         version: "0.0.0",
         type: "module",
         files: ["dist"],
         exports,
-        dependencies: { "@loom-test/sdk": "0.0.0" },
+        dependencies: { "@kello-test/sdk": "0.0.0" },
         peerDependencies: { kello: "*", valibot: "*", "drizzle-orm": "*" },
       }),
     );
@@ -148,20 +148,20 @@ test("packed components preserve typed per-instance bindings and transitive defi
       join(library, "src/functions/products.ts"),
       (await readFile(join(library, "src/functions/products.ts"), "utf8")).replace(
         '"../_generated/rpc"',
-        '"@loom-test/stateful/helper"',
+        '"@kello-test/stateful/helper"',
       ),
     );
     await run([join(workspace, "node_modules/.bin/vp"), "pack"], library);
     await run(["bun", "pm", "pack", "--filename", join(root, "stateful.tgz"), "--ignore-scripts"], library);
-    await run(["bun", "add", "--ignore-scripts", "@loom-test/stateful@file:./stateful.tgz"]);
-    const installedStateful = await realpath(join(root, "node_modules/@loom-test/stateful"));
-    const nestedSdk = join(installedStateful, "node_modules/@loom-test/sdk");
+    await run(["bun", "add", "--ignore-scripts", "@kello-test/stateful@file:./stateful.tgz"]);
+    const installedStateful = await realpath(join(root, "node_modules/@kello-test/stateful"));
+    const nestedSdk = join(installedStateful, "node_modules/@kello-test/sdk");
     await mkdir(join(nestedSdk, ".."), { recursive: true });
-    await cp(await realpath(join(root, "node_modules/@loom-test/sdk")), nestedSdk, {
+    await cp(await realpath(join(root, "node_modules/@kello-test/sdk")), nestedSdk, {
       recursive: true,
       dereference: true,
     });
-    await rm(join(root, "node_modules/@loom-test/sdk"), { recursive: true });
+    await rm(join(root, "node_modules/@kello-test/sdk"), { recursive: true });
     await rm(sdk, { recursive: true });
     await rm(author, { recursive: true });
     await rm(library, { recursive: true });
@@ -183,7 +183,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
       }),
     );
     await run([join(root, "node_modules/.bin/kello"), "integrate", "--cwd", consumer, "--apply", "--json"]);
-    await write(join(consumer, "kello/components/store.setup.ts"), 'export { default } from "@loom-test/stateful";');
+    await write(join(consumer, "kello/components/store.setup.ts"), 'export { default } from "@kello-test/stateful";');
     await write(
       join(consumer, "kello/app.config.ts"),
       'import { defineApplication } from "kello"; import store from "./components/store.setup"; const app = defineApplication({ rpc: ({ os }) => ({ os }) }); app.use(store, { name: "first", public: "first" }); app.use(store, { name: "second", public: "second" }); export default app;',
@@ -197,18 +197,18 @@ test("packed components preserve typed per-instance bindings and transitive defi
     assert.deepEqual(await snapshot(installedStateful), installedBefore);
     await write(join(root, "node-entry.ts"), await readFile(join(fixtures, "runtime.ts.fixture"), "utf8"));
     const archive = await buildNeonFunctionBundle(join(root, "node-entry.ts"));
-    const deployed = await mkdtemp(join(tmpdir(), "loom-component-deployed-"));
+    const deployed = await mkdtemp(join(tmpdir(), "kello-component-deployed-"));
     try {
       for (const [name, bytes] of Object.entries(unzipSync(archive))) {
         const destination = join(deployed, name);
         await mkdir(join(destination, ".."), { recursive: true });
         await writeFile(destination, bytes);
       }
-      const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+      const connectionString = process.env.KELLO_TEST_DATABASE_URL;
       if (connectionString) {
         const address = new URL(connectionString);
         assert(["localhost", "127.0.0.1", "[::1]"].includes(address.hostname), "Local test database required");
-        const metadataNamespace = `loom_packed_${crypto.randomUUID().replaceAll("-", "")}`;
+        const metadataNamespace = `kello_packed_${crypto.randomUUID().replaceAll("-", "")}`;
         const runtimeRole = `${metadataNamespace}_role`;
         const admin = new pg.Client({ connectionString });
         await admin.connect();
@@ -216,7 +216,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
           await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
           await run(["node", join(deployed, "index.mjs")], deployed, {
             ...process.env,
-            LOOM_PACKED_METADATA_NAMESPACE: metadataNamespace,
+            KELLO_PACKED_METADATA_NAMESPACE: metadataNamespace,
           });
         } finally {
           try {
@@ -241,7 +241,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
       "-e",
       `import assert from "node:assert/strict"; import { readFile } from "node:fs/promises"; import { loadProject } from "kello-cli"; assert.notEqual((await loadProject(${JSON.stringify(consumer)})).version, await readFile(${JSON.stringify(join(root, "version.txt"))}, "utf8"));`,
     ]);
-    await write(join(root, "browser.ts"), 'import component from "@loom-test/stateful"; console.log(component);');
+    await write(join(root, "browser.ts"), 'import component from "@kello-test/stateful"; console.log(component);');
     const browser = Bun.spawn(["bun", "build", "browser.ts", "--target", "browser"], {
       cwd: root,
       stdout: "pipe",

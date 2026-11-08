@@ -68,8 +68,8 @@ function request(prefix: "rpc" | "openapi", path: string, input: number | null |
     headers: {
       "content-type": "application/json",
       origin,
-      "x-loom-protocol": "loom-orpc-2",
-      "x-loom-version": version,
+      "x-kello-protocol": "kello-orpc-2",
+      "x-kello-version": version,
     },
     body: JSON.stringify(prefix === "rpc" ? { json: input } : input),
   });

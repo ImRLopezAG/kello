@@ -51,7 +51,7 @@ export async function reconcileComponentNamespaces(
   scopes: readonly { readonly mountPath: string; readonly namespace: string }[],
 ): Promise<void> {
   assertMigrationConnection(client);
-  await acquireMigrationLock(client, "loom:component-ownership");
+  await acquireMigrationLock(client, "kello:component-ownership");
   const table = `${quoteIdentifier(metadataNamespace)}.component_namespaces`;
   const mounted = scopes.filter((scope) => scope.mountPath !== "");
   const paths = new Set<string>();

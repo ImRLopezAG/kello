@@ -9,7 +9,7 @@ import type { DiscoveryProvider } from "kello-cli";
 import { publishDeployedClient } from "../../../apps/kello-cli/src/tooling/deploy/neon/publish-client";
 
 test("deployment discovery updates the generated client without changing its release version", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-deployed-client-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-deployed-client-"));
   const provider: DiscoveryProvider = {
     getProject: async (id) => ({ id, name: "fixture", pgVersion: 18, regionId: "aws-us-east-2" }),
     listBranches: async () => [{ id: "br-test", name: "dev", protected: false, isDefault: false }],
@@ -50,16 +50,16 @@ test("deployment discovery updates the generated client without changing its rel
       "https://functions.example.test/service",
     );
     expect(await readFile(join(root, ".env.local"), "utf8")).toContain(
-      'LOOM_URL="https://functions.example.test/service"',
+      'KELLO_URL="https://functions.example.test/service"',
     );
-    const priorUrl = process.env.LOOM_URL;
+    const priorUrl = process.env.KELLO_URL;
     try {
-      process.env.LOOM_URL = "https://old.example.test/service";
+      process.env.KELLO_URL = "https://old.example.test/service";
       await publishDeployedClient(root, identity, provider);
       expect(await readFile(join(root, "kello/_generated/config.js"), "utf8")).not.toContain("old.example.test");
     } finally {
-      if (priorUrl === undefined) delete process.env.LOOM_URL;
-      else process.env.LOOM_URL = priorUrl;
+      if (priorUrl === undefined) delete process.env.KELLO_URL;
+      else process.env.KELLO_URL = priorUrl;
     }
     await assert.rejects(
       publishDeployedClient(root, { ...identity, serviceSlug: "missing" }, provider),

@@ -17,13 +17,13 @@ import {
   validateMigration,
 } from "kello-cli";
 
-const databaseUrl = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
+const databaseUrl = fullTextLocalTarget(process.env.KELLO_TEST_DATABASE_URL);
 
 test("public CLI migration assessment uses current policy without changing historical artifacts", async () => {
   const root = await mkdtemp(join(tmpdir(), "kello-006-callers-"));
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `fts_callers_${suffix}`;
-  const metadata = `loom_${suffix}`;
+  const metadata = `kello_${suffix}`;
   const runtimeRole = `runtime_${suffix}`;
   const admin = new pg.Client({ connectionString: databaseUrl });
   await admin.connect();

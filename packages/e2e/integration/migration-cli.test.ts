@@ -8,15 +8,15 @@ import { readMigrations } from "kello-cli";
 import pg from "pg";
 import * as v from "valibot";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "CLI generates, applies and diagnoses migration artifacts without exposing credentials",
   async () => {
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `app_${suffix}`;
-    const metadataNamespace = `loom_meta_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-migration-cli-"));
+    const metadataNamespace = `kello_meta_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
+    const root = await mkdtemp(join(tmpdir(), "kello-migration-cli-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const cli = fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url));
@@ -28,7 +28,7 @@ test.skipIf(!connectionString)(
       const stdout = await new Response(child.stdout).text();
       const stderr = await new Response(child.stderr).text();
       expect(await child.exited).toBe(exitCode);
-      expect(stdout + stderr).not.toContain("loom-local-only");
+      expect(stdout + stderr).not.toContain("kello-local-only");
       if (exitCode === 0) expect(stderr).toBe("");
       return stdout + stderr;
     }
@@ -43,7 +43,7 @@ test.skipIf(!connectionString)(
       }
       await writeFile(
         join(root, "kello.config.ts"),
-        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "migration-fixture", database: { namespace, metadataNamespace, migrationUrlEnv: "LOOM_TEST_DATABASE_URL" } })});`,
+        `import { defineConfig } from "kello-cli"; export default defineConfig(${JSON.stringify({ project: "migration-fixture", database: { namespace, metadataNamespace, migrationUrlEnv: "KELLO_TEST_DATABASE_URL" } })});`,
       );
       const schemaFile = join(root, "kello/schema.ts");
       await writeFile(

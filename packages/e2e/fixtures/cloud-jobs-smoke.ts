@@ -19,8 +19,8 @@ const branchId = "br-dark-block-awbbt60w";
 const run = crypto.randomUUID();
 const suffix = run.replaceAll("-", "");
 const slug = `kj${suffix.slice(0, 18)}`;
-const metadataNamespace = `loom_cloud_jobs_${suffix}`;
-const runtimeRole = `loom_cloud_role_${suffix}`;
+const metadataNamespace = `kello_cloud_jobs_${suffix}`;
+const runtimeRole = `kello_cloud_role_${suffix}`;
 const nonce = crypto.randomUUID();
 const api = createKelloNeonApi();
 const cleanupErrors: string[] = [];
@@ -48,7 +48,7 @@ try {
     "preview",
     api,
   );
-  assert.equal(target.branchName, "loom-acceptance-kello-002-optimistic-20261007");
+  assert.equal(target.branchName, "kello-acceptance-kello-002-optimistic-20261007");
   assert.equal(target.endpointId, "ep-solitary-block-awijudvn");
   assert.equal(target.protected, false);
   assert(!(await api.listBranchFunctions(projectId, branchId)).some((entry) => entry.slug === slug));
@@ -103,8 +103,8 @@ try {
         headers: {
           origin: "https://kello-smoke.invalid",
           "content-type": "application/json",
-          "x-loom-protocol": "loom-orpc-2",
-          "x-loom-version": "a".repeat(64),
+          "x-kello-protocol": "kello-orpc-2",
+          "x-kello-version": "a".repeat(64),
         },
         body: JSON.stringify({ json: { nonce } }),
         signal: AbortSignal.timeout(60_000),

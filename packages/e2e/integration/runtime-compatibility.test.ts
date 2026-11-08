@@ -13,16 +13,16 @@ import {
   assertRuntimeCompatibility,
 } from "../../../apps/kello-cli/src/tooling/migrations/runtime-compatibility";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "migration compatibility covers active code and queued jobs across structural epochs",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `app_${suffix}`;
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-runtime-compatibility-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-runtime-compatibility-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const options = { connectionString, root, namespace, metadataNamespace, runtimeRole, migrations: "migrations" };

@@ -19,22 +19,22 @@ import {
 import { withDeploymentConnection } from "../../../apps/kello-cli/src/tooling/deploy/neon/connection";
 import { handoffNeonIngress, assertReleaseIngress } from "../../../apps/kello-cli/src/tooling/deploy/neon/ingress";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "release preparation resumes final functions without replaying bootstrap or triggers",
   async () => {
     if (!connectionString) throw new Error("Missing database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `app_${suffix}`;
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-release-prepare-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-release-prepare-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const runtime = new URL(connectionString);
     const migrationRole = decodeURIComponent(runtime.username);
     runtime.username = runtimeRole;
-    runtime.password = "loom-test-only";
+    runtime.password = "kello-test-only";
     const functions: Awaited<ReturnType<NeonApi["listBranchFunctions"]>> = [];
     const triggers: Awaited<ReturnType<NeonApi["listBranchTriggers"]>> = [];
     const buckets: Awaited<ReturnType<NeonApi["listBranchBuckets"]>> = [];
@@ -118,7 +118,7 @@ test.skipIf(!connectionString)(
       },
     };
     try {
-      await admin.query(`CREATE ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only' NOINHERIT`);
+      await admin.query(`CREATE ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only' NOINHERIT`);
       await initializeProject(root, "release");
       await writeFile(
         join(root, "kello/storage.ts"),
@@ -156,7 +156,7 @@ test.skipIf(!connectionString)(
         migrationHashes: [migration.plan.hash],
         schema: { minimum: migration.plan.after, maximum: migration.plan.after, target: migration.plan.after },
         slugs: { service: "service", worker: "worker" },
-        variables: { LOOM_DATABASE_URL: runtime.href, APPLICATION_SECRET: "private-value" },
+        variables: { KELLO_DATABASE_URL: runtime.href, APPLICATION_SECRET: "private-value" },
       };
       await assert.rejects(
         withNeonReleasePreparation(
@@ -334,8 +334,8 @@ test.skipIf(!connectionString)(
           .filter((entry) => entry.functionSlug === "workernext")
           .map((entry) => ({ name: entry.name, enabled: entry.enabled })),
       ).toEqual([
-        { name: "loom:workernext:jobs", enabled: false },
-        { name: "loom:workernext:storage:uploads", enabled: false },
+        { name: "kello:workernext:jobs", enabled: false },
+        { name: "kello:workernext:storage:uploads", enabled: false },
       ]);
       const ingressOptions = {
         deployment: "preview",
@@ -354,8 +354,8 @@ test.skipIf(!connectionString)(
           failHandoff = false;
           await handoffNeonIngress(client, ingressOptions, provider);
           await handoffNeonIngress(client, ingressOptions, provider);
-          expect(triggers.find((entry) => entry.name === "loom:worker:jobs")?.enabled).toBe(true);
-          expect(triggers.find((entry) => entry.name === "loom:worker:storage:uploads")?.enabled).toBe(false);
+          expect(triggers.find((entry) => entry.name === "kello:worker:jobs")?.enabled).toBe(true);
+          expect(triggers.find((entry) => entry.name === "kello:worker:storage:uploads")?.enabled).toBe(false);
           expect(triggers.filter((entry) => entry.functionSlug === "workernext").every((entry) => !entry.enabled)).toBe(
             true,
           );

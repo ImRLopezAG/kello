@@ -49,7 +49,7 @@ try {
     "preview",
     api,
   );
-  assert.equal(target.branchName, "loom-acceptance-kello-002-optimistic-20261007");
+  assert.equal(target.branchName, "kello-acceptance-kello-002-optimistic-20261007");
   assert.equal(target.endpointId, "ep-solitary-block-awijudvn");
   assert.equal(target.protected, false);
   assert(!(await api.listBranchFunctions(projectId, branchId)).some((fn) => fn.slug === slug));
@@ -87,8 +87,8 @@ export default app;`,
         headers: {
           origin,
           "content-type": "application/json",
-          "x-loom-protocol": "loom-orpc-2",
-          "x-loom-version": version,
+          "x-kello-protocol": "kello-orpc-2",
+          "x-kello-version": version,
         },
         body: JSON.stringify({ json: {} }),
         signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
@@ -101,8 +101,8 @@ export default app;`,
         headers: {
           origin,
           "content-type": "application/json",
-          "x-loom-protocol": "loom-orpc-2",
-          "x-loom-version": "b".repeat(64),
+          "x-kello-protocol": "kello-orpc-2",
+          "x-kello-version": "b".repeat(64),
         },
         body: JSON.stringify({ json: {} }),
         signal: AbortSignal.timeout(15000),

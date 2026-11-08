@@ -104,7 +104,7 @@ export async function provisionSchemaBranch(
     return await withMigrationConnection(credentials.connectionString, async (sourceClient) => {
       const identity = await sourceClient.query<{ id: string }>("SELECT current_setting('neon.branch_id', true) AS id");
       if (identity.rows[0]?.id !== source.id) throw new Error("Schema source database identity differs");
-      await acquireMigrationLock(sourceClient, "loom:component-ownership");
+      await acquireMigrationLock(sourceClient, "kello:component-ownership");
       const metadata = quoteIdentifier(scope.metadataNamespace);
       const ledger = await sourceClient.query<{ present: boolean }>("SELECT to_regclass($1) IS NOT NULL AS present", [
         `${metadata}.component_namespaces`,
@@ -126,7 +126,7 @@ export async function provisionSchemaBranch(
         )),
       ].sort((a, b) => a.scope.namespace.localeCompare(b.scope.namespace));
       for (const entry of histories)
-        await acquireMigrationLock(sourceClient, `loom:migrations:${entry.scope.namespace}`);
+        await acquireMigrationLock(sourceClient, `kello:migrations:${entry.scope.namespace}`);
       const baselines: {
         baseline: Awaited<ReturnType<typeof captureSchemaBaseline>>;
         artifacts: Awaited<ReturnType<typeof readMigrations>>;

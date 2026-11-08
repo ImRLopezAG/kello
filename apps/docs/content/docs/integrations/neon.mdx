@@ -10,7 +10,7 @@ import { Step, Steps } from "fumadocs-ui/components/steps";
 <Step>
 ### Link the deployment target
 
-Use `kello login`, then `kello link --project-id <id> --branch <id>`. Keep development on an unprotected nondefault branch. Neon supports schema-only branches as well as branches with data; select deliberately when production data is sensitive. See [Neon branching](https://neon.com/docs/introduction/branching).
+Use `kello login`, then `kello link --project-id <id> --branch <id>`. Login stores a personal Neon API key at `~/.config/kello/credentials.json` (mode 0600) and `kello logout` revokes it; `NEON_API_KEY` takes precedence when set, so CI never needs a login. Keep development on an unprotected nondefault branch. Neon supports schema-only branches as well as branches with data; select deliberately when production data is sensitive. See [Neon branching](https://neon.com/docs/introduction/branching).
 
 </Step>
 <Step>

@@ -8,13 +8,13 @@ import { bootstrapDatabase } from "kello-cli";
 import { createStorageIntents, createStorageCleanup } from "kello/server";
 import { storageProviderFixture } from "../fixtures/storage-provider";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "storage cleanup expires abandoned intents, preserves ready objects and retries failures",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     const provider = storageProviderFixture();
@@ -26,10 +26,10 @@ test.skipIf(!connectionString)(
     const removeRelease = Promise.withResolvers<void>();
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       pool = new pg.Pool({ connectionString: address.href });
       let active = true;
       let failDelete = false;

@@ -6,13 +6,13 @@ This document records the deployment implementation in stages. Statements that a
 
 ## Branch infrastructure
 
-Run `loom provision --branch provisioning/preview.json --dry-run --json` to inspect creation, then omit `--dry-run` to apply or resume. The project-relative strict JSON declaration contains `format: 1` and the options below. Authentication comes from `NEON_API_KEY`; credentials do not belong in the declaration. The command reads the declaration without evaluating project source modules. Success returns the plan or receipt; failure returns exit code 5 and preserves saved progress. SIGINT/SIGTERM request cancellation through the same acknowledgement-preserving API. Unrelated options and extra positional arguments return a usage error.
+Run `kello provision --branch provisioning/preview.json --dry-run --json` to inspect creation, then omit `--dry-run` to apply or resume. The project-relative strict JSON declaration contains `format: 1` and the options below. Authentication comes from `NEON_API_KEY`; credentials do not belong in the declaration. The command reads the declaration without evaluating project source modules. Success returns the plan or receipt; failure returns exit code 5 and preserves saved progress. SIGINT/SIGTERM request cancellation through the same acknowledgement-preserving API. Unrelated options and extra positional arguments return a usage error.
 
 `planNeonBranchProvision(options)` observes an existing explicit PostgreSQL 18 project and parent branch, then reports branch creation without writing local or provider state. Options contain a stable 64-character lowercase hexadecimal `key`, `projectId`, `parentBranchId`, `branchName`, and `environment` (`development`, `preview`, or `production`). Production requests branch protection. An occupied name or ambiguous provider identity is refused; the parent never defaults implicitly.
 
 `planProjectBranchProvision(root, file)` and `provisionProjectBranch(root, file)` expose the CLI's declaration flow to tooling consumers. The creation dry-run refuses an occupied name even when an earlier apply completed; apply resumes through its saved receipt. Keep the declaration and key stable for retries.
 
-`provisionNeonBranch(root, options)` uses the pinned configuration runtime's typed `NeonApi.createBranch` operation with the explicit parent ID. It records `submitting`, `created`, and `complete` progress in `.loom/provision/<key>/branch.json`, using private atomic writes and a local `branch.lock`. Creation acknowledgement is saved before endpoint observation. If the endpoint is not yet visible, retry keeps the acknowledged branch ID and observes again without creating another branch. Completion requires the exact branch name, parent, protection and non-default status, plus one unambiguous read-write endpoint. Even completed receipts recheck provider identity on retry.
+`provisionNeonBranch(root, options)` uses the pinned configuration runtime's typed `NeonApi.createBranch` operation with the explicit parent ID. It records `submitting`, `created`, and `complete` progress in `.kello/provision/<key>/branch.json`, using private atomic writes and a local `branch.lock`. Creation acknowledgement is saved before endpoint observation. If the endpoint is not yet visible, retry keeps the acknowledged branch ID and observes again without creating another branch. Completion requires the exact branch name, parent, protection and non-default status, plus one unambiguous read-write endpoint. Even completed receipts recheck provider identity on retry.
 
 Cancellation before submission prevents creation. Once submitted, the call awaits the provider response and records its branch ID before honoring cancellation. A lost response leaves `submitting`; retry refuses to infer ownership from a matching name or submit again. Changed inputs, corrupt receipts, endpoint replacement and concurrent local writers are refused. Uncertain-create reconciliation and abandoned-lock recovery remain unfinished; keep the receipt for investigation. The lock coordinates one checkout, not independent machines.
 
@@ -20,7 +20,7 @@ This stage creates branch infrastructure only. It does not quarantine copied dat
 
 ## Release command
 
-Run `loom deploy --release releases/preview.json --json` from the project directory, or select it with `--cwd`. The command applies changes. Add `--dry-run` to inspect the plan without applying it. Unknown or unrelated options are refused. Failure returns exit code 5 with a fixed diagnostic and preserves saved progress. SIGINT/SIGTERM request cancellation; an in-flight provider mutation is awaited by the coordinator so its acknowledgement can be recorded.
+Run `kello deploy --release releases/preview.json --json` from the project directory, or select it with `--cwd`. The command applies changes. Add `--dry-run` to inspect the plan without applying it. Unknown or unrelated options are refused. Failure returns exit code 5 with a fixed diagnostic and preserves saved progress. SIGINT/SIGTERM request cancellation; an in-flight provider mutation is awaited by the coordinator so its acknowledgement can be recorded.
 
 The release file is strict JSON, contained within the project, with these fields:
 
@@ -29,8 +29,8 @@ The release file is strict JSON, contained within the project, with these fields
 | `format`                                       | `1`                                                                                                      |
 | `releaseKey`                                   | Unique 64-character lowercase hexadecimal release key, retained across retries                           |
 | `deployment`                                   | Logical deployment name                                                                                  |
-| `version`                                      | Exact source version reported by `loom doctor --json`                                                    |
-| `environment`                                  | `preview` or `production`; resolves the explicit target in `loom.config.ts`                              |
+| `version`                                      | Exact source version reported by `kello doctor --json`                                                   |
+| `environment`                                  | `preview` or `production`; resolves the explicit target in `kello.config.ts`                             |
 | `databaseName`, `migrationRole`, `runtimeRole` | Existing selected database and its migration/runtime roles                                               |
 | `quarantine`                                   | `clone` for a newly cloned preview, or `preserve` for an existing branch; production requires `preserve` |
 | `migrationHashes`                              | Every committed migration's `plan.hash`, in application order                                            |
@@ -40,13 +40,13 @@ The release file is strict JSON, contained within the project, with these fields
 | `activationTokenEnv`                           | Name of an environment variable containing a secret 64-character lowercase hexadecimal token             |
 | `variables`                                    | Map of deployed variable names to local environment-variable names                                       |
 
-For example, `"variables": { "LOOM_DATABASE_URL": "PREVIEW_RUNTIME_URL", "MAIL_TOKEN": "PREVIEW_MAIL_TOKEN" }` resolves two local values without putting them in the declaration. Include the project's configured runtime URL variable. Neon supplies its own reserved variables. The API key, migration URL and activation token cannot be mapped as application variables; raw secret fields and unknown declaration fields are rejected. Keep the activation token and referenced values stable for retry. Changed inputs conflict with the immutable release receipt.
+For example, `"variables": { "KELLO_DATABASE_URL": "PREVIEW_RUNTIME_URL", "MAIL_TOKEN": "PREVIEW_MAIL_TOKEN" }` resolves two local values without putting them in the declaration. Include the project's configured runtime URL variable. Neon supplies its own reserved variables. The API key, migration URL and activation token cannot be mapped as application variables; raw secret fields and unknown declaration fields are rejected. Keep the activation token and referenced values stable for retry. Changed inputs conflict with the immutable release receipt.
 
 The command does not infer a compatibility range from the current schema. Declare the range from reviewed application compatibility evidence. The coordinator checks structural lineage, live schema agreement and stored declarations for active grants and queued/running job versions. It does not establish application behavior or prove that old readers and writers have retired.
 
 ## Dry-run observations
 
-`loom deploy --release releases/preview.json --dry-run --json` resolves the explicit target and obtains the migration connection through the provider. It holds the deployment/shared migration locks, makes the database session read-only and inspects history, live drift and structural schema bounds. It reads any saved release receipt without creating or changing it. The real Neon SDK planner supplies function create/update intent. Shared declarations supply the job wake schedule, application crons, private buckets and storage triggers.
+`kello deploy --release releases/preview.json --dry-run --json` resolves the explicit target and obtains the migration connection through the provider. It holds the deployment/shared migration locks, makes the database session read-only and inspects history, live drift and structural schema bounds. It reads any saved release receipt without creating or changing it. The real Neon SDK planner supplies function create/update intent. Shared declarations supply the job wake schedule, application crons, private buckets and storage triggers.
 
 The result identifies metadata bootstrap, pending migrations and required reviews, quarantine mode and observed work counts, bootstrap/final function passes, bucket/trigger changes, initial trigger disablement, and activation. Completed receipt stages are reported as acknowledgements; they do not replace live verification. The planner reports observed conflicts such as changed receipt identity, replaced functions, public buckets, mismatched prepared triggers, an active branch selected for clone quarantine, or copied work selected for preservation. Conflicts return a plan with `ok: false` and exit code 5. Invalid inputs or failed observations return the fixed deployment diagnostic.
 
@@ -56,7 +56,7 @@ An empty blocker list means no conflict was detected by these observations. It d
 
 ## Release journal
 
-`withNeonReleaseReceipt` stores an ordered journal at `.loom/releases/<release-key>/release.json`. The caller supplies a stable hexadecimal key and the release identity: deployment, source version, input fingerprint, provider target, database/namespaces, migration hashes and declared minimum/maximum/target schema hashes. Identity is immutable once saved. The coordinator must compute the input fingerprint from all release inputs without persisting secrets.
+`withNeonReleaseReceipt` stores an ordered journal at `.kello/releases/<release-key>/release.json`. The caller supplies a stable hexadecimal key and the release identity: deployment, source version, input fingerprint, provider target, database/namespaces, migration hashes and declared minimum/maximum/target schema hashes. Identity is immutable once saved. The coordinator must compute the input fingerprint from all release inputs without persisting secrets.
 
 Acknowledgements advance through metadata bootstrap, preview quarantine (zero counts for production), migrations, grant preparation, bootstrap functions, disabled trigger preparation, final functions, health, grant activation and final trigger activation. Function stages retain artifact hashes and service/worker provider IDs; trigger preparation retains disabled snapshots and runtime bindings. Final functions must retain the bootstrap function identities and final enabled IDs must match prepared triggers. Migration acknowledgement must match the declared target schema. The journal stores the schema range declaration; the coordinator must separately inspect its lineage and verify supported readers/writers.
 
@@ -76,11 +76,11 @@ This is a structural, offline check. It does not prove that application code sup
 
 ## Rolling back to retained code
 
-Create a new release declaration with `retainedReleaseKey` naming a completed earlier release, a fresh `releaseKey`, and `quarantine: "preserve"`. Restore that release's exact source version, service/worker names, runtime credentials, application variables and activation token. Keep the current committed migration artifacts and declare a reviewed compatibility range covering the older source and the current applied schema. Run the normal `loom deploy --release <file> --dry-run --json` and apply commands.
+Create a new release declaration with `retainedReleaseKey` naming a completed earlier release, a fresh `releaseKey`, and `quarantine: "preserve"`. Restore that release's exact source version, service/worker names, runtime credentials, application variables and activation token. Keep the current committed migration artifacts and declare a reviewed compatibility range covering the older source and the current applied schema. Run the normal `kello deploy --release <file> --dry-run --json` and apply commands.
 
 The retained release must belong to the same deployment, branch, database and source version, and its migration history must be a prefix of the new declaration's history. Its activation grant must still be active; revoked or removed runtimes are outside this path. Planning reports `RETAINED_RUNTIME_INACTIVE` when that grant is unavailable. Pending migrations are refused: apply any separately reviewed expansion before attempting code rollback.
 
-Preparation adopts only the retained bootstrap, trigger and final-function acknowledgements. It verifies local function receipts, archived bundle hashes, original inputs and live provider identities without redeploying those completed functions. Missing receipts, changed variables, replaced deployments, incomplete releases and different function names are refused. Preserve `.loom/releases` and `.loom/deploy` artifacts for releases you intend to retain.
+Preparation adopts only the retained bootstrap, trigger and final-function acknowledgements. It verifies local function receipts, archived bundle hashes, original inputs and live provider identities without redeploying those completed functions. Missing receipts, changed variables, replaced deployments, incomplete releases and different function names are refused. Preserve `.kello/releases` and `.kello/deploy` artifacts for releases you intend to retain.
 
 Health, database and runtime-role inspection run again; old health and activation observations are never copied. A failed health check leaves ingress unchanged. Successful apply performs the normal ingress handoff under the new release key, enables the retained worker's ingress and keeps other retained workers available for their queued jobs. Repeating the new declaration resumes safely; retrying the superseded original declaration remains refused. Use the retained service's URL when routing clients to the restored code.
 
@@ -108,7 +108,7 @@ These are reviewed declarations, not inferred compatibility guarantees. Rehearse
 
 `inspectReleaseDatabase` combines that artifact/range inspection with live migration status on the existing deployment connection. The application and metadata namespaces come from the connection's captured configuration; a different application namespace is refused. The check takes the shared migration lock and reads framework/application/ORM history and catalog evidence in a read-only, repeatable-read transaction. It requires initialized metadata, consistent histories/catalog, no pending artifacts, the expected schema head and the exact applied migration hashes. It returns target/database identity and catalog evidence without modifying schema or grants. Cancellation is checked between stages and after observation; in-flight SQL uses the connection's existing statement timeout.
 
-The shared status implementation is also exposed as `migrationStatusOnConnection`; ordinary `migrationStatus` delegates to it. Both use Loom-owned dedicated connections, and session locks remain until the owning connection closes. Finish any direct SQL transaction before invoking these stages. The live inspection is point-in-time evidence, not proof of application compatibility or drained old readers/jobs. The release coordinator repeats this inspection before activation, including on resume.
+The shared status implementation is also exposed as `migrationStatusOnConnection`; ordinary `migrationStatus` delegates to it. Both use Kello-owned dedicated connections, and session locks remain until the owning connection closes. Finish any direct SQL transaction before invoking these stages. The live inspection is point-in-time evidence, not proof of application compatibility or drained old readers/jobs. The release coordinator repeats this inspection before activation, including on resume.
 
 ## Function name ownership
 
@@ -118,7 +118,7 @@ This prevents coordinated releases using the same metadata namespace from overwr
 
 ## Trigger handoff and retained workers
 
-Release-managed trigger names include the worker name: `loom:<worker>:jobs`, `loom:<worker>:cron:<declaration>` and `loom:<worker>:storage:<bucket>`. The application cron name remains unchanged in its runtime binding. Distinct workers can be prepared side by side with independent disabled triggers; preparing a candidate does not overwrite or disable the older worker's triggers.
+Release-managed trigger names include the worker name: `kello:<worker>:jobs`, `kello:<worker>:cron:<declaration>` and `kello:<worker>:storage:<bucket>`. The application cron name remains unchanged in its runtime binding. Distinct workers can be prepared side by side with independent disabled triggers; preparing a candidate does not overwrite or disable the older worker's triggers.
 
 Framework metadata version 17 records candidate/current/retired release ingress claims per project, branch and logical deployment. After new function health and live database checks, the coordinator atomically claims ingress for the incoming release and retires previous claims. It then disables cron/storage triggers attached to older active workers of that logical deployment. Their enabled once-per-minute job wake schedules and activation grants remain intact. A missing or altered retained wake schedule refuses handoff. Other logical deployments are not selected.
 
@@ -148,7 +148,7 @@ This recovers receipts already saved in PostgreSQL. It does not reconstruct stor
 
 ## Function receipt
 
-Each prepared entry artifact has a receipt at `.loom/deploy/<artifact-hash>/functions.json`. It records the provider target, build version, artifact hash, archive hashes, function IDs, acknowledged deployment IDs and verified invocation URLs. Every acknowledgement is written before advancing to another function. Receipt writes sync a temporary file, atomically replace the prior file and sync the directory. Archives are published atomically and their hashes are checked before use.
+Each prepared entry artifact has a receipt at `.kello/deploy/<artifact-hash>/functions.json`. It records the provider target, build version, artifact hash, archive hashes, function IDs, acknowledged deployment IDs and verified invocation URLs. Every acknowledgement is written before advancing to another function. Receipt writes sync a temporary file, atomically replace the prior file and sync the directory. Archives are published atomically and their hashes are checked before use.
 
 Application environment values are never written to the receipt or archives by the deploy adapter. An HMAC keyed by the activation token binds the original environment, activation binding and slugs to the receipt. A resume with changed inputs fails instead of silently changing a partially applied deployment. Runtime and migration credentials remain separate. Caller-supplied overrides of Neon's identity variables are refused; the outgoing deployment clears old overrides of `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and `NEON_BRANCH` so provider-injected defaults can take effect. Neon documents its [environment merging and deletion behavior](https://neon.com/docs/compute/functions/environment-variables).
 
@@ -168,7 +168,7 @@ A completed function receipt proves provider deployment completion. It does not 
 
 The check issues no DDL, grants or activation writes and returns only database/role/schema identity. Connection, validation and permission failures share a fixed redacted error. Connection and statement timeouts remain bounded by the dedicated session helper; cancellation is checked before connection and after inspection, not used to interrupt an in-flight query. This is a point-in-time authority check, not a complete audit of trusted SQL functions, application DML grants or schema compatibility. The release coordinator runs it before function preparation and again after health verification; this inspection alone does not activate a release.
 
-Generated service and worker entries also expose `POST /_loom/deployment/health` to the deployment coordinator. It requires `Authorization: Bearer <LOOM_ACTIVATION_TOKEN>` and returns 404 for missing or invalid authorization. An authenticated probe creates a separate runtime using the exact prepared grant: project, branch, database, deployment, version and token still have to match, but the grant may be quarantined or active. The probe never calls that runtime's request dispatcher. It stops the runtime before returning the build version, entry artifact hash and service/worker role, with `Cache-Control: no-store`. Concurrent probes share one startup; shutdown drains it. Startup and cleanup failures return a fixed 503 and may be retried.
+Generated service and worker entries also expose `POST /_kello/deployment/health` to the deployment coordinator. It requires `Authorization: Bearer <KELLO_ACTIVATION_TOKEN>` and returns 404 for missing or invalid authorization. An authenticated probe creates a separate runtime using the exact prepared grant: project, branch, database, deployment, version and token still have to match, but the grant may be quarantined or active. The probe never calls that runtime's request dispatcher. It stops the runtime before returning the build version, entry artifact hash and service/worker role, with `Cache-Control: no-store`. Concurrent probes share one startup; shutdown drains it. Startup and cleanup failures return a fixed 503 and may be retried.
 
 Health also reports `databaseDrainProtocol`: the assembled Neon service and worker advertise `1` after successful startup and shutdown of the probe runtime. This identifies the activation-table barrier used by database handlers and storage. Custom or older runtimes without the capability report `0`; older health responses that omit the field are also interpreted as `0`. The health inspector validates and returns each role independently and rejects unknown protocol values. This is evidence of database-drain support, not evidence that requests have drained or that actions, sockets or provider artifacts can already be retired.
 
@@ -192,7 +192,7 @@ Before changing an active grant, retirement takes the namespace migration lock a
 
 Retry after a committed retirement verifies the target, token, ingress and dependency state again, without requiring a health probe that the retired grant can no longer authorize. The database grant is the durable acknowledgement; the operation does not rewrite the deployment receipt. It retains all provider functions, triggers, archives and job/session records. This is database-authority retirement, not provider deletion, action-side-effect drainage or forced socket shutdown. Existing presigned URLs retain their provider expiration. Complete provider/service retirement remains unfinished; do not use this result as permission to delete artifacts.
 
-Use `loom retire database --retirement retirement.json --json` to invoke this stage. The strict declaration contains only target identifiers and the activation token's environment variable name:
+Use `kello retire database --retirement retirement.json --json` to invoke this stage. The strict declaration contains only target identifiers and the activation token's environment variable name:
 
 ```json
 {
@@ -201,15 +201,15 @@ Use `loom retire database --retirement retirement.json --json` to invoke this st
   "environment": "preview",
   "databaseName": "neondb",
   "migrationRole": "migration_owner",
-  "activationTokenEnv": "LOOM_ACTIVATION_TOKEN"
+  "activationTokenEnv": "KELLO_ACTIVATION_TOKEN"
 }
 ```
 
-`retireProjectReleaseDatabase(root, file, provider?, signal?)` is the corresponding tooling entrypoint. It loads `loom.config.ts` without compiling the current application schema or functions, so an older saved release remains retireable during source changes. The declaration cannot use `NEON_API_KEY` or the configured migration URL variable as its token source. The command accepts `--cwd` and `--json`; it has no dry-run mode. Usage errors exit 2; retirement failures exit 5 with a redacted `RETIREMENT_FAILED` diagnostic. Success returns the release key, deployment, version and retired state. SIGINT/SIGTERM cancel pending work through the operation's existing abort boundary.
+`retireProjectReleaseDatabase(root, file, provider?, signal?)` is the corresponding tooling entrypoint. It loads `kello.config.ts` without compiling the current application schema or functions, so an older saved release remains retireable during source changes. The declaration cannot use `NEON_API_KEY` or the configured migration URL variable as its token source. The command accepts `--cwd` and `--json`; it has no dry-run mode. Usage errors exit 2; retirement failures exit 5 with a redacted `RETIREMENT_FAILED` diagnostic. Success returns the release key, deployment, version and retired state. SIGINT/SIGTERM cancel pending work through the operation's existing abort boundary.
 
 The session's `assertActive` can be supplied directly to trigger activation. It reads the actual grant on the locked connection and requires the exact deployment, version, project, branch, endpoint, database and token hash with active state. This is a fresh observation on each call, not cached authorization. It does not re-observe provider identity or establish code health; the provider stages retain those checks. The existing one-shot preparation and activation helpers use this session internally. The release coordinator uses this session under its release journal and database locks.
 
-`applyMigrationsOnConnection` runs the existing ORM migration pipeline on an active connection owned by Loom, including a connection supplied by `withDeploymentConnection`. Arbitrary clients and clients whose owning callback has ended are refused. The migration advisory lock remains held for the entire connection lifetime, including after this stage returns or a migration fails. Await this stage before other database work and finish any direct SQL transaction before invoking it. The owner closes the dedicated connection and releases all its session locks; callers must not return it to a pool. `applyMigrations` delegates to this same pipeline while owning its own connection.
+`applyMigrationsOnConnection` runs the existing ORM migration pipeline on an active connection owned by Kello, including a connection supplied by `withDeploymentConnection`. Arbitrary clients and clients whose owning callback has ended are refused. The migration advisory lock remains held for the entire connection lifetime, including after this stage returns or a migration fails. Await this stage before other database work and finish any direct SQL transaction before invoking it. The owner closes the dedicated connection and releases all its session locks; callers must not return it to a pool. `applyMigrations` delegates to this same pipeline while owning its own connection.
 
 The shared stage retains generated-version checks, namespace containment, history/catalog drift checks, reviewed-hash requirements and transactional ORM migrations. A failed artifact rolls back and can be retried on the same session after the data is corrected. Pending nontransactional migrations require the explicit recovery path below before release application can continue. The coordinator must still validate project schema state and schema compatibility before activation.
 
@@ -238,14 +238,14 @@ Integration tests execute the real pinned SDK planner, bundler and apply engine 
 Generate a custom nontransactional artifact whose SQL contains only `CREATE [UNIQUE] INDEX CONCURRENTLY` statements and whose declared schema adds exactly those indexes. Review its hash, then run:
 
 ```sh
-loom migrations apply --runtime-role app_runtime --reviewed-hash <artifact-hash> --recover-nontransactional
+kello migrations apply --runtime-role app_runtime --reviewed-hash <artifact-hash> --recover-nontransactional
 ```
 
 The supported subset is ascending column B-tree indexes with default null ordering. Expressions, predicates, included columns, custom operator classes, storage parameters and other nontransactional operations are refused. Both the SQL and snapshot must describe the same index-only expansion over an already applied baseline. The flag does not waive artifact review, source generation or drift checks.
 
-Framework metadata version 13 records the artifact hash, ordinal and baseline catalog fingerprint before DDL starts. PostgreSQL can leave an invalid index after a failed concurrent build; its [CREATE INDEX reference](https://www.postgresql.org/docs/18/sql-createindex.html) documents dropping and rebuilding it. Loom checks ownership and the exact definition before reusing a valid index or dropping and recreating an invalid one. It refuses unrelated catalog drift and mismatched existing indexes. Fix the reported data problem and rerun the same reviewed artifact.
+Framework metadata version 13 records the artifact hash, ordinal and baseline catalog fingerprint before DDL starts. PostgreSQL can leave an invalid index after a failed concurrent build; its [CREATE INDEX reference](https://www.postgresql.org/docs/18/sql-createindex.html) documents dropping and rebuilding it. Kello checks ownership and the exact definition before reusing a valid index or dropping and recreating an invalid one. It refuses unrelated catalog drift and mismatched existing indexes. Fix the reported data problem and rerun the same reviewed artifact.
 
-Status reports `NONTRANSACTIONAL_IN_PROGRESS` while the journal exists. Successful DDL followed by a failed history transaction remains recoverable: retry preserves valid indexes and atomically records both ORM and Loom histories with journal removal. Runtime credentials cannot modify the journal. Deployment refuses pending nontransactional work and incomplete recovery; already applied nontransactional artifacts do not block later releases.
+Status reports `NONTRANSACTIONAL_IN_PROGRESS` while the journal exists. Successful DDL followed by a failed history transaction remains recoverable: retry preserves valid indexes and atomically records both ORM and Kello histories with journal removal. Runtime credentials cannot modify the journal. Deployment refuses pending nontransactional work and incomplete recovery; already applied nontransactional artifacts do not block later releases.
 
 Migration and deployment advisory-lock acquisition polls outside SQL transactions, with a five-second wait limit. This avoids a waiting lock statement retaining a virtual transaction that a concurrent index operation needs to finish. Session ownership still bounds lock lifetime; losing the connection releases its locks but preserves committed recovery evidence.
 
@@ -253,7 +253,7 @@ Other nontransactional operations, code rollback, old-handler retention and cont
 
 ## Checkpointed row backfills
 
-Write a reviewed SQL file with one update of a Loom table. `$1` is the current batch of UUID row IDs, and the statement must return exactly those IDs as `_id`:
+Write a reviewed SQL file with one update of a Kello table. `$1` is the current batch of UUID row IDs, and the statement must return exactly those IDs as `_id`:
 
 ```sql
 UPDATE app.tasks
@@ -265,9 +265,9 @@ RETURNING "_id"
 Generate and commit its immutable plan, then apply it with migration credentials:
 
 ```sh
-loom backfill generate --name task_descriptions --table tasks --sql backfill.sql --batch-size 500
-loom backfill apply --backfill backfills/task_descriptions.json --runtime-role app_runtime --reviewed-hash <plan-hash>
-loom backfill status --backfill backfills/task_descriptions.json
+kello backfill generate --name task_descriptions --table tasks --sql backfill.sql --batch-size 500
+kello backfill apply --backfill backfills/task_descriptions.json --runtime-role app_runtime --reviewed-hash <plan-hash>
+kello backfill status --backfill backfills/task_descriptions.json
 ```
 
 Generation binds the SQL, namespace, table, batch size and committed migration hash. It refuses to overwrite an existing plan. Application verifies the plan hash, explicit review, generated source, applied migration head and catalog evidence. The SQL uses the migration identity and is trusted reviewed code, not a sandbox. Transaction control, multiple top-level writes, writable CTEs, another target table and direct system-field changes are refused. Returned IDs are checked against the locked batch; missing or extra IDs roll the transaction back.

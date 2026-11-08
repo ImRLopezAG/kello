@@ -16,7 +16,7 @@ import {
 } from "kello/server";
 import { createRpcHttpApp } from "kello/neon";
 import { initializeProject, generateProject, loadProject, createKelloNeonApi } from "kello-cli";
-import { createKelloNeonClient } from "../../../apps/kello-cli/src/tooling/neon/api";
+import { createKelloNeonClient, waitForRealtimeProxyOrigins } from "../../../apps/kello-cli/src/tooling/neon/api";
 import * as v from "valibot";
 
 const projectId = "late-moon-69483649";
@@ -24,8 +24,8 @@ const branchId = "br-dark-block-awbbt60w";
 const endpointId = "ep-solitary-block-awijudvn";
 const run = crypto.randomUUID();
 const namespace = `live_${run.replaceAll("-", "")}`;
-const metadataNamespace = `loom_${namespace}`;
-const root = await mkdtemp(join(tmpdir(), "loom-live-neon-"));
+const metadataNamespace = `kello_${namespace}`;
+const root = await mkdtemp(join(tmpdir(), "kello-live-neon-"));
 const cleanupErrors: string[] = [];
 const rpcStatuses: number[] = [];
 const websocketStatuses: number[] = [];
@@ -47,7 +47,7 @@ const report = {
   originsRestored: false,
   cleanupErrors,
 };
-const reportFile = join(tmpdir(), `loom-live-functions-${run}.json`);
+const reportFile = join(tmpdir(), `kello-live-functions-${run}.json`);
 const verifyBrowser = process.argv.includes("--verify");
 let browser: Browser | undefined;
 let connection: Awaited<ReturnType<typeof connectDatabase>> | undefined;
@@ -72,7 +72,7 @@ try {
   const branch = branches.find((entry) => entry.id === branchId);
   const database = databases.find((entry) => entry.name === "neondb");
   assert(project.pgVersion === 18 && branch && !branch.isDefault && !branch.protected);
-  assert.equal(branch.name, "loom-acceptance-kello-002-optimistic-20261007");
+  assert.equal(branch.name, "kello-acceptance-kello-002-optimistic-20261007");
   assert(
     endpoint.branch_id === branchId && realtime.enabled && !realtime.pending && realtime.invocation_url && database,
   );
@@ -177,7 +177,7 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
   stage = "application";
   const prepared = await prepareApplicationEnvironment(
     loaded.application,
-    { SECRET: secret.secret, LOOM_REALTIME_SECRET: secret.secret },
+    { SECRET: secret.secret, KELLO_REALTIME_SECRET: secret.secret },
     { database: database.name, deployment: run },
   );
   assert(prepared.liveQueries);
@@ -287,6 +287,9 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
     { projectId, branchId, allowed_origins: admittedOrigins },
     { waitForReadiness: true, wait: { timeoutMs: 60_000 } },
   );
+  // The control plane reports `pending: false` before the proxy enforces the new allowlist
+  // (observed ~55s), so wait until a handshake from this exact origin is upgraded.
+  await waitForRealtimeProxyOrigins(realtime.invocation_url, [server.url.origin]);
   report.status = "ready";
   await writeFile(reportFile, JSON.stringify(report, null, 2), { mode: 0o600 });
   console.log(JSON.stringify({ status: "READY", port: server.port, run, reportFile }));
@@ -380,6 +383,8 @@ export default os.tasks.router({list:os.tasks.list.use(async({context,next,error
           "Expected a project-bound procedure",
           "Invalid idempotency configuration",
           "Browser bundle failed",
+          "Realtime proxy rejected the admitted origin",
+          "Realtime proxy did not admit the origin",
         ].includes(cause.message)
           ? cause.message
           : "UNCLASSIFIED",

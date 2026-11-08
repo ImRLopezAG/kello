@@ -1,7 +1,8 @@
 import { OpenAPIGenerator, OpenAPIGeneratorError } from "@orpc/openapi";
 import type { OpenAPIGeneratorOptions, OpenAPIGeneratorGenerateOptions, OpenAPIDocument } from "@orpc/openapi";
 import { ValibotToJsonSchemaConverter } from "@orpc/valibot";
-import { Schema } from "effect";
+import { EffectSchemaToJsonSchemaConverter } from "@orpc/effect";
+import { isStandardSchemaOptional } from "@orpc/json-schema";
 import type { AnyRouter } from "@orpc/server";
 import type { AnySchema } from "@orpc/contract";
 import type { StandardJSONSchemaV1 } from "@standard-schema/spec";
@@ -27,19 +28,8 @@ export function generateRpcOpenAPI(
 ): Promise<OpenAPIDocument<"3.2.0">> {
   const converters: Converter[] = [
     new ValibotToJsonSchemaConverter({ errorMode: "throw" }),
-    {
-      condition: (schema) => Schema.isSchema(schema),
-      convert(schema, direction) {
-        if (!Schema.isSchema(schema)) throw new TypeError("Expected Effect Schema");
-        // The upstream wrapper swallows conversion errors into {}. Invoke Effect's
-        // public converter directly so unsupported schemas fail generation.
-        const standard = Schema.toStandardJSONSchemaV1(schema)["~standard"];
-        const result = standard.jsonSchema[direction]({ target: "draft-2020-12" });
-        const validation = schema["~standard"].validate(undefined);
-        const optional = !(validation instanceof Promise) && !validation.issues;
-        return [result, optional];
-      },
-    },
+    // Native converter: Effect's own JSON Schema document, with hoisted $defs. Errors propagate.
+    new EffectSchemaToJsonSchemaConverter(),
     {
       condition: hasJsonSchema,
       convert(schema, direction) {
@@ -47,16 +37,7 @@ export function generateRpcOpenAPI(
         // Do not use upstream's fallback-to-{} conversion: unsupported public
         // contracts must fail generation instead of becoming unconstrained.
         const result = schema["~standard"].jsonSchema[direction]({ target: "draft-2020-12" });
-        let optional = false;
-        try {
-          const validation = schema["~standard"].validate(undefined);
-          if (validation instanceof Promise) void validation.catch(() => undefined);
-          else optional = !validation.issues && (direction === "input" || validation.value === undefined);
-        } catch {
-          // A transform may throw for undefined while accepting valid input.
-          optional = false;
-        }
-        return [result, optional];
+        return [result, isStandardSchemaOptional(schema, direction)];
       },
     },
   ];

@@ -11,13 +11,13 @@ import type { JsonValue } from "../../schema/fields";
 
 const sourceSchema = v.variant("protocol", [
   v.strictObject({
-    protocol: v.literal("loom-legacy-1"),
+    protocol: v.literal("kello-legacy-1"),
     version: jobCall.entries.version,
     name: jobCall.entries.name,
     kind: jobCall.entries.kind,
   }),
   v.strictObject({
-    protocol: v.literal("loom-orpc-2"),
+    protocol: v.literal("kello-orpc-2"),
     version: rpcJobCall.entries.version,
     path: rpcJobCall.entries.path,
     scope: rpcJobCall.entries.scope,
@@ -47,7 +47,7 @@ export function defineJobMigration<Input extends AnySchema, Target extends AnyPr
 }): JobMigration {
   const from = structuredClone(v.parse(sourceSchema, options.from));
   if (!(options.to instanceof Procedure)) throw new Error("Job migration requires a native procedure");
-  if (from.protocol === "loom-orpc-2") Object.freeze(from.path);
+  if (from.protocol === "kello-orpc-2") Object.freeze(from.path);
   const target = options.to;
   const definition = target["~orpc"];
   if (definition.disableInputValidation) throw new Error("Job migration target requires input validation");
@@ -77,7 +77,7 @@ export function isJobMigrations(value: unknown): value is readonly JobMigration[
   return v.is(v.array(v.custom<JobMigration>((item) => item instanceof Object && definitions.has(item))), value);
 }
 function key(source: JobMigrationSource): string {
-  return source.protocol === "loom-legacy-1"
+  return source.protocol === "kello-legacy-1"
     ? JSON.stringify([source.protocol, source.version, source.name, source.kind])
     : JSON.stringify([source.protocol, source.version, source.scope ?? "", source.path]);
 }
@@ -124,7 +124,7 @@ export function compileJobMigrations(options: {
       id,
       scope ? { path, scope, transform: migration.transform } : { path, transform: migration.transform },
     );
-    if (source.protocol === "loom-orpc-2") Object.freeze(source.path);
+    if (source.protocol === "kello-orpc-2") Object.freeze(source.path);
     const declaration = { from: Object.freeze(source), to: Object.freeze([...path]) };
     declarations.push(Object.freeze(scope ? { ...declaration, scope } : declaration));
   }
@@ -142,12 +142,12 @@ export function compileJobMigrations(options: {
       let source: JobMigrationSource;
       let value: RpcValue;
       if (native.success) {
-        source = { protocol: "loom-orpc-2", version: native.output.version, path: native.output.path };
+        source = { protocol: "kello-orpc-2", version: native.output.version, path: native.output.path };
         if (native.output.scope) source.scope = native.output.scope;
         value = decodeRpcJobInput(native.output);
       } else if (legacy?.success) {
         source = {
-          protocol: "loom-legacy-1",
+          protocol: "kello-legacy-1",
           version: legacy.output.version,
           name: legacy.output.name,
           kind: legacy.output.kind,

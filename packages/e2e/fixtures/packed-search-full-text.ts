@@ -336,7 +336,7 @@ for (const name of ["list"]) {
 const openapi = await generateRpcOpenAPI({ tasks });
 const json = JSON.stringify(openapi);
 assert.doesNotMatch(json, forbidden);
-// Pinned @orpc/openapi 2.0.0-beta.46: generate uses dotted operation IDs
+// Pinned @orpc/openapi 2.0.0-beta.49: generate uses dotted operation IDs
 // and pathToHttpPath; POST + compact defaults attach input to requestBody.
 // buildRequest/toBodyContent retain schemas or hoist $defs into components.
 // Follow only references reached from each operation's JSON request input.
@@ -415,7 +415,7 @@ for (const input of inputs) {
     assert.equal(input.includes(fragment), false, "server-only browser module: " + input);
   }
 }
-assert.match(output, /loom-search-projections/);
+assert.match(output, /kello-search-projections/);
 assert.match(output, /fullText/);
 assert.match(output, /content/);
 assert.doesNotMatch(output, /fts_packed_private_marker|packed-content-v1|packed-hidden-v1|taskLabels|projectId|organizationId|secret|pg_catalog|ts_rank|to_tsvector|plainto_tsquery|DATABASE_URL|node:fs|node:crypto|pg-protocol|drizzle-orm|libpg-query|kello.search.descriptor/);

@@ -15,16 +15,16 @@ import {
   backfillStatus,
 } from "kello-cli";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "backfills resume atomic batches over a durable work list without repeating writes",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `app_${suffix}`;
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-backfill-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-backfill-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const options = { connectionString, root, namespace, metadataNamespace, runtimeRole, migrations: "migrations" };
@@ -163,7 +163,7 @@ test.skipIf(!connectionString)(
       try {
         for (let attempt = 0; attempt < 100; attempt++) {
           const active = await admin.query(
-            `SELECT 1 FROM pg_stat_activity WHERE application_name='loom-migrations' AND state='active' AND query=$1`,
+            `SELECT 1 FROM pg_stat_activity WHERE application_name='kello-migrations' AND state='active' AND query=$1`,
             [slow.sql],
           );
           if (active.rowCount) {

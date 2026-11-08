@@ -14,12 +14,12 @@ import { searchOrdering, searchOrderSQL } from "../../../apps/kello/src/core/sea
 import type { SearchPublicSelection } from "../../../apps/kello/src/core/search/public";
 import { storageRows } from "../../../apps/kello/src/core/validation/encoding";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "bidirectional exact pagination matches the Neon ordering oracle (P037-P061)",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
-    const namespace = `loom_pages_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_pages_${crypto.randomUUID().replaceAll("-", "")}`;
     const { schema, relations } = createSearchFixture(namespace);
     const pool = new pg.Pool({ connectionString, options: "-c timezone=America/New_York" });
     const db = drizzle({ client: pool, relations });

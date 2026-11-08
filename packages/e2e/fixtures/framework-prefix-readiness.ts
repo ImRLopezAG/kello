@@ -14,7 +14,7 @@ async function prepareFixture(root: string, url: string, admin: pg.Client, runti
   const address = new URL(url);
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `app_${suffix}`;
-  const metadataNamespace = `loom_${suffix}`;
+  const metadataNamespace = `kello_${suffix}`;
   await initializeProject(root, "prefix-readiness");
   await mkdir(join(root, "node_modules"));
   for (const name of ["kello", "kello-cli", "valibot", "drizzle-orm"])
@@ -132,7 +132,7 @@ export type FrameworkPrefixFixture = Awaited<ReturnType<typeof prepareFixture>>;
 
 /** Uses the disposable database lifecycle from the baseline e2e fixtures. */
 export async function withFrameworkPrefixFixture(operation: (fixture: FrameworkPrefixFixture) => Promise<void>) {
-  const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+  const connectionString = process.env.KELLO_TEST_DATABASE_URL;
   if (!connectionString) throw new Error("Missing PostgreSQL 18 test database");
   const database = `kello_prefix_${crypto.randomUUID().replaceAll("-", "")}`;
   const address = new URL(connectionString);

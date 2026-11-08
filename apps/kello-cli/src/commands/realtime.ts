@@ -1,4 +1,5 @@
 import {
+  createRealtimeProvider,
   enableRealtime,
   loadProjectConfig,
   readRealtimeStatus,
@@ -37,10 +38,13 @@ export async function realtimeEnableCommand(
   structured: boolean,
   options: { allowedOrigins: readonly string[]; allowProtected: boolean },
 ): Promise<number> {
-  const status = await enableRealtime(root, (await loadProjectConfig(root)).config, {
-    ...options,
-    timeoutMs: 300_000,
-  });
+  const { config } = await loadProjectConfig(root);
+  // Progress goes to stderr, and only for people: structured stdout stays a single JSON document.
+  const provider = createRealtimeProvider(
+    undefined,
+    structured ? {} : { onWaiting: (origin) => console.error(`Waiting for the Realtime proxy to accept ${origin}…`) },
+  );
+  const status = await enableRealtime(root, config, { ...options, timeoutMs: 300_000 }, undefined, provider);
   const ok = status.state === "ready";
   const output = structured ? JSON.stringify({ ok, command: "realtime enable", status }) : describe(status);
   if (ok) console.log(output);

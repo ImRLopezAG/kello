@@ -262,7 +262,7 @@ export async function readPublicProjectConfiguration(
       "PROJECT_STATE_INVALID",
       "The Neon branch changed. Refresh discovery before generating public client configuration.",
     );
-  const serviceUrl = process.env.LOOM_URL ?? saved?.public.serviceUrl;
+  const serviceUrl = process.env.KELLO_URL ?? saved?.public.serviceUrl;
   const authUrl = process.env.NEON_AUTH_URL ?? saved?.public.authUrl;
   const dataApiUrl = saved?.public.dataApiUrl;
   const realtimeUrl = saved?.public.realtimeUrl;
@@ -374,6 +374,13 @@ export async function enableRealtime(
     );
   };
   const unchanged = originsMatch();
+  // Only a ready prior state proves the proxy already admitted its origins.
+  const admitted = new Set(
+    status.state === "ready"
+      ? status.allowedOrigins.filter((value) => URL.canParse(value)).map((value) => new URL(value).origin)
+      : [],
+  );
+  const added = allowedOrigins.filter((value) => !admitted.has(value));
   if (status.state !== "ready" || !unchanged) {
     if (!(await provider.hasCompute(target.projectId, target.branchId)))
       throw new RealtimeError(
@@ -387,12 +394,15 @@ export async function enableRealtime(
       timeoutMs: options.timeoutMs,
     });
     status = await readRealtimeState(target, provider);
+    if (status.state === "ready" && !originsMatch())
+      throw new RealtimeError(
+        "REALTIME_ORIGINS_CONFLICT",
+        "Realtime origins differ from the requested set. Check kello realtime status before retrying.",
+      );
+    // The control plane reports ready before the proxy enforces the new allowlist.
+    if (status.state === "ready" && status.realtimeUrl && added.length)
+      await provider.waitForProxyOrigins?.(status.realtimeUrl, added);
   }
-  if (status.state === "ready" && !originsMatch())
-    throw new RealtimeError(
-      "REALTIME_ORIGINS_CONFLICT",
-      "Realtime origins differ from the requested set. Check kello realtime status before retrying.",
-    );
   if (status.state === "ready" && status.realtimeUrl !== target.public.realtimeUrl)
     await saveResolvedProject(root, { ...target, public: { ...target.public, realtimeUrl: status.realtimeUrl } });
   return status;

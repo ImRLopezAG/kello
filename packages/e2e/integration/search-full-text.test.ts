@@ -38,10 +38,10 @@ interface NativeQueryDispatch {
 // This is U3's owned executor proof. U4's full traversal/float-bit oracle and
 // U5's representative index/live acceptance remain separate gates.
 test("U3 PG18 owned full-text handler: authorization, rank, snapshot and remaining deadline", async () => {
-  const connectionString = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
+  const connectionString = fullTextLocalTarget(process.env.KELLO_TEST_DATABASE_URL);
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `fts_u3_${suffix}`;
-  const metadataNamespace = `loom_fts_u3_${suffix}`;
+  const metadataNamespace = `kello_fts_u3_${suffix}`;
   const role = `fts_u3_role_${suffix}`;
   const owner = new pg.Pool({ connectionString, max: 3 });
   let installed = false;

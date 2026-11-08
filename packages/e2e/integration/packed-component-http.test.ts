@@ -7,12 +7,12 @@ import { join } from "node:path";
 import pg from "pg";
 import { prepareCloudComponents } from "../fixtures/cloud-components";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "packed cloud component webhook invokes its private database handler",
   async () => {
     assert(connectionString);
-    const root = await mkdtemp(join(tmpdir(), "loom-packed-http-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-packed-http-"));
     const databaseName = `http_${crypto.randomUUID().replaceAll("-", "")}`;
     const runtimeRole = `runtime_${crypto.randomUUID().replaceAll("-", "")}`;
     const control = new pg.Client({ connectionString });

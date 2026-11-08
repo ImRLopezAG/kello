@@ -4,10 +4,10 @@ An operator runs the repository entrypoint with PostgreSQL 18 owner credentials.
 The package must be built before invoking this command from the repository root:
 
 ```sh
-bun scripts/rate-limits-maintenance.ts --metadata-namespace loom_meta --batch-size 500 --max-batches 20 --max-duration-ms 30000
+bun scripts/rate-limits-maintenance.ts --metadata-namespace kello_meta --batch-size 500 --max-batches 20 --max-duration-ms 30000
 ```
 
-Supply `LOOM_MIGRATION_DATABASE_URL` through the selected operator/CI secret store,
+Supply `KELLO_MIGRATION_DATABASE_URL` through the selected operator/CI secret store,
 one owner secret per target. There is no runtime credential fallback. The metadata
 namespace is explicit; replace the example with the target's namespace. Cleanup
 is tooling only and must never be exposed through an application route.
@@ -79,8 +79,8 @@ of enabled policies and require a capacity/retention decision. Do not truncate
 buckets or reset live allowance. Prior confirmed batches survive cancellation or
 failure; another bounded invocation resumes remaining work without repair.
 
-For maintenance acceptance, the coordinator supplies `LOOM_TEST_DATABASE_URL`
-and `LOOM_TEST_POOLED_DATABASE_URL` for the existing transaction pooler targeting
+For maintenance acceptance, the coordinator supplies `KELLO_TEST_DATABASE_URL`
+and `KELLO_TEST_POOLED_DATABASE_URL` for the existing transaction pooler targeting
 the same shared disposable PostgreSQL 18 database, including password authentication
 when required, and grants a serialized database window. Native tests have no endpoint
 default and fail before connecting when either required profile is absent. During that window,
@@ -110,7 +110,7 @@ bun run --cwd packages/tests test --maxWorkers=2 unit/rate-limits-maintenance.te
 The harness has DB-free ownership fault checks that run without either profile:
 
 ```sh
-env -u LOOM_TEST_DATABASE_URL -u LOOM_TEST_POOLED_DATABASE_URL bun test packages/e2e/integration/rate-limits-maintenance.test.ts --test-name-pattern 'offline maintenance harness'
+env -u KELLO_TEST_DATABASE_URL -u KELLO_TEST_POOLED_DATABASE_URL bun test packages/e2e/integration/rate-limits-maintenance.test.ts --test-name-pattern 'offline maintenance harness'
 ```
 
 These checks cover barrier-failure joining, independent teardown attempts, and

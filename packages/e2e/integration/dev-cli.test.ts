@@ -233,13 +233,13 @@ test("owned file output reports a pending close at its deadline and closes only 
 }, 5000);
 
 test("development CLI refuses invalid declarations before watching and never leaks their contents", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-dev-cli-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-dev-cli-"));
   const cli = fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url));
   const env = {
     ...process.env,
-    LOOM_TEST_DEV_TOKEN: "a".repeat(64),
-    LOOM_TEST_STORAGE_ACCESS: "fixture-access",
-    LOOM_TEST_STORAGE_SECRET: "sensitive-fixture-value",
+    KELLO_TEST_DEV_TOKEN: "a".repeat(64),
+    KELLO_TEST_STORAGE_ACCESS: "fixture-access",
+    KELLO_TEST_STORAGE_SECRET: "sensitive-fixture-value",
   };
   async function run(args: string[], expected: number, code: string) {
     const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {
@@ -278,7 +278,7 @@ test("development CLI refuses invalid declarations before watching and never lea
   }
 }, 15000);
 test("diagnostics routing rejects invalid options before evaluating config", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-diagnostics-routing-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-diagnostics-routing-"));
   try {
     await writeFile(
       join(root, "kello.config.ts"),

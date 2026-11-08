@@ -71,7 +71,7 @@ test("mount namespaces remain bounded, case-sensitive in identity, and independe
 });
 
 test("repeated mounts evaluate authored relations against independent instance tables", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-component-relations-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-component-relations-"));
   try {
     await initializeProject(root, "relations");
     await mkdir(join(root, "node_modules"));
@@ -130,7 +130,7 @@ test("repeated mounts evaluate authored relations against independent instance t
   }
 });
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 // These multi-scope workflows make hundreds of sequential database round trips on Neon.
 const migrationTestTimeout = 180_000;
 test.skipIf(!connectionString)(
@@ -138,13 +138,13 @@ test.skipIf(!connectionString)(
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_meta_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_meta_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const scopes = ["first", "second"].map((name) => ({
       mountPath: `${name}_${suffix}`,
       namespace: componentNamespace(`${name}_${suffix}`),
     }));
-    const root = await mkdtemp(join(tmpdir(), "loom-component-migrations-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-component-migrations-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
@@ -215,9 +215,9 @@ test.skipIf(!connectionString)(
     assert(connectionString);
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `app_${suffix}`;
-    const metadataNamespace = `loom_meta_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-component-release-"));
+    const metadataNamespace = `kello_meta_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
+    const root = await mkdtemp(join(tmpdir(), "kello-component-release-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const address = new URL(connectionString);
@@ -369,13 +369,13 @@ test.skipIf(!connectionString)(
     assert(connectionString);
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const targetName = `baseline_${suffix}`;
-    const metadataNamespace = `loom_meta_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_meta_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const scopes = ["first", "second"].map((name) => ({
       mountPath: `${name}_${suffix}`,
       namespace: componentNamespace(`${name}_${suffix}`),
     }));
-    const root = await mkdtemp(join(tmpdir(), "loom-component-baseline-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-component-baseline-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const targetUrl = new URL(connectionString);

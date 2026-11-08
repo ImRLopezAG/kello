@@ -29,7 +29,7 @@ test.skipIf(!process.env.KELLO_CLOUD_PROJECT_ID)(
   "Neon PostgreSQL 18 bootstraps and preserves runtime role isolation",
   async () => {
     const projectId = v.parse(identifier, process.env.KELLO_CLOUD_PROJECT_ID);
-    const branchId = v.parse(identifier, process.env.LOOM_CLOUD_BRANCH_ID);
+    const branchId = v.parse(identifier, process.env.KELLO_CLOUD_BRANCH_ID);
     const branches = v.parse(
       v.array(
         v.object({
@@ -53,9 +53,9 @@ test.skipIf(!process.env.KELLO_CLOUD_PROJECT_ID)(
       branch.default ||
       branch.protected ||
       (!branch.parent_id && branch.init_source !== "parent-schema") ||
-      !branch.name.startsWith("loom-acceptance-")
+      !branch.name.startsWith("kello-acceptance-")
     )
-      throw new Error("Cloud tests require an explicit nondefault, unprotected loom-acceptance- child branch");
+      throw new Error("Cloud tests require an explicit nondefault, unprotected kello-acceptance- child branch");
     const connectionString = await neon([
       "connection-string",
       branchId,
@@ -64,7 +64,7 @@ test.skipIf(!process.env.KELLO_CLOUD_PROJECT_ID)(
       "--ssl",
       "verify-full",
       "--role-name",
-      process.env.LOOM_CLOUD_MIGRATION_ROLE ?? "neondb_owner",
+      process.env.KELLO_CLOUD_MIGRATION_ROLE ?? "neondb_owner",
     ]);
     const address = URL.parse(connectionString);
     if (
@@ -76,7 +76,7 @@ test.skipIf(!process.env.KELLO_CLOUD_PROJECT_ID)(
     )
       throw new Error("Cloud test requires a direct TLS-verified Neon connection");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const owner = new pg.Client({ connectionString, connectionTimeoutMillis: 15000, statement_timeout: 15000 });
     let connected = false;

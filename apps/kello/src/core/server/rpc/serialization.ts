@@ -44,7 +44,7 @@ export const rpcValue: v.GenericSchema<RpcValue> = v.lazy(() =>
 );
 
 const serializer = new RPCJsonSerializer({ omitUndefinedProperties: false });
-export const rpcProtocolVersion = "loom-orpc-2";
+export const rpcProtocolVersion = "kello-orpc-2";
 
 /** Encoding belongs to oRPC; validate before a transaction commits. */
 export function serializeRpcValue(value: RpcValue) {

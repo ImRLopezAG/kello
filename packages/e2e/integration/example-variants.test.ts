@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { createRpcHttpTransport } from "kello/client";
 import { startIntegrationBackend } from "../fixtures/integration-examples";
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "generated examples execute Zod, Valibot and Effect contracts through authenticated RPC",
   async () => {

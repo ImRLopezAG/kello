@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 test("branch provisioning CLI rejects unrelated options and redacts invalid declarations", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-provision-cli-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-provision-cli-"));
   const cli = fileURLToPath(new URL("../../../apps/kello-cli/src/cli.ts", import.meta.url));
   async function run(args: string[], code: number, error: string) {
     const child = Bun.spawn([process.execPath, cli, ...args, "--cwd", root, "--json"], {

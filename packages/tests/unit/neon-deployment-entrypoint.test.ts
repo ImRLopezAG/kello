@@ -2,7 +2,7 @@ import { expect, test, vi } from "vite-plus/test";
 import { createNeonDeploymentEntrypoint } from "kello/neon";
 
 const binding = {
-  metadataNamespace: "loom_meta",
+  metadataNamespace: "kello_meta",
   deployment: "preview",
   version: "a".repeat(64),
   projectId: "project",
@@ -14,13 +14,13 @@ const binding = {
 const token = "b".repeat(64);
 const artifactHash = "c".repeat(64);
 const health = () =>
-  new Request("https://app.test/_loom/deployment/health", {
+  new Request("https://app.test/_kello/deployment/health", {
     method: "POST",
     headers: { authorization: `Bearer ${token}` },
   });
 
 test("shutdown drains a probe even when ordinary runtime cleanup fails", async () => {
-  vi.stubEnv("LOOM_ACTIVATION_TOKEN", token);
+  vi.stubEnv("KELLO_ACTIVATION_TOKEN", token);
   const probing = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   let starts = 0;
@@ -68,7 +68,7 @@ test("shutdown drains a probe even when ordinary runtime cleanup fails", async (
 });
 
 test("deployment health authenticates before startup and never dispatches through the probe runtime", async () => {
-  vi.stubEnv("LOOM_ACTIVATION_TOKEN", token);
+  vi.stubEnv("KELLO_ACTIVATION_TOKEN", token);
   let starts = 0;
   let stops = 0;
   let calls = 0;
@@ -122,7 +122,7 @@ test("deployment health authenticates before startup and never dispatches throug
 });
 
 test("deployment probe joins concurrent startup, drains shutdown and redacts failures", async () => {
-  vi.stubEnv("LOOM_ACTIVATION_TOKEN", token);
+  vi.stubEnv("KELLO_ACTIVATION_TOKEN", token);
   let starts = 0;
   let stops = 0;
   const started = Promise.withResolvers<void>();

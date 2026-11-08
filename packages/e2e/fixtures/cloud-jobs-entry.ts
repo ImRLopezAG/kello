@@ -22,7 +22,7 @@ const probe = os.input(v.strictObject({ nonce: v.pipe(v.string(), v.uuid()) })).
   if (input.nonce !== process.env.KELLO_PROBE_NONCE) throw new ORPCError("UNAUTHORIZED");
   const connectionString = v.parse(v.string(), process.env.KELLO_RUNTIME_URL);
   const metadataNamespace = v.parse(
-    v.pipe(v.string(), v.regex(/^loom_cloud_jobs_[a-f0-9]+$/)),
+    v.pipe(v.string(), v.regex(/^kello_cloud_jobs_[a-f0-9]+$/)),
     process.env.KELLO_METADATA,
   );
   const connection = await connectDatabase({ schema, relations, connectionString });

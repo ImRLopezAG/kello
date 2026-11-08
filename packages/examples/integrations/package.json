@@ -17,16 +17,16 @@
     "deploy": "kello deploy"
   },
   "dependencies": {
-    "@orpc/server": "2.0.0-beta.46",
+    "@orpc/server": "2.0.0-beta.49",
     "drizzle-orm": "1.0.0-rc.5",
-    "effect": "4.0.6",
+    "effect": "4.1.2",
     "kello": "workspace:*",
     "valibot": "1.5.0",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@kello/ts-config": "workspace:*",
-    "@orpc/tanstack-query": "2.0.0-beta.46",
+    "@orpc/tanstack-query": "2.0.0-beta.49",
     "@types/bun": "1.4.4",
     "@types/pg": "8.23.1",
     "kello-cli": "workspace:*",

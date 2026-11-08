@@ -11,26 +11,26 @@ import { buildNeonFunctionBundle } from "kello-cli";
 import { createKelloNeonApi, bootstrapDatabase, inspectDeploymentTarget, defineConfig } from "kello-cli";
 import { createRpcHttpTransport } from "kello/client";
 
-test.skipIf(process.env.LOOM_CLOUD_HOSTED_AUTH !== "1")(
+test.skipIf(process.env.KELLO_CLOUD_HOSTED_AUTH !== "1")(
   "managed auth signs in through a deployed Kello Function and verifies its token for RPC",
   async () => {
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
-    const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
-    const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+    const branchId = process.env.KELLO_CLOUD_BRANCH_ID;
+    const connectionString = process.env.KELLO_TEST_DATABASE_URL;
     assert(projectId && branchId && connectionString);
     const target = await inspectDeploymentTarget(
       defineConfig({ project: "auth", provider: { projectId, targets: { preview: { branchId } } } }),
       "preview",
     );
-    assert(!target.protected && target.branchName.startsWith("loom-acceptance-"));
+    assert(!target.protected && target.branchName.startsWith("kello-acceptance-"));
     assert.equal(new URL(connectionString).hostname.split(".")[0], target.endpointId);
     const api = createKelloNeonApi();
     const slug = `lauth${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`;
     assert(!(await api.listBranchFunctions(projectId, branchId)).some((fn) => fn.slug === slug));
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_auth_${suffix}`;
+    const metadataNamespace = `kello_auth_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-hosted-auth-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-hosted-auth-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     let deployed = false;
@@ -56,7 +56,7 @@ import * as v from "valibot";
 const schema=defineSchema(()=>({}));
 const contract={whoami:oc.output(v.strictObject({subject:v.string()}))};
 const whoami=implement(contract).whoami.handler(({context})=>({subject:context.identity.subject}));
-const service = await createNeonRpcService({schema,relations:defineRelations(schema.tables),connectionString:process.env.LOOM_DATABASE_URL,
+const service = await createNeonRpcService({schema,relations:defineRelations(schema.tables),connectionString:process.env.KELLO_DATABASE_URL,
 metadataNamespace:${JSON.stringify(metadataNamespace)},deployment:"auth-acceptance",version:"${"a".repeat(64)}",procedures:[{path:["whoami"],visibility:"public",procedure:whoami}],
 auth:defineRpcAuth({verification:neonAuth({origins:["http://localhost:5173"]}),authorize:({identity})=>{if(!identity)throw new ORPCError("UNAUTHORIZED")}}),
 assertActive:async()=>{}});
@@ -73,7 +73,7 @@ export default {...service, async fetch(request) {
 `,
       );
       const environment = {
-        LOOM_DATABASE_URL: address.href,
+        KELLO_DATABASE_URL: address.href,
         NEON_AUTH_COOKIE_SECRET: crypto.randomUUID() + crypto.randomUUID(),
       };
       const bundle = await buildNeonFunctionBundle(source);
@@ -134,7 +134,7 @@ export default {...service, async fetch(request) {
         assert.equal(response.status, 200, `Hosted auth ${path} failed`);
         return response.json();
       }
-      const email = `loom-${suffix}@example.test`;
+      const email = `kello-${suffix}@example.test`;
       const signup = await auth("sign-up/email", { email, password: crypto.randomUUID(), name: "Hosted acceptance" });
       assert(signup.user.id);
       assert.equal((await auth("get-session")).user.id, signup.user.id);

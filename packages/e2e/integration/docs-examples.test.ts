@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 test("documented authoring examples compile and validate through a packed public API", async () => {
   const examples = fileURLToPath(new URL("../../../apps/docs/examples/", import.meta.url));
   assert.ok((await readFile(join(examples, "kello/schema.ts"), "utf8")).includes("defineSchema"));
-  const root = await mkdtemp(join(tmpdir(), "loom-docs-consumer-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-docs-consumer-"));
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, { cwd, stdout: "pipe", stderr: "pipe", timeout: 60000 });
     const [stdout, stderr, code] = await Promise.all([
@@ -40,8 +40,8 @@ test("documented authoring examples compile and validate through a packed public
           kello: "file:./kello.tgz",
           "kello-cli": "file:./kello-cli.tgz",
           "drizzle-orm": "1.0.0-rc.5",
-          "@orpc/server": "2.0.0-beta.46",
-          effect: "4.0.6",
+          "@orpc/server": "2.0.0-beta.49",
+          effect: "4.1.2",
           valibot: "1.5.0",
           typescript: "7.0.2",
           "@types/node": "24.13.6",

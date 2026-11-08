@@ -15,12 +15,12 @@ import type { SearchPublicSelection } from "../../../apps/kello/src/core/search/
 import { prepareSearchPage, finishSearchPage } from "../../../apps/kello/src/core/search/pagination";
 import { storageRows } from "../../../apps/kello/src/core/validation/encoding";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "search membership and exact projections match a real PostgreSQL oracle (P022-P036)",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
-    const namespace = `loom_search_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_search_${crypto.randomUUID().replaceAll("-", "")}`;
     const { schema, relations } = createSearchFixture(namespace);
     const setup = new pg.Pool({ connectionString });
     const queries: string[] = [];

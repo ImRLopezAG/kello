@@ -6,13 +6,13 @@ import { classifyFrameworkHistory } from "./framework-history";
 
 const bootstrapOptions = v.strictObject({
   connectionString: v.string(),
-  metadataNamespace: v.optional(v.pipe(databaseIdentifier, v.regex(/^loom_/)), "loom_meta"),
+  metadataNamespace: v.optional(v.pipe(databaseIdentifier, v.regex(/^kello_/)), "kello_meta"),
   runtimeRole: databaseIdentifier,
 });
 export type BootstrapOptions = v.InferInput<typeof bootstrapOptions>;
 
 export function managedRuntimeRoleMarker(metadataNamespace: string): string {
-  return `loom-runtime-v1:${createHash("sha256").update(metadataNamespace).digest("hex")}`;
+  return `kello-runtime-v1:${createHash("sha256").update(metadataNamespace).digest("hex")}`;
 }
 
 function frameworkStatements(namespace: string): readonly string[] {
@@ -71,14 +71,14 @@ export function frameworkMigrations(namespace: string) {
       PRIMARY KEY (namespace, table_name)
     )`,
       `CREATE FUNCTION ${schema}.advance_table_revision() RETURNS trigger
-      LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $loom$
+      LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $kello$
       BEGIN
         UPDATE ${schema}.table_revisions SET revision = revision + 1
         WHERE namespace = TG_TABLE_SCHEMA AND table_name = TG_TABLE_NAME;
-        IF NOT FOUND THEN RAISE EXCEPTION 'Missing Loom table revision'; END IF;
+        IF NOT FOUND THEN RAISE EXCEPTION 'Missing Kello table revision'; END IF;
         RETURN NULL;
       END
-      $loom$`,
+      $kello$`,
     ],
     [
       `CREATE TABLE ${schema}.jobs (
@@ -256,15 +256,15 @@ export function frameworkMigrations(namespace: string) {
     ],
     [
       `CREATE OR REPLACE FUNCTION ${schema}.advance_table_revision() RETURNS trigger
-      LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $loom$
+      LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $kello$
       BEGIN
         UPDATE ${schema}.table_revisions SET revision = revision + 1
         WHERE namespace = TG_TABLE_SCHEMA AND table_name = TG_TABLE_NAME;
-        IF NOT FOUND THEN RAISE EXCEPTION 'Missing Loom table revision'; END IF;
-        PERFORM pg_notify('loom_revision_' || md5('${namespace}.' || TG_TABLE_SCHEMA), '1');
+        IF NOT FOUND THEN RAISE EXCEPTION 'Missing Kello table revision'; END IF;
+        PERFORM pg_notify('kello_revision_' || md5('${namespace}.' || TG_TABLE_SCHEMA), '1');
         RETURN NULL;
       END
-      $loom$`,
+      $kello$`,
     ],
     [
       `ALTER TABLE ${schema}.jobs
@@ -272,20 +272,20 @@ export function frameworkMigrations(namespace: string) {
         ADD COLUMN lease_version text CHECK (lease_version ~ '^[a-f0-9]{64}$')`,
       `CREATE TABLE ${schema}.procedure_releases (
         deployment text NOT NULL, version text NOT NULL CHECK (version ~ '^[a-f0-9]{64}$'),
-        protocol text NOT NULL CHECK (protocol IN ('loom-legacy-1','loom-orpc-2')),
+        protocol text NOT NULL CHECK (protocol IN ('kello-legacy-1','kello-orpc-2')),
         migrations jsonb NOT NULL CHECK (jsonb_typeof(migrations) = 'array'),
         PRIMARY KEY (deployment,version)
       )`,
       `CREATE FUNCTION ${schema}.fence_migrated_job_claim() RETURNS trigger
-      LANGUAGE plpgsql SET search_path = pg_catalog AS $loom$
+      LANGUAGE plpgsql SET search_path = pg_catalog AS $kello$
       BEGIN
         IF NEW.state = 'running' AND NEW.fencing_token > OLD.fencing_token
           AND OLD.claim_version IS NOT NULL AND (NEW.lease_version IS DISTINCT FROM OLD.claim_version
-            OR current_setting('loom.worker_version', true) IS DISTINCT FROM OLD.claim_version)
+            OR current_setting('kello.worker_version', true) IS DISTINCT FROM OLD.claim_version)
         THEN RAISE EXCEPTION 'Job belongs to a different runtime version'; END IF;
         RETURN NEW;
       END
-      $loom$`,
+      $kello$`,
       `CREATE TRIGGER fence_migrated_job_claim BEFORE UPDATE ON ${schema}.jobs
         FOR EACH ROW EXECUTE FUNCTION ${schema}.fence_migrated_job_claim()`,
     ],
@@ -358,7 +358,7 @@ export function frameworkMigrations(namespace: string) {
         FROM pg_catalog.pg_trigger t
         JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-        WHERE NOT t.tgisinternal AND t.tgname = 'loom_table_revision'
+        WHERE NOT t.tgisinternal AND t.tgname = 'kello_table_revision'
           AND t.tgfoid = pg_catalog.to_regprocedure('${schema}.advance_table_revision()')
       LOOP
         EXECUTE pg_catalog.format('DROP TRIGGER %I ON %I.%I', owned.trigger, owned.namespace, owned.relation);
@@ -387,7 +387,7 @@ export async function bootstrapSession(
   const role = quoteIdentifier(runtimeRole);
   await client.query("BEGIN");
   try {
-    await client.query("SELECT pg_advisory_xact_lock(hashtextextended('loom:bootstrap', 0))");
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended('kello:bootstrap', 0))");
     const existingRole = await client.query<{ unsafe: boolean; marker: string | null }>(
       `SELECT
       rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls OR rolname = current_user

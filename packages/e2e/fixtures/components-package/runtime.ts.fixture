@@ -10,12 +10,12 @@ const namespaces = scopes.filter(scope => scope.schema?.tables.products).map(sco
 assert.equal(new Set(namespaces).size, 2);
 assert.equal(procedures.filter(entry => entry.scope === "first").length, 1);
 assert.equal(procedures.filter(entry => entry.scope === "second").length, 1);
-if (process.env.LOOM_TEST_DATABASE_URL) {
+if (process.env.KELLO_TEST_DATABASE_URL) {
   const version = "a".repeat(64);
   const runtime = await createRpcRuntime({
     application, schema, relations, scopes, exposures, procedures, version,
-    connectionString: process.env.LOOM_TEST_DATABASE_URL,
-    metadataNamespace: process.env.LOOM_PACKED_METADATA_NAMESPACE,
+    connectionString: process.env.KELLO_TEST_DATABASE_URL,
+    metadataNamespace: process.env.KELLO_PACKED_METADATA_NAMESPACE,
     deployment: "packed", auth: defineRpcAuth({ allowAnonymous: true, authorize: () => {} }),
     config: { auth: { origins: ["https://packed.test"] } }, assertActive: async () => {},
   });
@@ -23,7 +23,7 @@ if (process.env.LOOM_TEST_DATABASE_URL) {
     const app = createRpcHttpApp({ ...runtime.auth, router: runtime.router, version });
     const client = createORPCClient(new RPCLink({
       url: "https://packed.test/api/kello/rpc",
-      headers: { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version },
+      headers: { "x-kello-protocol": "kello-orpc-2", "x-kello-version": version },
       fetch: (url, init) => app.fetch(new Request(url, init)),
     }));
     assert.equal(await client.first.products.title(), `${namespaces[0]}:sdk`);

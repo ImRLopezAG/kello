@@ -2,6 +2,6 @@ import { defineComponent, defineComponentPackage } from "kello/server";
 import { greeting } from "./helper";
 class Client { message() { return greeting; } }
 export default defineComponentPackage(defineComponent({ name: "sdk", services: () => new Client() }), {
-  formatVersion: 1, definitionVersion: "0.0.0", entry: "@loom-test/sdk",
-  contractRegistry: "@loom-test/sdk/contracts", contracts: [], procedures: [], bindings: {},
+  formatVersion: 1, definitionVersion: "0.0.0", entry: "@kello-test/sdk",
+  contractRegistry: "@kello-test/sdk/contracts", contracts: [], procedures: [], bindings: {},
 });

@@ -3,14 +3,14 @@ import { expect, test } from "bun:test";
 import { bootstrapDatabase, frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 import pg from "pg";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "bootstrap is versioned, concurrent-safe and isolates the runtime role from metadata and DDL",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_meta_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_meta_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
@@ -109,7 +109,7 @@ test.skipIf(!connectionString)(
   "bootstrap refuses privileged runtime roles and rolls back its metadata creation",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
-    const metadataNamespace = `loom_meta_${crypto.randomUUID().replaceAll("-", "")}`;
+    const metadataNamespace = `kello_meta_${crypto.randomUUID().replaceAll("-", "")}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
@@ -134,7 +134,7 @@ test.skipIf(!connectionString)(
   "catalog drift evidence ignores data changes and detects DDL, policies and grants",
   async () => {
     const { catalogFingerprint } = await import("../../../apps/kello-cli/src/tooling/migrations/drift");
-    const namespace = `loom_drift_${crypto.randomUUID().replaceAll("-", "")}`;
+    const namespace = `kello_drift_${crypto.randomUUID().replaceAll("-", "")}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {

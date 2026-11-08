@@ -11,11 +11,11 @@ test("managed Realtime secret rotation changes keyed release identity without di
   const token = "a".repeat(64);
   const firstSecret = "test-only-first-realtime-signing-key";
   const secondSecret = "test-only-rotated-realtime-signing-key";
-  const first = releaseInputHash(token, input, { LOOM_REALTIME_SECRET: firstSecret });
-  const rotated = releaseInputHash(token, input, { LOOM_REALTIME_SECRET: secondSecret });
+  const first = releaseInputHash(token, input, { KELLO_REALTIME_SECRET: firstSecret });
+  const rotated = releaseInputHash(token, input, { KELLO_REALTIME_SECRET: secondSecret });
   expect(rotated).not.toBe(first);
-  expect(releaseInputHash(token, input, { LOOM_REALTIME_SECRET: firstSecret })).toBe(first);
-  expect(releaseInputHash("b".repeat(64), input, { LOOM_REALTIME_SECRET: firstSecret })).not.toBe(first);
+  expect(releaseInputHash(token, input, { KELLO_REALTIME_SECRET: firstSecret })).toBe(first);
+  expect(releaseInputHash("b".repeat(64), input, { KELLO_REALTIME_SECRET: firstSecret })).not.toBe(first);
   expect(JSON.stringify({ inputHash: first })).not.toContain(firstSecret);
   expect(first).toMatch(/^[a-f0-9]{64}$/);
 });

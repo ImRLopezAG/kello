@@ -41,7 +41,7 @@ export function createSearchQueryPlugin<Client extends AnyNestedClient>(
   const indexed = new Map(guards.map((guard) => [JSON.stringify(guard.path), guard]));
   if (indexed.size !== guards.length) throw new Error("Duplicate search guard path");
   return {
-    name: "loom-search-projections",
+    name: "kello-search-projections",
     initProcedureOptions(path, options) {
       const guard = indexed.get(JSON.stringify(path));
       if (!guard) return options;

@@ -12,8 +12,8 @@ export const historicalCommit = "b8ddb6a9d7bb398f8e2993ae6cafe7710ba1dafc";
 /** Archive a fixed historical runtime; only the acceptance harness is overlaid. */
 export async function runHistoricalAcceptance(env: NodeJS.ProcessEnv, receipt: string) {
   const projectId = v.parse(v.pipe(v.string(), v.minLength(1)), env.KELLO_CLOUD_PROJECT_ID);
-  const branchId = v.parse(v.pipe(v.string(), v.minLength(1)), env.LOOM_CLOUD_BRANCH_ID);
-  const root = await mkdtemp(join(tmpdir(), "loom-historical-"));
+  const branchId = v.parse(v.pipe(v.string(), v.minLength(1)), env.KELLO_CLOUD_BRANCH_ID);
+  const root = await mkdtemp(join(tmpdir(), "kello-historical-"));
   const repository = fileURLToPath(new URL("../../../", import.meta.url));
   const fixtures = fileURLToPath(new URL("./", import.meta.url));
   try {
@@ -45,7 +45,7 @@ export async function runHistoricalAcceptance(env: NodeJS.ProcessEnv, receipt: s
     await rm(receipt, { force: true });
     const child = Bun.spawn(["bun", "test", "packages/e2e/cloud/baseline-live.test.ts"], {
       cwd: root,
-      env: { ...env, LOOM_CLOUD_LIVE: "1", LOOM_CLOUD_RECEIPT: receipt },
+      env: { ...env, KELLO_CLOUD_LIVE: "1", KELLO_CLOUD_RECEIPT: receipt },
       stdout: "inherit",
       stderr: "inherit",
     });

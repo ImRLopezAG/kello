@@ -21,12 +21,12 @@ test("cookie session verifies credentials and binds reads to the rendered identi
   const get = (id: string) =>
     session(
       new Request("https://app.test/api/session", {
-        headers: { cookie: "loom_session=accepted", "x-loom-session": "1", "x-loom-session-id": id },
+        headers: { cookie: "kello_session=accepted", "x-kello-session": "1", "x-kello-session-id": id },
       }),
     );
   expect((await get(await sessionFingerprint("other"))).status).toBe(401);
   expect(await (await get(await sessionFingerprint("accepted"))).json()).toEqual({ token: "accepted" });
-  expect(readToken(new Request("https://app.test", { headers: { cookie: "loom_session=bad value" } }))).toBeNull();
+  expect(readToken(new Request("https://app.test", { headers: { cookie: "kello_session=bad value" } }))).toBeNull();
   const deleted = await session(
     new Request("https://app.test/api/session", { method: "DELETE", headers: { origin: "https://app.test" } }),
   );

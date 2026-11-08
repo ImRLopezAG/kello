@@ -3,7 +3,12 @@ import { createProjectProcedures, defineSchema, defineJobMigration } from "kello
 
 const { procedure } = createProjectProcedures(defineSchema(() => ({})));
 const target = procedure.input(v.strictObject({ count: v.number() })).handler(() => null);
-const from = { protocol: "loom-legacy-1" as const, version: "a".repeat(64), name: "jobs:run", kind: "action" as const };
+const from = {
+  protocol: "kello-legacy-1" as const,
+  version: "a".repeat(64),
+  name: "jobs:run",
+  kind: "action" as const,
+};
 defineJobMigration({
   from,
   input: v.strictObject({ value: v.string() }),

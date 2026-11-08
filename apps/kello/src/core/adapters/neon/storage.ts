@@ -80,7 +80,7 @@ export function createNeonObjectStorage(options: NeonObjectStorageOptions, provi
       intent,
       pending: `${prefix}/pending/${intent.id}`,
       ready: `${prefix}/ready/${intent.id}/${intent.sha256}`,
-      metadata: { "loom-intent": intent.id, "loom-branch": branchId, "loom-sha256": intent.sha256 },
+      metadata: { "kello-intent": intent.id, "kello-branch": branchId, "kello-sha256": intent.sha256 },
     };
   }
   function verifyMetadata(

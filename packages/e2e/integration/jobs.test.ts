@@ -14,15 +14,15 @@ import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
 import pg from "pg";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "durable jobs share transaction rollback, deduplicate and fence recovered leases",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_jobs_${suffix}`;
+    const metadataNamespace = `kello_jobs_${suffix}`;
     const applicationNamespace = `app_jobs_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
@@ -31,10 +31,10 @@ test.skipIf(!connectionString)(
       await admin.query(`CREATE TABLE "${applicationNamespace}".effects (value integer PRIMARY KEY)`);
       await admin.query(`GRANT USAGE ON SCHEMA "${applicationNamespace}" TO "${runtimeRole}"`);
       await admin.query(`GRANT SELECT, INSERT ON "${applicationNamespace}".effects TO "${runtimeRole}"`);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const connection = await connectDatabase({
         schema,

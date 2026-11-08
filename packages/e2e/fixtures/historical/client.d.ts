@@ -1,4 +1,4 @@
-import type { JsonValue } from "@loom/core/server";
+import type { JsonValue } from "@kello/core/server";
 
 /** Test-only declarations for the pinned historical bundle. */
 export function createClient(options: {

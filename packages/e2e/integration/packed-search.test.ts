@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "bun:test";
 
 test("packed generated search-shaped contracts expose the native dependent-output typing gap", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-packed-search-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-packed-search-"));
   async function run(command: string[], cwd = root) {
     const child = Bun.spawn(command, { cwd, stdout: "pipe", stderr: "pipe", timeout: 120000 });
     const [stdout, stderr, code] = await Promise.all([
@@ -38,11 +38,11 @@ test("packed generated search-shaped contracts expose the native dependent-outpu
         dependencies: {
           kello: "file:./kello.tgz",
           "kello-cli": "file:./kello-cli.tgz",
-          "@orpc/tanstack-query": "2.0.0-beta.46",
-          "@tanstack/react-query": "5.104.3",
+          "@orpc/tanstack-query": "2.0.0-beta.49",
+          "@tanstack/react-query": "5.107.1",
           "drizzle-orm": "1.0.0-rc.5",
           valibot: "1.5.0",
-          react: "19.3.0",
+          react: "19.3.1",
         },
         devDependencies: { typescript: "7.0.2", "@types/react": "19.3.0" },
       }),

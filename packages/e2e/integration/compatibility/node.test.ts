@@ -30,7 +30,7 @@ test("Node 24 imports compiled exports and serves the HTTP protocol without Bun 
      });
      const client = createORPCClient(new RPCLink({
        origin: "https://node.example.test", url: "/api/kello/rpc",
-       headers: {authorization: "Bearer test", "x-loom-protocol": "loom-orpc-2", "x-loom-version": version},
+       headers: {authorization: "Bearer test", "x-kello-protocol": "kello-orpc-2", "x-kello-version": version},
        fetch: (request, init) => app.fetch(new Request(request, init))
      }));
      assert.deepEqual(await client.read(), {
@@ -57,7 +57,7 @@ test("Node 24 imports compiled exports and serves the HTTP protocol without Bun 
   expect(code).not.toContain("DATABASE_URL");
 });
 
-test.skipIf(!process.env.LOOM_TEST_DATABASE_URL)("Node 24 enforces database invocation lifetime", async () => {
+test.skipIf(!process.env.KELLO_TEST_DATABASE_URL)("Node 24 enforces database invocation lifetime", async () => {
   const child = Bun.spawn(
     [
       "node",
@@ -68,7 +68,7 @@ test.skipIf(!process.env.LOOM_TEST_DATABASE_URL)("Node 24 enforces database invo
     import { connectDatabase, defineSchema, runFunctionTransaction } from "kello/server";
     import { defineRelations, sql } from "drizzle-orm";
     const schema = defineSchema(() => ({}));
-    const connection = await connectDatabase({ schema, relations: defineRelations(schema.tables), connectionString: process.env.LOOM_TEST_DATABASE_URL });
+    const connection = await connectDatabase({ schema, relations: defineRelations(schema.tables), connectionString: process.env.KELLO_TEST_DATABASE_URL });
     try {
       const late = await runFunctionTransaction(connection, "query", async tx => {
         assert.deepEqual((await tx.execute(sql.raw("SELECT 1 AS value"))).rows, [{value: 1}]);
@@ -86,7 +86,7 @@ test.skipIf(!process.env.LOOM_TEST_DATABASE_URL)("Node 24 enforces database invo
   expect({ code: await child.exited, stderr }).toEqual({ code: 0, stderr: "" });
 });
 
-test.skipIf(!process.env.LOOM_TEST_DATABASE_URL)(
+test.skipIf(!process.env.KELLO_TEST_DATABASE_URL)(
   "patched introspection initializes independently in Node ESM and CommonJS",
   async () => {
     for (const mode of ["esm", "cjs"]) {
@@ -103,7 +103,7 @@ test.skipIf(!process.env.LOOM_TEST_DATABASE_URL)(
       const api = process.argv[1] === "esm" ? await import("drizzle-kit/api-postgres")
         : createRequire(import.meta.url)("drizzle-kit/api-postgres");
       const namespace = "verify_" + crypto.randomUUID().replaceAll("-", "");
-      const client = new pg.Client({ connectionString: process.env.LOOM_TEST_DATABASE_URL });
+      const client = new pg.Client({ connectionString: process.env.KELLO_TEST_DATABASE_URL });
       await client.connect();
       try {
         await client.query('CREATE SCHEMA "' + namespace + '"');

@@ -13,7 +13,7 @@ import { fullTextLocalTarget } from "./full-text-local-target";
 import { rankHandler, rankHandlerIdentity, rankHandlerSchema } from "../fixtures/search-full-text-handler";
 import { createHash } from "node:crypto";
 
-const connectionString = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
+const connectionString = fullTextLocalTarget(process.env.KELLO_TEST_DATABASE_URL);
 
 async function guardTarget(pool: pg.Pool) {
   const target = await pool.query<{ version: number; database: string }>(
@@ -306,7 +306,7 @@ const hashRankFixture = (value: FixtureBinding) =>
 test("U4 actual ranked handler: exact encrypted boundaries, traversal, invalidation and current-state continuation", async () => {
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `fts_u4_${suffix}`;
-  const metadataNamespace = `loom_fts_u4_${suffix}`;
+  const metadataNamespace = `kello_fts_u4_${suffix}`;
   const role = `fts_u4_reader_${suffix}`;
   const owner = new pg.Pool({ connectionString, max: 1 });
   const schema = rankHandlerSchema(namespace);

@@ -1,13 +1,15 @@
+diff --git a/dist/adapter.js b/dist/adapter.js
+index f244cf202c44f125b5107b2f8e6cc045a5fea10a..24d8f5b1800172385572c1c0c5d06bdc431924c8 100644
 --- a/dist/adapter.js
 +++ b/dist/adapter.js
-@@ -23,7 +23,20 @@
+@@ -26,8 +26,21 @@ function drizzleAdapter() {
  function encodeDrizzleParameter(value) {
  	if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return encodeTextParameter(value);
  	if (value instanceof Uint8Array) return encodeTextParameter(`\\x${encodeHex(value)}`);
 +	if (Array.isArray(value)) return encodeTextParameter(encodeArray(value));
 +	if (value !== null && typeof value === "object" && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) return encodeTextParameter(JSON.stringify(value));
  	throw new Error("Drizzle Live produced a parameter that cannot be encoded as PostgreSQL text");
-+}
+ }
 +// Drizzle RC leaves PostgreSQL arrays for the driver to encode.
 +// Keep non-JSON class instances (including unbound placeholders) rejected.
 +function encodeArray(values) {
@@ -18,15 +20,18 @@
 +		if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
 +		throw new Error("Drizzle Live produced an unsupported PostgreSQL array element");
 +	}).join(",")}}`;
- }
++}
  function encodeHex(value) {
  	return Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
+ }
+diff --git a/package.json b/package.json
+index 65ad7d20f371cd4e877383ce6378aa933638269f..e19c3b282632ea674da5be4bda5ea3f5e9f3c510 100644
 --- a/package.json
 +++ b/package.json
 @@ -52,7 +52,7 @@
    },
    "peerDependencies": {
-     "@neon/realtime": "^0.1.0",
+     "@neon/realtime": "^0.2.0",
 -    "drizzle-orm": ">=0.45.2 <0.46.0"
 +    "drizzle-orm": ">=0.45.2 <0.46.0 || 1.0.0-rc.5"
    },

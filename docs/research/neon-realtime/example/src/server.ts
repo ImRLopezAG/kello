@@ -1,4 +1,4 @@
-// Research sketch: the smallest server-side wrapper Loom could publish.
+// Research sketch: the smallest server-side wrapper Kello could publish.
 // DB-free. Nothing here talks to Neon; `seal()` is local encryption only.
 import { createRealtime, rawSql } from "@neon/realtime/server";
 import type { RawSqlParameter, RawSqlQuery, RealtimeServer, SealedLiveQuery } from "@neon/realtime/server";
@@ -42,7 +42,7 @@ export function createLiveQueryIssuer(options: LiveQueryIssuerOptions) {
   };
 }
 
-/** Mutation result shape proposed for Loom procedures that want confirmation. */
+/** Mutation result shape proposed for Kello procedures that want confirmation. */
 export type MutationReceipt<Result> =
   | { readonly kind: "committed"; readonly txid: string; readonly result: Result }
   | { readonly kind: "unchanged"; readonly result: Result };

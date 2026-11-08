@@ -22,8 +22,8 @@ const app = createRpcHttpApp({
 for (const length of [undefined, "0"]) {
   const headers = new Headers({
     authorization: "Bearer test",
-    "x-loom-protocol": "loom-orpc-2",
-    "x-loom-version": version,
+    "x-kello-protocol": "kello-orpc-2",
+    "x-kello-version": version,
   });
   if (length !== undefined) headers.set("content-length", length);
   const init: RequestInit & { duplex: "half" } = {

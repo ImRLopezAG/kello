@@ -19,26 +19,26 @@ const finiteSchema = v.strictObject({
   previousCursor: v.nullable(v.string()),
   count: v.string(),
 });
-test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
+test.skipIf(process.env.KELLO_CLOUD_SEARCH !== "1")(
   "packed search works on two hosted Neon Functions",
   async () => {
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
-    const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
-    const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
-    const runtimeRole = process.env.LOOM_CLOUD_RUNTIME_ROLE;
+    const branchId = process.env.KELLO_CLOUD_BRANCH_ID;
+    const connectionString = process.env.KELLO_MIGRATION_DATABASE_URL;
+    const runtimeRole = process.env.KELLO_CLOUD_RUNTIME_ROLE;
     assert(projectId && branchId && connectionString && runtimeRole);
     assert.match(runtimeRole, /^runtime_[a-f0-9]{32}$/);
     const target = await inspectDeploymentTarget(
       defineConfig({ provider: { projectId, targets: { preview: { branchId } } } }),
       "preview",
     );
-    assert(!target.protected && target.branchName.startsWith("loom-acceptance-"));
+    assert(!target.protected && target.branchName.startsWith("kello-acceptance-"));
     const address = new URL(connectionString);
     assert.equal(address.hostname.split(".")[0], target.endpointId);
-    const root = await mkdtemp(join(tmpdir(), "loom-cloud-search-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-cloud-search-"));
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `search_${suffix}`;
-    const metadataNamespace = `loom_meta_${suffix}`;
+    const metadataNamespace = `kello_meta_${suffix}`;
     const admin = new pg.Client({ connectionString, connectionTimeoutMillis: 15000 });
     const provider = createKelloNeonApi();
     const ownedSlugs = new Set<string>();
@@ -50,8 +50,8 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       },
     });
     const original = {
-      database: process.env.LOOM_DATABASE_URL,
-      activation: process.env.LOOM_ACTIVATION_TOKEN,
+      database: process.env.KELLO_DATABASE_URL,
+      activation: process.env.KELLO_ACTIVATION_TOKEN,
     };
     const checks: string[] = [];
     const timings: { operation: string; ms: number }[] = [];
@@ -72,13 +72,13 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
         "Search acceptance requires a fresh runtime role",
       );
       const reservedSlugs = [
-        "loomissuer",
-        "loomsearchservice",
-        "loomsearchworker",
-        "loomlivea",
-        "loomliveb",
-        "loomrotated",
-        "loommissingkey",
+        "kelloissuer",
+        "kellosearchservice",
+        "kellosearchworker",
+        "kellolivea",
+        "kelloliveb",
+        "kellorotated",
+        "kellomissingkey",
       ];
       const existing = await provider.listBranchFunctions(projectId, branchId);
       assert(
@@ -98,11 +98,11 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
           provider: { projectId, targets: { preview: { branchId } } },
           auth: {
             origins: [origin],
-            audience: "loom-acceptance",
+            audience: "kello-acceptance",
             issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }],
           },
           deployment: {
-            slugs: { service: "loomsearchservice", worker: "loomsearchworker" },
+            slugs: { service: "kellosearchservice", worker: "kellosearchworker" },
             environment: "preview",
             deployment: "preview",
             databaseName: decodeURIComponent(address.pathname.slice(1)),
@@ -128,8 +128,8 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD '${password}'`);
       address.username = runtimeRole;
       address.password = password;
-      process.env.LOOM_DATABASE_URL = address.href;
-      process.env.LOOM_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
+      process.env.KELLO_DATABASE_URL = address.href;
+      process.env.KELLO_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
       stage = "normal release deployment";
       const generated = await tooling.generateProject(root);
       const release = await tooling.deployProjectRelease(
@@ -157,13 +157,13 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
         branchId,
         provider,
         environment: {
-          LOOM_DATABASE_URL: address.href,
-          LOOM_ACTIVATION_TOKEN: process.env.LOOM_ACTIVATION_TOKEN,
-          LOOM_SEARCH_CURSOR_KEY: key,
+          KELLO_DATABASE_URL: address.href,
+          KELLO_ACTIVATION_TOKEN: process.env.KELLO_ACTIVATION_TOKEN,
+          KELLO_SEARCH_CURSOR_KEY: key,
         },
       });
       assert.equal(new Set(services.map((service) => service.functionId)).size, 2);
-      if (process.env.LOOM_CLOUD_SEARCH_TEST_FAILURE === "after-deploy")
+      if (process.env.KELLO_CLOUD_SEARCH_TEST_FAILURE === "after-deploy")
         throw new Error("Injected acceptance failure for teardown verification");
       const a = services[0],
         b = services[1];
@@ -218,8 +218,8 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
           `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT title FROM "${namespace}".tasks WHERE owner='alice' ORDER BY title,_id LIMIT 3`,
         )
       ).rows;
-      const alice = await issuer.token("alice", "loom-acceptance", "30m");
-      const bob = await issuer.token("bob", "loom-acceptance", "30m");
+      const alice = await issuer.token("alice", "kello-acceptance", "30m");
+      const bob = await issuer.token("bob", "kello-acceptance", "30m");
       const input = {
         columns: { title: true },
         with: { labels: { columns: { name: true } } },
@@ -235,8 +235,8 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
             authorization: `Bearer ${token}`,
             origin,
             "content-type": "application/json",
-            "x-loom-protocol": "loom-orpc-2",
-            "x-loom-version": generated.version,
+            "x-kello-protocol": "kello-orpc-2",
+            "x-kello-version": generated.version,
           },
           body: JSON.stringify(body),
           signal: AbortSignal.timeout(25000),
@@ -338,7 +338,7 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       await admin.query(`UPDATE "${namespace}".permissions SET allowed=true WHERE subject='alice'`);
       checks.push("finite-SQL-policy-revocation", "finite-authorization-revocation-both-replicas");
       stage = "representative hosted performance";
-      const performanceToken = await issuer.token("performance", "loom-acceptance", "30m");
+      const performanceToken = await issuer.token("performance", "kello-acceptance", "30m");
       const performanceEvidence = await measureSearchPerformance({
         admin,
         namespace,
@@ -350,16 +350,16 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       await admin.query(`UPDATE "${namespace}".permissions SET allowed=true WHERE subject='alice'`);
       const common = { root, artifactHash: functions.artifactHash, projectId, branchId, provider };
       const environment = {
-        LOOM_DATABASE_URL: address.href,
-        LOOM_ACTIVATION_TOKEN: process.env.LOOM_ACTIVATION_TOKEN!,
+        KELLO_DATABASE_URL: address.href,
+        KELLO_ACTIVATION_TOKEN: process.env.KELLO_ACTIVATION_TOKEN!,
       };
       const rotated = (
         await deployLiveServices({
           ...common,
-          slugs: ["loomrotated"],
+          slugs: ["kellorotated"],
           environment: {
             ...environment,
-            LOOM_SEARCH_CURSOR_KEY: crypto.randomUUID().replaceAll("-", "").repeat(2),
+            KELLO_SEARCH_CURSOR_KEY: crypto.randomUUID().replaceAll("-", "").repeat(2),
           },
         })
       )[0];
@@ -367,13 +367,13 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       const rejected = await request(rotated.url, "list", { ...input, cursor: first.nextCursor });
       assert.equal(rejected.status, 400);
       assert.equal((await rejected.json()).code, "INVALID_CURSOR");
-      const missing = (await deployLiveServices({ ...common, slugs: ["loommissingkey"], environment }))[0];
+      const missing = (await deployLiveServices({ ...common, slugs: ["kellomissingkey"], environment }))[0];
       assert(missing);
       assert.equal((await request(missing.url, "list", input)).status, 503);
       checks.push("hosted-key-rotation-restart", "hosted-missing-key-refuses-startup");
       passed = true;
       await writeFile(
-        process.env.LOOM_CLOUD_RECEIPT!,
+        process.env.KELLO_CLOUD_RECEIPT!,
         JSON.stringify(
           {
             projectId,
@@ -460,8 +460,8 @@ test.skipIf(process.env.LOOM_CLOUD_SEARCH !== "1")(
       } finally {
         await admin.end();
         for (const [key, value] of Object.entries({
-          LOOM_DATABASE_URL: original.database,
-          LOOM_ACTIVATION_TOKEN: original.activation,
+          KELLO_DATABASE_URL: original.database,
+          KELLO_ACTIVATION_TOKEN: original.activation,
         })) {
           if (value === undefined) delete process.env[key];
           else process.env[key] = value;

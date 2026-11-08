@@ -72,7 +72,7 @@ try {
     const link = new RPCLink({
       origin: server.url.origin,
       url: "/api/kello/rpc",
-      headers: { origin, "x-loom-protocol": "loom-orpc-2", "x-loom-version": String(generation + 1).repeat(64) },
+      headers: { origin, "x-kello-protocol": "kello-orpc-2", "x-kello-version": String(generation + 1).repeat(64) },
     });
     assert.equal(await link.call(["tasks", "generation"], undefined, { context: {} }), generation);
     await assert.rejects(link.call(["tasks", "fail"], undefined, { context: {} }), /Internal server error/);

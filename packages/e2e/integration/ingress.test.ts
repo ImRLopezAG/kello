@@ -22,26 +22,26 @@ import { createRealNeonApi } from "@neon/config-runtime/v1";
 import { withDeploymentConnection } from "../../../apps/kello-cli/src/tooling/deploy/neon/connection";
 import { handoffNeonIngress } from "../../../apps/kello-cli/src/tooling/deploy/neon/ingress";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "ingress handoff waits for admitted cron transactions and preserves old queued execution",
   async () => {
     if (!connectionString) throw new Error("Missing database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_${suffix}`;
+    const metadataNamespace = `kello_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
-    const saved = ["NEON_BRANCH", "DATABASE_URL", "LOOM_ACTIVATION_TOKEN"].map(
+    const saved = ["NEON_BRANCH", "DATABASE_URL", "KELLO_ACTIVATION_TOKEN"].map(
       (name) => [name, process.env[name]] as const,
     );
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const address = new URL(connectionString);
       const migrationRole = decodeURIComponent(address.username);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const version = "a".repeat(64);
       const token = "b".repeat(64);
       const binding = {
@@ -56,7 +56,7 @@ test.skipIf(!connectionString)(
       };
       process.env.NEON_BRANCH = binding.branchName;
       process.env.DATABASE_URL = address.href;
-      process.env.LOOM_ACTIVATION_TOKEN = token;
+      process.env.KELLO_ACTIVATION_TOKEN = token;
       await admin.query(
         `INSERT INTO "${metadataNamespace}".deployment_activations(deployment,version,project_id,branch_id,endpoint_host,database_name,token_hash,state) VALUES('app',$1,'project','branch',$2,$3,$4,'active')`,
         [version, binding.endpointHost, binding.databaseName, createHash("sha256").update(token).digest("hex")],

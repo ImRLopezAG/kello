@@ -29,7 +29,7 @@ The Drizzle defect and narrow patch are documented in `patches/README.md`. The m
 
 The Astro/Fumadocs fixture builds. Its TS/TSX types are checked with TypeScript 7; the Astro-specific semantic-check limitation is described above. React Doctor reported 100/100 with no findings. It is an integration fixture, not the completed documentation site.
 
-Neon connector access is available; read-only lookup found no project matching Loom. Regions were listed successfully. A disposable cloud target has not been selected or created, so Functions, storage, triggers, actual provider PostgreSQL version, and provider quotas remain unverified. Local PostgreSQL success is not cloud acceptance. Select an explicit disposable target before U14-U17 cloud tests; do not reuse unrelated projects.
+Neon connector access is available; read-only lookup found no project matching Kello. Regions were listed successfully. A disposable cloud target has not been selected or created, so Functions, storage, triggers, actual provider PostgreSQL version, and provider quotas remain unverified. Local PostgreSQL success is not cloud acceptance. Select an explicit disposable target before U14-U17 cloud tests; do not reuse unrelated projects.
 
 Effect's optional anti-slop rule is enabled because Effect is a direct test dependency. It covers relative service imports; package-alias imports are not enforced by that rule.
 

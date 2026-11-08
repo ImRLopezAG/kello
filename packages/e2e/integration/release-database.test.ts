@@ -18,16 +18,16 @@ import {
 } from "kello-cli";
 import type { DeploymentDatabaseProvider } from "kello-cli";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "database release resumes verified stages and preserves active branch work",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `app_${suffix}`;
-    const metadataNamespace = `loom_meta_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-release-db-"));
+    const metadataNamespace = `kello_meta_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
+    const root = await mkdtemp(join(tmpdir(), "kello-release-db-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     const address = new URL(connectionString);
@@ -151,7 +151,7 @@ test.skipIf(!connectionString)(
           expect(
             (
               await admin.query("SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS acquired", [
-                `loom:deployment:${metadataNamespace}`,
+                `kello:deployment:${metadataNamespace}`,
               ])
             ).rows,
           ).toEqual([{ acquired: false }]);
@@ -219,7 +219,7 @@ test.skipIf(!connectionString)(
       ).toEqual([{ count: 0 }]);
       const receipt = await readFile(join(root, ".kello/releases", options.releaseKey, "release.json"), "utf8");
       expect(receipt).not.toContain(options.activationToken);
-      expect(receipt).not.toContain("loom-local-only");
+      expect(receipt).not.toContain("kello-local-only");
       await writeFile(
         schemaFile,
         (await readFile(schemaFile, "utf8")).replace(
@@ -290,7 +290,7 @@ test.skipIf(!connectionString)(
         deployment: indexedRelease.deployment,
         slugs: { service: "service", worker: "worker" },
         activationTokenEnv: "UNSET_COMPATIBILITY_TOKEN",
-        variables: { LOOM_DATABASE_URL: "UNSET_COMPATIBILITY_RUNTIME" },
+        variables: { KELLO_DATABASE_URL: "UNSET_COMPATIBILITY_RUNTIME" },
       };
       const declarationFile = "compatibility.json";
       type CompatibilityDeclaration = Omit<typeof declaration, "quarantine"> & { quarantine: "clone" | "preserve" };
@@ -341,10 +341,10 @@ test.skipIf(!connectionString)(
           )
         ).rows,
       ).toEqual([{ count: 0 }]);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       const restrictedAddress = new URL(connectionString);
       restrictedAddress.username = runtimeRole;
-      restrictedAddress.password = "loom-test-only";
+      restrictedAddress.password = "kello-test-only";
       await writeDeclaration({ ...declaration, migrationRole: runtimeRole });
       await assert.rejects(
         declareProjectCompatibility(root, declarationFile, {

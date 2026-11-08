@@ -1,5 +1,5 @@
 import { NeonCredentialError } from "../../neon/credentials";
-import { createKelloNeonApi, createKelloNeonClient } from "../../neon/api";
+import { createKelloNeonApi, createKelloNeonClient, neonCall, waitForProvisioning } from "../../neon/api";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { NeonApi } from "@neon/config-runtime/v1";
@@ -17,6 +17,8 @@ export type NeonBranchProvisionProvider = Pick<NeonApi, "getProject" | "listBran
       initSource?: "parent-data" | "schema-only";
     },
   ): Promise<{ branch: { id: string } }>;
+  /** Waits for a created branch's provisioning; runs after its id is recorded. */
+  ready?(projectId: string, branchId: string): Promise<void>;
 };
 const identifier = v.pipe(v.string(), v.regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/));
 export const branchProvisionOptionsValidator = v.strictObject({
@@ -80,19 +82,30 @@ function providerOrDefault(provider?: NeonBranchProvisionProvider): NeonBranchPr
   if (provider) return provider;
   const api = createKelloNeonApi();
   const client = createKelloNeonClient();
+  // Recorded just before the create POST so readiness can skip operations that predate it.
+  let createdSince: number | undefined;
   return {
     getProject: (projectId) => api.getProject(projectId),
     listBranches: (projectId) => api.listBranches(projectId),
     listEndpoints: (projectId) => api.listEndpoints(projectId),
-    createBranch: async (projectId, options) => ({
-      branch: await client.branches.create({
-        projectId,
-        name: options.name,
-        parent_id: options.parentId,
-        protected: options.protected,
-        init_source: options.initSource ?? "parent-data",
-      }),
-    }),
+    createBranch: async (projectId, options) => {
+      createdSince = Date.now();
+      return {
+        branch: await neonCall(
+          client.branches.create(
+            {
+              projectId,
+              name: options.name,
+              parent_id: options.parentId,
+              protected: options.protected,
+              init_source: options.initSource ?? "parent-data",
+            },
+            { waitForReadiness: false },
+          ),
+        ),
+      };
+    },
+    ready: (projectId, branchId) => waitForProvisioning(client, projectId, branchId, createdSince),
   };
 }
 
@@ -186,6 +199,17 @@ export async function provisionNeonBranch(
         );
         branchId = created.branch.id;
       } catch (cause) {
+        // A credential failure means Neon refused the request before applying it.
+        if (cause instanceof NeonCredentialError) {
+          await save({
+            format: 1,
+            identity: options,
+            postgresVersion: 18,
+            state: "rejected",
+            status: cause.code === "NEON_PERMISSION_DENIED" ? 403 : 401,
+          });
+          throw cause;
+        }
         const rejection = v.safeParse(
           v.object({ kind: v.picklist(["api", "auth", "not_found", "rate_limit"]), status: rejectedStatus }),
           cause,
@@ -213,6 +237,8 @@ export async function provisionNeonBranch(
     }
     signal?.throwIfAborted();
     const acknowledged = receipt;
+    // The create is acknowledged: a failure here, credentials included, resumes on the known id.
+    if (acknowledged.state === "created") await api.ready?.(options.projectId, acknowledged.branchId);
     async function verifyBranch() {
       const { branches } = await inspectProvisionParent(options, api);
       const branch = branches.find((entry) => entry.id === acknowledged.branchId);

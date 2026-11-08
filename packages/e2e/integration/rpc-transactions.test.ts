@@ -40,20 +40,20 @@ declare module "kello/contract" {
   }
 }
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "native procedures validate, rollback, replay and reauthorize inside PostgreSQL",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_rpc_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_rpc_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
       await admin.query(`GRANT "${runtimeRole}" TO CURRENT_USER`);
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       await admin.query(
         `CREATE TABLE "${metadataNamespace}".counter (value integer NOT NULL, allowed boolean NOT NULL)`,
       );
@@ -61,7 +61,7 @@ test.skipIf(!connectionString)(
       await admin.query(`GRANT SELECT, UPDATE ON "${metadataNamespace}".counter TO "${runtimeRole}"`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const relations = defineRelations(schema.tables);
       const connection = await connectDatabase({ schema, relations, connectionString: address.href });

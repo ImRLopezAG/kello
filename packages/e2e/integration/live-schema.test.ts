@@ -4,7 +4,7 @@ import { defineSchema, defineTable } from "kello/server";
 import { emptySnapshot, inspectSnapshot, planMigration } from "kello-cli";
 import pg from "pg";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "live introspection plans from actual catalog changes without moving the release baseline",
   async () => {

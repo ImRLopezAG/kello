@@ -4,7 +4,7 @@
 
 ## Authority and intent
 
-Canonical checkout: `/Users/angel/.t3/worktrees/loom/release-kello-001-002-alpha`. Opening and closing branch: `refactor/neon-cloud-tooling`. Opening and closing HEAD: `623a764820e972aa896dd12d1d88586ef95b384c`.
+Canonical checkout: `/Users/angel/.t3/worktrees/kello/release-kello-001-002-alpha`. Opening and closing branch: `refactor/neon-cloud-tooling`. Opening and closing HEAD: `623a764820e972aa896dd12d1d88586ef95b384c`.
 
 The intended contract is local author watching/codegen/build with ordinary explicit Neon preview releases, pinned target/version, serialized and coalesced cancellation, last-good retention, and no local backend/jobs/database. Natural `.live()` through the official SDK and ordinary HTTP async streams remain the product contract. This correction does not authorize redesigning those surfaces.
 

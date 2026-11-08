@@ -112,7 +112,7 @@ async function runOnboardingCommand(
     await writeManagedPublicEnvironment(root, {
       NEON_PROJECT_ID: resolved.projectId,
       NEON_BRANCH_ID: resolved.branchId,
-      LOOM_URL: resolved.public.serviceUrl ?? null,
+      KELLO_URL: resolved.public.serviceUrl ?? null,
       NEON_AUTH_URL: resolved.public.authUrl ?? null,
     });
   }

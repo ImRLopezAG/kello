@@ -94,7 +94,7 @@ void components.mount0.rpc.internal;`,
 async function generation(count: number) {
   const observations = [];
   for (let sample = 0; sample < samples; sample++) {
-    const root = await mkdtemp(join(tmpdir(), "loom-components-benchmark-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-components-benchmark-"));
     try {
       await fixture(root, count);
       const freshGenerationMs = await timed(() => generateProject(root));

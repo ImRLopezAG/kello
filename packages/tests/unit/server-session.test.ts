@@ -72,7 +72,7 @@ test("SSR abort tears down a blocked request without waiting for its callback", 
 
 test("hydration scope is retained only for the same server-verified identity", async () => {
   for (const identity of ["alice", "bob"]) {
-    const cachePrefix = `loom:${crypto.randomUUID()}`;
+    const cachePrefix = `kello:${crypto.randomUUID()}`;
     const cleared: string[] = [];
     const opened: string[] = [];
     const lifecycle = createAuthLifecycle({
@@ -113,14 +113,14 @@ test("hydration rejects forged hashes and foreign cache entries", () => {
   const client = new QueryClient();
   client.setQueryData(["foreign"], 42);
   const state = dehydrate(client);
-  expect(() => decodeHydration(JSON.stringify({ json: state }), "loom:owned")).toThrow("outside");
-  state.queries[0]!.queryKey = ["loom:owned"];
-  expect(() => decodeHydration(JSON.stringify({ json: state }), "loom:owned")).toThrow("outside");
+  expect(() => decodeHydration(JSON.stringify({ json: state }), "kello:owned")).toThrow("outside");
+  state.queries[0]!.queryKey = ["kello:owned"];
+  expect(() => decodeHydration(JSON.stringify({ json: state }), "kello:owned")).toThrow("outside");
 });
 
 test("hydration preserves oRPC dates and bigints through a serializable payload", () => {
   const client = new QueryClient();
-  const prefix = "loom:scope";
+  const prefix = "kello:scope";
   const data = { at: new Date("2026-09-26T12:00:00Z"), count: 42n };
   client.setQueryData([prefix, "data"], data);
   const restored = decodeHydration(encodeHydration(dehydrate(client)), prefix);
@@ -129,7 +129,7 @@ test("hydration preserves oRPC dates and bigints through a serializable payload"
 
 test("persisted paused mutations cannot enter a new provider through hydration", () => {
   const client = new QueryClient();
-  const prefix = `loom:${crypto.randomUUID()}`;
+  const prefix = `kello:${crypto.randomUUID()}`;
   client.getMutationCache().build(
     client,
     { mutationKey: [prefix, "update"] },

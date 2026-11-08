@@ -22,7 +22,7 @@ function digest(value: string): string {
 
 export function validateIdempotencyOptions(options: IdempotencyOptions): void {
   if (!options.deployment || options.deployment.length > 256) throw new Error("Invalid deployment identity");
-  if (!/^loom_[a-zA-Z0-9_]{1,58}$/.test(options.metadataNamespace))
+  if (!/^kello_[a-zA-Z0-9_]{1,57}$/.test(options.metadataNamespace))
     throw new Error("Invalid idempotency metadata namespace");
 }
 

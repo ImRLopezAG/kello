@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { generateProject, initializeProject } from "kello-cli";
 
 test("generated HTTP handlers retain own SDK, environment and private caller types", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-http-types-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-http-types-"));
   try {
     await initializeProject(root, "services");
     await mkdir(join(root, "node_modules"));

@@ -39,8 +39,8 @@ test("ordinary HTTP RPC streams values and finalizes on cancellation without soc
       headers: {
         authorization: "Bearer fixture",
         origin: "https://app.test",
-        "x-loom-version": version,
-        "x-loom-protocol": "loom-orpc-2",
+        "x-kello-version": version,
+        "x-kello-protocol": "kello-orpc-2",
       },
       fetch: async (input, init) => {
         const request = new Request(input, init);
@@ -75,7 +75,7 @@ test("retired socket and ticket routes do not issue credentials or invoke authen
       return { identity: { issuer: "fixture", subject: "alice" }, expiresAt: Date.now() / 1000 + 60 };
     },
   });
-  for (const path of ["/api/kello/socket", "/api/kello/ws", "/api/kello/ticket", "/api/loom/ws", "/api/loom/ticket"]) {
+  for (const path of ["/api/kello/socket", "/api/kello/ws", "/api/kello/ticket"]) {
     const response = await app.fetch(
       new Request(`https://service.test${path}`, {
         method: "POST",

@@ -57,8 +57,8 @@ test("authentication configuration requires explicit safe JWKS and canonical ori
 });
 
 test("project paths reject traversal and symlink escapes without requiring the output to exist", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-config-"));
-  const outside = await mkdtemp(join(tmpdir(), "loom-outside-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-config-"));
+  const outside = await mkdtemp(join(tmpdir(), "kello-outside-"));
   try {
     await mkdir(join(root, "kello"));
     await symlink(outside, join(root, "linked"));

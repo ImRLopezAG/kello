@@ -20,16 +20,16 @@ import pg from "pg";
 import type { DeploymentDatabaseProvider } from "kello-cli";
 import { catalogFingerprint } from "../../../apps/kello-cli/src/tooling/migrations/drift";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "locked ORM migrations apply once, roll back failed upgrades, preserve runtime boundaries and reject drift",
   async () => {
     if (!connectionString) throw new Error("Missing test database");
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const namespace = `app_${suffix}`;
-    const metadataNamespace = `loom_meta_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-runner-"));
+    const metadataNamespace = `kello_meta_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
+    const root = await mkdtemp(join(tmpdir(), "kello-runner-"));
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     await admin.query("SET search_path = pg_catalog");
@@ -157,7 +157,7 @@ test.skipIf(!connectionString)(
           await assert.rejects(inspectReleaseDatabase(client, root, releaseSchema), /inconsistent/i);
           await admin.query(`ALTER TABLE "${namespace}".tasks DROP COLUMN outside_release`);
           expect((await inspectReleaseDatabase(client, root, releaseSchema)).head).toBe(required.after);
-          for (const lock of [`loom:deployment:${metadataNamespace}`, `loom:migrations:${namespace}`]) {
+          for (const lock of [`kello:deployment:${metadataNamespace}`, `kello:migrations:${namespace}`]) {
             expect(
               (
                 await admin.query<{ acquired: boolean }>(

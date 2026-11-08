@@ -33,7 +33,7 @@ test("application shutdown aborts and drains HTTP calls and refuses new work", a
   });
   const request = new Request("https://api.example.test/api/kello/rpc/read", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-loom-protocol": "loom-orpc-2", "x-loom-version": version },
+    headers: { "content-type": "application/json", "x-kello-protocol": "kello-orpc-2", "x-kello-version": version },
     body: JSON.stringify({ json: null }),
   });
   const pending = app.fetch(request);

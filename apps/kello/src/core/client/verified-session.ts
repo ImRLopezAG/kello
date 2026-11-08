@@ -20,8 +20,8 @@ export async function verifyClientSession(
   if (!token) throw new Error("Authentication required");
   const headers = new Headers({
     authorization: `Bearer ${token}`,
-    "x-loom-protocol": "loom-orpc-2",
-    "x-loom-version": options.version,
+    "x-kello-protocol": "kello-orpc-2",
+    "x-kello-version": options.version,
   });
   if (options.sessionCookie) headers.set("cookie", options.sessionCookie);
   const response = await fetch(`${options.url.replace(/\/$/, "")}/api/kello/session`, {

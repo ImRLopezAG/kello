@@ -8,7 +8,7 @@ export interface ProcedureUpgradeOptions {
   readonly metadataNamespace: string;
   readonly deployment: string;
   readonly version: string;
-  readonly protocol: "loom-legacy-1" | "loom-orpc-2";
+  readonly protocol: "kello-legacy-1" | "kello-orpc-2";
   readonly procedures: readonly RuntimeProcedureEntry[];
   readonly migrations: readonly JobMigration[];
   readonly dryRun?: boolean;
@@ -81,10 +81,10 @@ export async function withProcedureUpgrade<T>(
   options: ProcedureUpgradeOptions,
   activate: () => Promise<T>,
 ): Promise<T> {
-  const namespace = v.parse(v.pipe(databaseIdentifier, v.regex(/^loom_/)), options.metadataNamespace);
+  const namespace = v.parse(v.pipe(databaseIdentifier, v.regex(/^kello_/)), options.metadataNamespace);
   const version = v.parse(hash, options.version);
   const deployment = v.parse(v.pipe(v.string(), v.minLength(1), v.maxLength(256)), options.deployment);
-  const protocol = v.parse(v.picklist(["loom-legacy-1", "loom-orpc-2"]), options.protocol);
+  const protocol = v.parse(v.picklist(["kello-legacy-1", "kello-orpc-2"]), options.protocol);
   const dryRun = options.dryRun === true;
   const meta = quoteIdentifier(namespace);
   const mappings = compileJobMigrations({
@@ -128,7 +128,7 @@ export async function withProcedureUpgrade<T>(
       const observedVersion = v.is(hash, job.version) ? job.version : null;
       const assigned = job.claim_version ?? job.version;
       if (assigned === version) {
-        if (protocol === "loom-orpc-2") {
+        if (protocol === "kello-orpc-2") {
           try {
             await mappings.resolve(job.call);
           } catch {
@@ -140,7 +140,7 @@ export async function withProcedureUpgrade<T>(
         continue;
       }
       let reason: ProcedureUpgradeBlocker["reason"] | undefined;
-      if (protocol !== "loom-orpc-2") {
+      if (protocol !== "kello-orpc-2") {
         // Retained legacy workers continue their own envelopes. A transferred or
         // native envelope cannot be handed back to an old runtime by rollback.
         if (job.claim_version === null && isLegacyJobCall(job.call)) continue;

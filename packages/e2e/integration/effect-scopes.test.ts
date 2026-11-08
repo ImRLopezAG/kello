@@ -4,7 +4,7 @@ import { Effect, Layer } from "effect";
 import { defineRelations, sql } from "drizzle-orm";
 import { connectDatabase, createEffectRuntime, defineSchema, runFunctionTransaction } from "kello/server";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)("interruption drains PostgreSQL work before releasing its client", async () => {
   const schema = defineSchema(() => ({}));
   const connection = await connectDatabase({

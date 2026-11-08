@@ -15,7 +15,7 @@ import type { readProjectRelease } from "../../../apps/kello-cli/src/tooling/dep
 import { withFrameworkPrefixFixture, makeVersion26, historySnapshot } from "../fixtures/framework-prefix-readiness";
 import type { FrameworkPrefixFixture } from "../fixtures/framework-prefix-readiness";
 
-const nativeTest = test.skipIf(!process.env.LOOM_TEST_DATABASE_URL);
+const nativeTest = test.skipIf(!process.env.KELLO_TEST_DATABASE_URL);
 const runnerOptions = (fixture: FrameworkPrefixFixture) => ({
   connectionString: fixture.url,
   root: fixture.root,
@@ -70,7 +70,7 @@ async function writePlanningDeclaration(fixture: FrameworkPrefixFixture, retaine
     format: 1,
     slugs: { service: "service", worker: "worker" },
     activationTokenEnv: "DEPLOY_TOKEN",
-    variables: { LOOM_DATABASE_URL: "RUNTIME_URL" },
+    variables: { KELLO_DATABASE_URL: "RUNTIME_URL" },
   };
   if (retainedReleaseKey) {
     planningDeclaration.releaseKey = "f".repeat(64);
@@ -196,7 +196,7 @@ nativeTest(
           format: 1,
           slugs: { service: "service", worker: "worker" },
           activationTokenEnv: "DEPLOY_TOKEN",
-          variables: { LOOM_DATABASE_URL: "RUNTIME_URL" },
+          variables: { KELLO_DATABASE_URL: "RUNTIME_URL" },
         }),
       );
       await makeVersion26(fixture);

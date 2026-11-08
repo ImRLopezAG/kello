@@ -105,7 +105,7 @@ export async function createNativeSnapshot(
 ): Promise<MigrationSnapshot> {
   const namespace = v.parse(databaseIdentifier, schema.namespace);
   const imports =
-    namespace === "public" ? { ...schema.tables } : { ...schema.tables, __loomNamespace: pgSchema(namespace) };
+    namespace === "public" ? { ...schema.tables } : { ...schema.tables, __kelloNamespace: pgSchema(namespace) };
   const generated = fromDrizzleSnapshot(await generateDrizzleJson(imports, previous?.id, [namespace]));
   // Never canonicalize persisted history or reinterpret its recorded safety. Keep raw native
   // output, retaining only a proved-equivalent baseline spelling during regeneration.

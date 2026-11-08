@@ -23,25 +23,25 @@ import {
   createApplicationRpc,
 } from "kello/server";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "assembled native runtime owns HTTP calls, internal jobs, activation and shutdown",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_rpc_runtime_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_rpc_runtime_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       await admin.query(`CREATE TABLE "${metadataNamespace}".counter (value integer NOT NULL)`);
       await admin.query(`INSERT INTO "${metadataNamespace}".counter VALUES (0)`);
       await admin.query(`GRANT SELECT, UPDATE ON "${metadataNamespace}".counter TO "${runtimeRole}"`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const relations = defineRelations(schema.tables);
       const application = defineApplication({
@@ -213,7 +213,7 @@ test.skipIf(!connectionString)(
           new RPCLink({
             origin: "https://kello.test",
             url: "/api/kello/rpc",
-            headers: { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version, "idempotency-key": "enqueue" },
+            headers: { "x-kello-protocol": "kello-orpc-2", "x-kello-version": version, "idempotency-key": "enqueue" },
             fetch: (url, init) => app.fetch(new Request(url, init)),
           }),
         );
@@ -316,7 +316,7 @@ test.skipIf(!connectionString)(
         const restService = await createNeonRpcService(restOptions);
         const restDevelopment = await startHttpHandlerServer(await createRpcRuntime(restOptions));
         try {
-          const headers = { "x-loom-protocol": "loom-orpc-2", "x-loom-version": version };
+          const headers = { "x-kello-protocol": "kello-orpc-2", "x-kello-version": version };
           for (const fetchRest of [
             (path: string, supplied: HeadersInit = headers) =>
               restService.fetch(
@@ -330,7 +330,7 @@ test.skipIf(!connectionString)(
             expect(await response.json()).toBe(6);
             expect((await fetchRest("increment")).status).toBe(404);
             expect((await fetchRest("read", { ...headers, authorization: "invalid" })).status).toBe(401);
-            expect((await fetchRest("read", { ...headers, "x-loom-version": "0".repeat(64) })).status).toBe(409);
+            expect((await fetchRest("read", { ...headers, "x-kello-version": "0".repeat(64) })).status).toBe(409);
           }
         } finally {
           await restService.stop();

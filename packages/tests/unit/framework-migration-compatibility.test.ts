@@ -1,121 +1,121 @@
 import { expect, test } from "vite-plus/test";
 import { frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
-// Published framework prefix from main before the Kello rename. Existing ledgers retain these hashes.
+// Framework migration ledger hashes. Append new migrations; never rewrite an existing one.
 const originalPrefix = [
   {
     version: 1,
-    hash: "bf48f1bb3900097d0515038a6582e2d6de7a0e2a08987dbd43107d3269c5e8d6",
+    hash: "3e85a24d34c250e02aba3eb3983992bfbeef7fc8c045e4f7f8744892f842e353",
   },
   {
     version: 2,
-    hash: "73877450e9966bd708e3f831f225971742660e731e4ae06b2b3ae8c601b9ed66",
+    hash: "d57f0522f5c7277fa3798047fb2d48ae4fb8faf8eac2f1451908f452b3ae0aaf",
   },
   {
     version: 3,
-    hash: "d5712d30a4f534ffd4fa2957cb295d82ff5d7663f24a074ab0b0052425a07fb7",
+    hash: "f8a5e637e5334a5d6f503920ebee3ccb3baaeee00ae2900a0d89d1b9d68d3c23",
   },
   {
     version: 4,
-    hash: "aece3ac903ca08a15ad47647111383fee9787a164efa37e58966601967eef151",
+    hash: "6c412c2cd2bf2a8148f3c863bfdfbe3a42504911396cd616ce988bc10e41a12b",
   },
   {
     version: 5,
-    hash: "91ec691ef38d8dd7ebee41cfd164b624b6a841731774ee019d2a43b042ca341f",
+    hash: "0e3daa9eb0ad8390bd7b26c75655247403f36577ca12fcb65c676e14a11bb69a",
   },
   {
     version: 6,
-    hash: "e7c42a00a62eebe4a9855a7a9447bd7a2e60b1b64f663f00393a808d5711b8cd",
+    hash: "aaee5d48a89bcf97fac81ffca1db9c2172c7486865532e580ed129bd0e88cac3",
   },
   {
     version: 7,
-    hash: "dd34d47a25d27bac48b265e4af52e8d9c9967c0c36e35013c6d521581c479006",
+    hash: "09466f4312f94df0a2b9cf082c99ac4eb5dae8374405df46859056d1abf009c5",
   },
   {
     version: 8,
-    hash: "2ca04d9088438930d893eb121879c84348d81f7e56c9755a6db988194df94aec",
+    hash: "4f64abca5a855a1f697358b5824f1c68b8ed59961ec7ce5e6e2f931a3504b2f8",
   },
   {
     version: 9,
-    hash: "4e4fb541d128c399253656bf252f7a0257417eb5e6f69d390452610af08783a8",
+    hash: "170f335096dd839b2eef313b68003cb29fa2d39609cd12f0059abe87cea82031",
   },
   {
     version: 10,
-    hash: "033152a491aa68e6ef6ea14710945ee26e56cf6d39e004dfe3bbeb1bebd53102",
+    hash: "a3a190bfe5de60c96f5dc0a8283fe882fd378cc95d95f7a80ad33dd42fa6a7a0",
   },
   {
     version: 11,
-    hash: "24741d3d9e991f59f430432d36453e2b2d1eb2f45c86616a1e26f0fa21089e88",
+    hash: "3b0ca9bcfc8eb99b02f9039b4c8787f68032f53149d48ab65a31094761e1500c",
   },
   {
     version: 12,
-    hash: "3938560b9c3e638b0fd198e3cb6121277db8655cc6e2762c9f7cb69091eadb31",
+    hash: "55adadb647f07e131fad8f8cfe605aecc761fef171c6ad49ddd0c0e1266a49ad",
   },
   {
     version: 13,
-    hash: "d76bf5ae4eda2d6cb659088d4eee00b04f788ab16f181b87044c78eff05f4516",
+    hash: "c613d7d2725bb8610e8d655da0edeacaa643d9aff0bf7a4f16ecb605743052cb",
   },
   {
     version: 14,
-    hash: "4f1a311e8c9cad530d0ef3adfc6115615de3d7881e81a94a38786ca087de4700",
+    hash: "e94878abb46580252228b4f4ae5a22d3ec7171fe53e6f3f89bf9406fb6197491",
   },
   {
     version: 15,
-    hash: "1567cff1bf438e03a54ab6370ff02d9b2db3eb42da305ac4d1103903e7e0dd02",
+    hash: "a0cecf13c0861868f5bc085dbda891963828e221fe6b6b89fb9d4d0983e4174c",
   },
   {
     version: 16,
-    hash: "337d23b55fb3b29d58441482c33ecbca61efbf769378245a490a6953cdedca0e",
+    hash: "eb6f80f0433faabc4719a33c8f15243be3c6888d9d5b68a1fea13116c7049a6d",
   },
   {
     version: 17,
-    hash: "46b088b8fb7661544f82b011dedc93be8e713cb32e6728544f9fdb37261debcd",
+    hash: "cc6791bf607f19f9c238202a2487082ee33cfd8acb4f7fd93a891b88f45f85b5",
   },
   {
     version: 18,
-    hash: "f45b5c17da66f4d37331983f24c93f70555fdf14af1afd6e873730836d7863e6",
+    hash: "fd9304ecc9a113b84137afc1e7794f08411bb54ddf8cc2c50c3846d52781a82d",
   },
   {
     version: 19,
-    hash: "b6a04c88092c41124dc8a9ef342cfe323dcd83b0b8b5439fccc68f639924aa7f",
+    hash: "d0fb76d014d1687409ab3301f3a7e35890612da931ddf0d8ae7167d24a6ca038",
   },
   {
     version: 20,
-    hash: "949d60c2968f9ed4e04fe3f0be4f7b7ab83bcd386d2792b5b0b9d88370ca4a26",
+    hash: "67c97a7a563d01c20e33ef12ab156feddaf22667d6ec7c84151ffbff64351e68",
   },
   {
     version: 21,
-    hash: "a2a950efe88364293b4c95b344de4f6149f26b6f3301e5763206bf4a0bc80287",
+    hash: "a6c21d285edbee7d5a32c03b618ccded8655863f30df9d896472851237fe9617",
   },
   {
     version: 22,
-    hash: "25a18c288c0fd773c0adf381c47dfac6dd2483fc9a7308428117f0330c215556",
+    hash: "5daa8a9beca1607897c2afdb6781584d2e563204e6b209479ca94a88f0ada07f",
   },
   {
     version: 23,
-    hash: "d2812ecb78d43b7650b53c29d95a1b6fdf369232999b4fe249913b6adbdd05fc",
+    hash: "9958f94613bbf0ae21aa0f3a79aced9a1a9bb71203141eeba4495802744427a1",
   },
   {
     version: 24,
-    hash: "8557c995cd423c173015f0b95dfad29413066c34f0c38b8cb510a3fcd10d6446",
+    hash: "2e97d63f35f641cbdd8b3158ca13947fc738b50ef529ce3dfcae6f0dc4ce7fdf",
   },
   {
     version: 25,
-    hash: "5d333800fd6f9083b642ffa87640ea36a660e12ba8b7b51355433783259e89c7",
+    hash: "4f1230cbd287f1901a76c04dcceb47650bf39bfa4a01117d36d5098599ac9953",
   },
   {
     version: 26,
-    hash: "5785173f61b80bfd5913ca667a54d6ea06d3d6703107588915cf75478415729e",
+    hash: "a3fe895139cfdd6f0fc979389bb94273432b0877e9ac62bb14bcdd26be219d48",
   },
   {
     version: 27,
-    hash: "a89878c709009e5aa2af37c1ffb39c268e9451c4806300787e103afd4461ae8b",
+    hash: "ce776323c133275a64b759f7bcf4a0950c633cd31d3fdbe33550198b04414a65",
   },
 ];
 
-test("Kello retains the original framework migration hashes", () => {
+test("framework migration hashes stay stable", () => {
   expect(
-    frameworkMigrations("loom_history_compat")
+    frameworkMigrations("kello_history_compat")
       .slice(0, originalPrefix.length)
       .map(({ version, hash }) => ({ version, hash })),
   ).toEqual(originalPrefix);

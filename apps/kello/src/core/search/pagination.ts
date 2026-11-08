@@ -55,7 +55,7 @@ export async function prepareSearchPage(
   const timestamps = order.flatMap(({ field }, index) => {
     const metadata = descriptor.node.public.fields?.[field] ?? descriptor.node.public.columns[field];
     if (!metadata || metadata === "_id" || metadata === "_createdAt" || metadata.kind !== "timestamp") return [];
-    let alias = `_loom_search_timestamp_${index}`;
+    let alias = `_kello_search_timestamp_${index}`;
     while (Object.hasOwn(columns, alias)) alias = `_${alias}`;
     return [{ field, alias }];
   });

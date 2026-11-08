@@ -6,7 +6,7 @@ Reviewer: one gpt-6-astra LOW context, applying correctness, implementation/requ
 
 ## Scope and integrity
 
-Canonical checkout: `/Users/angel/.t3/worktrees/loom/release-kello-001-002-alpha`.
+Canonical checkout: `/Users/angel/.t3/worktrees/kello/release-kello-001-002-alpha`.
 Branch: `refactor/neon-cloud-tooling`.
 Base and current HEAD: `586e87791735da2282d2dc120f8e084a13764dca`.
 Reviewed working-tree changes against that HEAD, including untracked new-file bodies, within the exact 69-path union `/tmp/kello-u2-review-paths.txt`. The supplied initial list actually contains 33 unique paths, the R2 list 52; their union is exactly 69. This count discrepancy does not alter the reviewed union.

@@ -252,7 +252,7 @@ describe("schema full-text documents", () => {
     const invalidWeight: FullTextDocument = { ...document, fields: [{ field: "title", weight: "A" }] };
     Object.assign(invalidWeight.fields[0]!, { weight: "E" });
     expect(() => schemaFor({ content: invalidWeight })).toThrow("Invalid full-text weight");
-    for (const name of ["_system", "loom_search", "two words", "x".repeat(64)])
+    for (const name of ["_system", "kello_search", "two words", "x".repeat(64)])
       expect(() => schemaFor({ [name]: document })).toThrow();
     expect(() => schemaFor({ searchDoc: document, search_doc: document })).toThrow("SQL-name collision");
   });

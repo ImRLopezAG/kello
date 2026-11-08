@@ -14,7 +14,7 @@ import {
 } from "kello-cli";
 
 test("explicit auth component mounts own native migrations and retain removed plugin tables", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-auth-migrations-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-auth-migrations-"));
   try {
     await initializeProject(root, "auth");
     await mkdir(join(root, "node_modules"));
@@ -70,7 +70,7 @@ test("explicit auth component mounts own native migrations and retain removed pl
   }
 }, 60_000);
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "migration runner grants native auth DML without entity triggers and preserves plugin records",
   async () => {
@@ -90,9 +90,9 @@ test.skipIf(!connectionString)(
     const suffix = crypto.randomUUID().replaceAll("-", "");
     const mountPath = `identity_${suffix}`;
     const namespace = componentNamespace(mountPath);
-    const metadataNamespace = `loom_test_${suffix}`;
+    const metadataNamespace = `kello_test_${suffix}`;
     const runtimeRole = `runtime_${suffix}`;
-    const root = await mkdtemp(join(tmpdir(), "loom-auth-runner-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-auth-runner-"));
     const admin = new Client({ connectionString });
     await admin.connect();
     const migrations = "kello/_generated/migrations";

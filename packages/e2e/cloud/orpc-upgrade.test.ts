@@ -22,15 +22,15 @@ import {
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
 
 const hash = v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/));
-test.skipIf(process.env.LOOM_CLOUD_UPGRADE !== "1")(
+test.skipIf(process.env.KELLO_CLOUD_UPGRADE !== "1")(
   "populated Neon release resumes and migrates a retained legacy job",
   async () => {
     const projectId = process.env.KELLO_CLOUD_PROJECT_ID;
-    const branchId = process.env.LOOM_CLOUD_BRANCH_ID;
-    const connectionString = process.env.LOOM_MIGRATION_DATABASE_URL;
-    const runtimeRole = process.env.LOOM_CLOUD_RUNTIME_ROLE;
+    const branchId = process.env.KELLO_CLOUD_BRANCH_ID;
+    const connectionString = process.env.KELLO_MIGRATION_DATABASE_URL;
+    const runtimeRole = process.env.KELLO_CLOUD_RUNTIME_ROLE;
     const apiKey = process.env.NEON_API_KEY;
-    const previousVersion = v.parse(hash, process.env.LOOM_CLOUD_PREVIOUS_VERSION);
+    const previousVersion = v.parse(hash, process.env.KELLO_CLOUD_PREVIOUS_VERSION);
     assert(projectId && branchId && connectionString && runtimeRole && apiKey);
     assert.match(runtimeRole, /^runtime_[a-f0-9]{32}$/);
     const config = defineConfig({
@@ -39,22 +39,22 @@ test.skipIf(process.env.LOOM_CLOUD_UPGRADE !== "1")(
       provider: { projectId, targets: { preview: { branchId } } },
     });
     const target = await inspectDeploymentTarget(config, "preview");
-    assert.match(target.branchName, /^loom-acceptance-/);
+    assert.match(target.branchName, /^kello-acceptance-/);
     assert(!target.protected);
     const provider = createNeonApiFromOptions("Kello populated upgrade acceptance", { apiKey });
-    const root = await mkdtemp(join(tmpdir(), "loom-cloud-upgrade-"));
+    const root = await mkdtemp(join(tmpdir(), "kello-cloud-upgrade-"));
     const admin = new pg.Client({ connectionString, connectionTimeoutMillis: 15000 });
     let stage = "prepare";
     try {
       await admin.connect();
       const beforeHistory = (
-        await admin.query("SELECT version,hash FROM loom_meta.framework_migrations ORDER BY version")
+        await admin.query("SELECT version,hash FROM kello_meta.framework_migrations ORDER BY version")
       ).rows;
       assert.equal(beforeHistory.length, 21, "Upgrade requires the historical metadata format");
       assert.equal(
         (
           await admin.query(
-            "SELECT count(*)::integer AS count FROM loom_meta.deployment_activations WHERE state='active' AND version=$1 AND project_id=$2 AND branch_id=$3",
+            "SELECT count(*)::integer AS count FROM kello_meta.deployment_activations WHERE state='active' AND version=$1 AND project_id=$2 AND branch_id=$3",
             [previousVersion, projectId, branchId],
           )
         ).rows[0]?.count,
@@ -63,7 +63,7 @@ test.skipIf(process.env.LOOM_CLOUD_UPGRADE !== "1")(
       );
       const beforeMigrations = (
         await admin.query(
-          "SELECT namespace,ordinal,name,hash FROM loom_meta.migration_history ORDER BY namespace,ordinal",
+          "SELECT namespace,ordinal,name,hash FROM kello_meta.migration_history ORDER BY namespace,ordinal",
         )
       ).rows;
       const beforeCount = (await admin.query<{ count: number }>("SELECT count(*)::integer AS count FROM app.tasks"))
@@ -83,7 +83,7 @@ test.skipIf(process.env.LOOM_CLOUD_UPGRADE !== "1")(
       };
       const jobId = crypto.randomUUID();
       await admin.query(
-        "INSERT INTO loom_meta.jobs(id,deployment,deduplication_key,fingerprint,call,identity,due_at,max_attempts,retry_delay_seconds) VALUES($1::uuid,'preview',$1::text,$2,$3::jsonb,$4::jsonb,clock_timestamp()+interval '1 hour',3,0)",
+        "INSERT INTO kello_meta.jobs(id,deployment,deduplication_key,fingerprint,call,identity,due_at,max_attempts,retry_delay_seconds) VALUES($1::uuid,'preview',$1::text,$2,$3::jsonb,$4::jsonb,clock_timestamp()+interval '1 hour',3,0)",
         [
           jobId,
           "f".repeat(64),
@@ -112,7 +112,7 @@ test.skipIf(process.env.LOOM_CLOUD_UPGRADE !== "1")(
           provider: { projectId, targets: { preview: { branchId } } },
           auth: {
             origins: ["https://upgrade.test"],
-            audience: "loom-acceptance",
+            audience: "kello-acceptance",
             issuers: [{ issuer: issuer.issuer, jwksUrl: issuer.jwksUrl }],
           },
           deployment: {
@@ -147,7 +147,7 @@ export default os.internal.maintenance.router({ touch: os.internal.maintenance.t
       await writeFile(
         join(root, "kello/upgrade.ts"),
         `import { defineJobMigration } from "kello/server"; import * as v from "valibot"; import maintenance from "./internal/maintenance"; const touch = maintenance.touch; import schema from "./schema";
-export default [defineJobMigration({from:{protocol:"loom-legacy-1",version:"${previousVersion}",name:"maintenance:touch",kind:"mutation"},input:v.strictObject({taskId:schema.id("tasks"),title:v.string()}),to:touch,transform:({taskId,title})=>({id:taskId,title})})];`,
+export default [defineJobMigration({from:{protocol:"kello-legacy-1",version:"${previousVersion}",name:"maintenance:touch",kind:"mutation"},input:v.strictObject({taskId:schema.id("tasks"),title:v.string()}),to:touch,transform:({taskId,title})=>({id:taskId,title})})];`,
       );
       stage = "generate successor";
       const generated = await generateProject(root);
@@ -161,8 +161,8 @@ export default [defineJobMigration({from:{protocol:"loom-legacy-1",version:"${pr
         timeout: 60000,
       }).catch(async (cause) => {
         const diagnostics = v.safeParse(v.object({ stdout: v.string() }), cause);
-        if (diagnostics.success && process.env.LOOM_CLOUD_RECEIPT)
-          await writeFile(`${process.env.LOOM_CLOUD_RECEIPT}.typecheck.log`, diagnostics.output.stdout, {
+        if (diagnostics.success && process.env.KELLO_CLOUD_RECEIPT)
+          await writeFile(`${process.env.KELLO_CLOUD_RECEIPT}.typecheck.log`, diagnostics.output.stdout, {
             mode: 0o600,
           });
         throw cause;
@@ -179,9 +179,9 @@ export default [defineJobMigration({from:{protocol:"loom-legacy-1",version:"${pr
       await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD '${password}'`);
       address.username = runtimeRole;
       address.password = password;
-      process.env.LOOM_DATABASE_URL = address.href;
-      process.env.LOOM_DIRECT_DATABASE_URL = address.href;
-      process.env.LOOM_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
+      process.env.KELLO_DATABASE_URL = address.href;
+      process.env.KELLO_DIRECT_DATABASE_URL = address.href;
+      process.env.KELLO_ACTIVATION_TOKEN = crypto.randomUUID().replaceAll("-", "").repeat(2);
       const interrupted = new AbortController();
       let submitted = false;
       const submit = provider.deployBranchFunction.bind(provider);
@@ -202,7 +202,7 @@ export default [defineJobMigration({from:{protocol:"loom-legacy-1",version:"${pr
       }
       assert(submitted, "Interruption must occur after a real provider submission");
       assert.deepEqual(
-        (await admin.query("SELECT call,state,attempts FROM loom_meta.jobs WHERE id=$1", [jobId])).rows,
+        (await admin.query("SELECT call,state,attempts FROM kello_meta.jobs WHERE id=$1", [jobId])).rows,
         [{ call: original, state: "pending", attempts: 0 }],
       );
       stage = "resume deployment";
@@ -213,14 +213,14 @@ export default [defineJobMigration({from:{protocol:"loom-legacy-1",version:"${pr
       const receipt = await readNeonFunctionReceipt(root, functions.artifactHash);
       const service = receipt.functions[0].invocationUrl;
       assert(service);
-      const history = (await admin.query("SELECT version,hash FROM loom_meta.framework_migrations ORDER BY version"))
+      const history = (await admin.query("SELECT version,hash FROM kello_meta.framework_migrations ORDER BY version"))
         .rows;
       assert.deepEqual(history.slice(0, beforeHistory.length), beforeHistory);
       assert.equal(history.length, 23);
       assert.deepEqual(
         (
           await admin.query(
-            "SELECT namespace,ordinal,name,hash FROM loom_meta.migration_history ORDER BY namespace,ordinal",
+            "SELECT namespace,ordinal,name,hash FROM kello_meta.migration_history ORDER BY namespace,ordinal",
           )
         ).rows,
         beforeMigrations,
@@ -235,11 +235,11 @@ export default [defineJobMigration({from:{protocol:"loom-legacy-1",version:"${pr
         { code: "VERSION_MISMATCH" },
       );
       stage = "scheduled provider worker";
-      await admin.query("UPDATE loom_meta.jobs SET due_at=clock_timestamp() WHERE id=$1", [jobId]);
+      await admin.query("UPDATE kello_meta.jobs SET due_at=clock_timestamp() WHERE id=$1", [jobId]);
       const deadline = performance.now() + 180000;
       for (;;) {
         const saved = (
-          await admin.query("SELECT call,state,attempts,claim_version FROM loom_meta.jobs WHERE id=$1", [jobId])
+          await admin.query("SELECT call,state,attempts,claim_version FROM kello_meta.jobs WHERE id=$1", [jobId])
         ).rows[0];
         assert(saved);
         assert.deepEqual(saved.call, original);
@@ -256,9 +256,9 @@ export default [defineJobMigration({from:{protocol:"loom-legacy-1",version:"${pr
         (await admin.query("SELECT title FROM app.tasks WHERE _id=$1", [task.id])).rows[0].title,
         "upgraded-worker",
       );
-      if (process.env.LOOM_CLOUD_RECEIPT)
+      if (process.env.KELLO_CLOUD_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_RECEIPT,
+          process.env.KELLO_CLOUD_RECEIPT,
           JSON.stringify(
             {
               projectId,
@@ -277,9 +277,9 @@ export default [defineJobMigration({from:{protocol:"loom-legacy-1",version:"${pr
           ),
         );
     } catch (cause) {
-      if (process.env.LOOM_CLOUD_RECEIPT)
+      if (process.env.KELLO_CLOUD_RECEIPT)
         await writeFile(
-          process.env.LOOM_CLOUD_RECEIPT,
+          process.env.KELLO_CLOUD_RECEIPT,
           JSON.stringify(
             {
               projectId,

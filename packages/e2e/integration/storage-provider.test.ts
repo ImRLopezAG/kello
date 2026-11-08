@@ -46,7 +46,7 @@ test("storage refuses unverified, mismatched and missing objects without publish
     const upload = await f.storage.signUpload(f.intent, 120);
     const path = new URL(upload.url).pathname;
     const headers = { ...upload.headers };
-    f.objects.set(path, { body: f.body, headers: { ...headers, "x-amz-meta-loom-intent": randomUUID() } });
+    f.objects.set(path, { body: f.body, headers: { ...headers, "x-amz-meta-kello-intent": randomUUID() } });
     await assert.rejects(f.storage.sealUpload(f.intent), StorageVerificationError);
     f.objects.set(path, { body: Buffer.from("tampered upload"), headers });
     await assert.rejects(f.storage.sealUpload(f.intent), StorageVerificationError);
@@ -97,7 +97,7 @@ test("inherited ready reads retain origin keys and metadata through the child pr
     assert.notEqual(new URL(download.url).origin, new URL(upload.url).origin);
     assert.deepEqual(Buffer.from(await (await fetch(download.url)).arrayBuffer()), parent.body);
     await assert.rejects(child.storage.signDownload(parent.intent, 60, undefined, { branchId: "../br-preview" }));
-    child.objects.get(`/uploads/${ready.key}`)!.headers["x-amz-meta-loom-branch"] = "br-other";
+    child.objects.get(`/uploads/${ready.key}`)!.headers["x-amz-meta-kello-branch"] = "br-other";
     await assert.rejects(
       child.storage.signDownload(parent.intent, 60, undefined, { branchId: "br-preview" }),
       StorageVerificationError,

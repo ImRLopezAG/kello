@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { integrateProject, createNeonProject, type OnboardingProvider } from "kello-cli";
 
 test("integration previews and preserves existing frontend configuration", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-integrate-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-integrate-"));
   try {
     const application = JSON.stringify({ name: "frontend", dependencies: { next: "16.0.0" } });
     await writeFile(join(root, "package.json"), application);
@@ -30,7 +30,7 @@ test("integration previews and preserves existing frontend configuration", async
 });
 
 test("an ambiguous create is reconciled without replaying the mutation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-create-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-create-"));
   const projects: { id: string; name: string; orgId: string }[] = [];
   let creates = 0;
   const provider: OnboardingProvider = {
@@ -62,7 +62,7 @@ test("an ambiguous create is reconciled without replaying the mutation", async (
 });
 
 test("a missing result or denied create stays unresolved without issuing a second create", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-create-denied-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-create-denied-"));
   let creates = 0;
   const provider: OnboardingProvider = {
     organizations: async () => [],
@@ -86,7 +86,7 @@ test("a missing result or denied create stays unresolved without issuing a secon
 });
 
 test("concurrent create calls cannot both mutate Neon", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-create-concurrent-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-create-concurrent-"));
   const entered = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   let creates = 0;
@@ -117,7 +117,7 @@ test("concurrent create calls cannot both mutate Neon", async () => {
 });
 
 test("a definite permission rejection permits an explicit retry after access is repaired", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-create-permission-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-create-permission-"));
   let creates = 0;
   const provider: OnboardingProvider = {
     organizations: async () => [],
@@ -140,7 +140,7 @@ test("a definite permission rejection permits an explicit retry after access is 
 });
 
 test("an existing link prevents an accidental extra cloud project", async () => {
-  const root = await mkdtemp(join(tmpdir(), "loom-create-linked-"));
+  const root = await mkdtemp(join(tmpdir(), "kello-create-linked-"));
   let creates = 0;
   const provider: OnboardingProvider = {
     organizations: async () => [],

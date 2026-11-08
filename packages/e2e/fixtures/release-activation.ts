@@ -25,18 +25,18 @@ import {
 } from "kello-cli";
 
 const [root, certificate, key] = process.argv.slice(2);
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 if (!root || !certificate || !key || !connectionString) throw new Error("Missing fixture inputs");
 const suffix = crypto.randomUUID().replaceAll("-", "");
 const namespace = `app_${suffix}`;
-const metadataNamespace = `loom_${suffix}`;
+const metadataNamespace = `kello_${suffix}`;
 const runtimeRole = `runtime_${suffix}`;
 const admin = new pg.Client({ connectionString });
 await admin.connect();
 const runtime = new URL(connectionString);
 const migrationRole = decodeURIComponent(runtime.username);
 runtime.username = runtimeRole;
-runtime.password = "loom-test-only";
+runtime.password = "kello-test-only";
 const apps = new Map<string, NeonEntrypointApplication>();
 const supersededWorkers: NeonEntrypointApplication[] = [];
 const functions: Awaited<ReturnType<NeonApi["listBranchFunctions"]>> = [];
@@ -60,24 +60,24 @@ const server = Bun.serve({
     const app = apps.get(role);
     if (!app) return new Response("Not found", { status: 404 });
     url.pathname = url.pathname.slice(role.length + 1);
-    if (url.pathname === "/_loom/deployment/health" && healthFailure)
+    if (url.pathname === "/_kello/deployment/health" && healthFailure)
       return new Response("Unavailable", { status: 503 });
     const response = await app.fetch(new Request(url, request));
-    if (url.pathname === "/_loom/deployment/health" && role === "worker" && healthDrift) {
+    if (url.pathname === "/_kello/deployment/health" && role === "worker" && healthDrift) {
       healthDrift = false;
       await admin.query(`ALTER TABLE "${namespace}".tasks ADD COLUMN external_change text`);
     }
-    if (url.pathname === "/_loom/deployment/health" && role === "worker" && healthTriggerDrift) {
+    if (url.pathname === "/_kello/deployment/health" && role === "worker" && healthTriggerDrift) {
       healthTriggerDrift = false;
       const trigger = triggers.find((entry) => entry.type === "schedule");
       assert.ok(trigger);
       trigger.cron = "0 * * * *";
     }
-    if (url.pathname === "/_loom/deployment/health" && role === "worker" && healthRoleDrift) {
+    if (url.pathname === "/_kello/deployment/health" && role === "worker" && healthRoleDrift) {
       healthRoleDrift = false;
       await admin.query(`ALTER ROLE "${runtimeRole}" BYPASSRLS`);
     }
-    if (url.pathname === "/_loom/deployment/health" && role === "worker" && legacyWorkerHealth) {
+    if (url.pathname === "/_kello/deployment/health" && role === "worker" && legacyWorkerHealth) {
       return Response.json(
         v.parse(
           v.object({
@@ -180,7 +180,7 @@ const provider: NeonApi = {
   },
 };
 try {
-  await admin.query(`CREATE ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only' NOINHERIT`);
+  await admin.query(`CREATE ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only' NOINHERIT`);
   await initializeProject(root, "release");
   await writeFile(
     join(root, "kello/functions/tasks.ts"),
@@ -237,13 +237,13 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
     migrationHashes: [migration.plan.hash],
     schema: { minimum: migration.plan.after, maximum: migration.plan.after, target: migration.plan.after },
     slugs: { service: "service", worker: "worker" },
-    variables: { LOOM_DATABASE_URL: runtime.href },
+    variables: { KELLO_DATABASE_URL: runtime.href },
   };
   Object.assign(process.env, {
-    LOOM_DATABASE_URL: runtime.href,
+    KELLO_DATABASE_URL: runtime.href,
     DATABASE_URL: runtime.href,
     NEON_BRANCH: "preview",
-    LOOM_ACTIVATION_TOKEN: options.activationToken,
+    KELLO_ACTIVATION_TOKEN: options.activationToken,
     AWS_ACCESS_KEY_ID: "fixture",
     AWS_SECRET_ACCESS_KEY: "fixture",
     AWS_ENDPOINT_URL_S3: "https://br-preview.storage.c-1.us-east-2.aws.neon.tech",
@@ -253,17 +253,17 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
   const release = {
     format: 1,
     ...declaration,
-    activationTokenEnv: "LOOM_ACTIVATION_TOKEN",
-    variables: { LOOM_DATABASE_URL: "LOOM_DATABASE_URL" },
+    activationTokenEnv: "KELLO_ACTIVATION_TOKEN",
+    variables: { KELLO_DATABASE_URL: "KELLO_DATABASE_URL" },
   };
   const releaseFile = join(root, "release.json");
   await writeFile(releaseFile, JSON.stringify({ ...release, activationToken: options.activationToken }));
   await assert.rejects(deployProjectRelease(root, "release.json", provider), /Invalid release declaration/);
-  await writeFile(releaseFile, JSON.stringify({ ...release, variables: { LOOM_DATABASE_URL: "UNSET_RELEASE_URL" } }));
+  await writeFile(releaseFile, JSON.stringify({ ...release, variables: { KELLO_DATABASE_URL: "UNSET_RELEASE_URL" } }));
   await assert.rejects(deployProjectRelease(root, "release.json", provider), /Missing release environment value/);
-  await writeFile(releaseFile, JSON.stringify({ ...release, variables: { LOOM_DATABASE_URL: "NEON_API_KEY" } }));
+  await writeFile(releaseFile, JSON.stringify({ ...release, variables: { KELLO_DATABASE_URL: "NEON_API_KEY" } }));
   await assert.rejects(deployProjectRelease(root, "release.json", provider), /Reserved release environment source/);
-  await writeFile(releaseFile, JSON.stringify({ ...release, variables: { DATABASE_URL: "LOOM_DATABASE_URL" } }));
+  await writeFile(releaseFile, JSON.stringify({ ...release, variables: { DATABASE_URL: "KELLO_DATABASE_URL" } }));
   await assert.rejects(
     deployProjectRelease(root, "release.json", provider),
     /Reserved release environment destination/,
@@ -294,8 +294,8 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
       throw new Error("Dry run attempted trigger update");
     },
   };
-  delete process.env.LOOM_ACTIVATION_TOKEN;
-  delete process.env.LOOM_DATABASE_URL;
+  delete process.env.KELLO_ACTIVATION_TOKEN;
+  delete process.env.KELLO_DATABASE_URL;
   const initialPlan = await planProjectRelease(root, "release.json", readOnlyProvider);
   assert.equal(initialPlan.dryRun, true);
   assert.deepEqual(initialPlan.blockers, []);
@@ -328,7 +328,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
   buckets.pop();
   triggers.push({
     triggerId: "conflict",
-    name: "loom:worker:jobs",
+    name: "kello:worker:jobs",
     type: "schedule",
     functionSlug: "someoneelse",
     functionPath: "/",
@@ -344,8 +344,8 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
   );
   assert.equal(triggers[0]?.enabled, true);
   triggers.pop();
-  process.env.LOOM_ACTIVATION_TOKEN = options.activationToken;
-  process.env.LOOM_DATABASE_URL = runtime.href;
+  process.env.KELLO_ACTIVATION_TOKEN = options.activationToken;
+  process.env.KELLO_DATABASE_URL = runtime.href;
   await assert.rejects(deployNeonRelease(root, options, provider), /health verification failed/i);
   assert.equal(deploymentId, 4);
   assert.equal(enableWrites, 0);
@@ -415,7 +415,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
     SELECT deployment,version,project_id,'br-other','{}'::jsonb FROM "${metadataNamespace}".deployment_trigger_bindings`);
   const bootstrapWorker = supersededWorkers[0];
   assert.ok(bootstrapWorker);
-  const wake = triggers.find((trigger) => trigger.name === "loom:worker:jobs");
+  const wake = triggers.find((trigger) => trigger.name === "kello:worker:jobs");
   assert.ok(wake);
   await admin.query(`UPDATE "${metadataNamespace}".jobs SET due_at=now()+interval '1 day'`);
   const delivery = await bootstrapWorker.fetch(
@@ -498,7 +498,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
   const client = new RPCLink({
     origin: server.url.origin,
     url: "/service/api/kello/rpc",
-    headers: { "x-loom-protocol": "loom-orpc-2", "x-loom-version": project.version },
+    headers: { "x-kello-protocol": "kello-orpc-2", "x-kello-version": project.version },
     serializer: new RPCSerializer({ omitUndefinedProperties: false }),
   });
   assert.deepEqual(await client.call(["tasks", "list"], undefined, { context: {} }), ["deployed"]);
@@ -578,7 +578,7 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
   assert.equal(JSON.stringify({ functions, triggers, buckets }), providerBeforePlan);
   assert.deepEqual((await admin.query(`SELECT state FROM "${metadataNamespace}".jobs`)).rows, [{ state: "pending" }]);
   assert.ok(!JSON.stringify(resumedPlan).includes(options.activationToken));
-  assert.ok(!JSON.stringify(resumedPlan).includes("loom-test-only"));
+  assert.ok(!JSON.stringify(resumedPlan).includes("kello-test-only"));
   await writeFile(releaseFile, JSON.stringify({ ...release, deployment: "other" }));
   const ownershipBeforePlan = (
     await admin.query(`SELECT * FROM "${metadataNamespace}".function_ownership ORDER BY slug`)
@@ -766,14 +766,14 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
   assert.deepEqual((await admin.query(`SELECT state FROM "${metadataNamespace}".deployment_activations`)).rows, [
     { state: "active" },
   ]);
-  await admin.query("SELECT pg_advisory_lock(hashtextextended($1,0))", [`loom:migrations:${namespace}`]);
+  await admin.query("SELECT pg_advisory_lock(hashtextextended($1,0))", [`kello:migrations:${namespace}`]);
   try {
     await assert.rejects(
       retireNeonReleaseDatabase(root, { ...retirement, signal: AbortSignal.timeout(100) }, provider),
       /aborted|timeout/i,
     );
   } finally {
-    await admin.query("SELECT pg_advisory_unlock(hashtextextended($1,0))", [`loom:migrations:${namespace}`]);
+    await admin.query("SELECT pg_advisory_unlock(hashtextextended($1,0))", [`kello:migrations:${namespace}`]);
   }
   const retirementDeclaration = {
     format: 1,
@@ -781,11 +781,11 @@ export default os.tasks.router({ list: os.tasks.list.handler(async ({ context: {
     environment: retirement.environment,
     databaseName: retirement.databaseName,
     migrationRole,
-    activationTokenEnv: "LOOM_TEST_RETIREMENT_TOKEN",
+    activationTokenEnv: "KELLO_TEST_RETIREMENT_TOKEN",
   };
   await writeFile(join(root, "retirement.json"), JSON.stringify(retirementDeclaration));
   await assert.rejects(retireProjectReleaseDatabase(root, "retirement.json", provider), /activation token/i);
-  process.env.LOOM_TEST_RETIREMENT_TOKEN = options.activationToken;
+  process.env.KELLO_TEST_RETIREMENT_TOKEN = options.activationToken;
   for (const activationTokenEnv of ["NEON_API_KEY", project.config.database.migrationUrlEnv]) {
     await writeFile(join(root, "retirement.json"), JSON.stringify({ ...retirementDeclaration, activationTokenEnv }));
     await assert.rejects(retireProjectReleaseDatabase(root, "retirement.json", provider), /reserved/i);
@@ -894,7 +894,7 @@ globalThis.fetch = (input, init) => {
     assert.ok(!stdout.includes(options.activationToken));
   } finally {
     await providerServer.stop(true);
-    delete process.env.LOOM_TEST_RETIREMENT_TOKEN;
+    delete process.env.KELLO_TEST_RETIREMENT_TOKEN;
     await writeFile(schemaFile, schemaSource);
   }
   assert.equal(await readFile(receiptPath, "utf8"), beforePlan);

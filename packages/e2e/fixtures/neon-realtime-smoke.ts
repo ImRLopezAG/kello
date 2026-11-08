@@ -20,7 +20,7 @@ const projectId = "late-moon-69483649",
   branchId = "br-dark-block-awbbt60w",
   endpointId = "ep-solitary-block-awijudvn";
 const runId = crypto.randomUUID(),
-  namespace = "loom_" + runId.replaceAll("-", "");
+  namespace = "kello_" + runId.replaceAll("-", "");
 interface ProviderReport {
   runId: string;
   namespace: string;
@@ -94,7 +94,7 @@ try {
       b &&
       !b.isDefault &&
       !b.protected &&
-      b.name === "loom-acceptance-kello-002-optimistic-20261007",
+      b.name === "kello-acceptance-kello-002-optimistic-20261007",
   );
   assert(
     endpoint.branch_id === branchId && realtime.enabled && !realtime.pending && realtime.invocation_url && database,

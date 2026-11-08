@@ -25,7 +25,7 @@ function fixture() {
     listBranchFunctions: async () => [
       {
         id: "fn-existing",
-        slug: "loomservice",
+        slug: "kelloservice",
         name: "service",
         invocationUrl: "https://example.test?token=provider-secret",
         activeDeploymentId: 3,
@@ -37,7 +37,7 @@ function fixture() {
     },
   };
   const binding = {
-    metadataNamespace: "loom_meta",
+    metadataNamespace: "kello_meta",
     deployment: "preview",
     version: "a".repeat(64),
     projectId: project.id,
@@ -59,7 +59,7 @@ function fixture() {
       service: "/not-read/service.mjs",
       worker: "/not-read/worker.mjs",
     },
-    slugs: { service: "loomservice", worker: "loomworker" },
+    slugs: { service: "kelloservice", worker: "kelloworker" },
   };
   return { options, provider, project, branch, endpoint, mutations: () => mutations };
 }
@@ -71,8 +71,8 @@ test("Neon function dry run uses the real planner without bundling, application 
   expect(receipt.version).toBe(f.options.entries.binding.version);
   expect(receipt.artifactHash).toBe(f.options.entries.hash);
   expect(receipt.functions).toEqual([
-    { role: "service", slug: "loomservice", action: "update" },
-    { role: "worker", slug: "loomworker", action: "create" },
+    { role: "service", slug: "kelloservice", action: "update" },
+    { role: "worker", slug: "kelloworker", action: "create" },
   ]);
   expect(receipt.dryRun).toBe(true);
   expect(f.mutations()).toBe(0);
@@ -99,7 +99,7 @@ test("function planning refuses duplicate slugs and mismatched activation bindin
       f.options.entries.binding.endpointHost = "ep-other.example.test";
     },
     (f: ReturnType<typeof fixture>) => {
-      f.options.entries.binding.metadataNamespace = "loom_other";
+      f.options.entries.binding.metadataNamespace = "kello_other";
     },
   ]) {
     const f = fixture();
@@ -152,5 +152,5 @@ test("function planning captures caller inputs before awaiting provider metadata
   };
   const receipt = await planNeonFunctions(f.options, f.provider);
   expect(receipt.target.branchName).toBe("preview");
-  expect(receipt.functions[0]?.slug).toBe("loomservice");
+  expect(receipt.functions[0]?.slug).toBe("kelloservice");
 });

@@ -119,7 +119,7 @@ export async function disableNeonTriggers(options: NeonTriggerDisableOptions, pr
     const { api, target } = context;
     function selectedTrigger(trigger: v.InferOutput<typeof triggerValidator>) {
       if (!workers.has(trigger.functionSlug)) return false;
-      if (!options.preserveJobWake || trigger.name !== `loom:${trigger.functionSlug}:jobs`) return true;
+      if (!options.preserveJobWake || trigger.name !== `kello:${trigger.functionSlug}:jobs`) return true;
       if (
         trigger.type !== "schedule" ||
         trigger.cron !== "* * * * *" ||
@@ -133,7 +133,7 @@ export async function disableNeonTriggers(options: NeonTriggerDisableOptions, pr
       const observed = await context.read();
       if (options.preserveJobWake)
         for (const worker of workers)
-          if (!observed.some((trigger) => trigger.functionSlug === worker && trigger.name === `loom:${worker}:jobs`))
+          if (!observed.some((trigger) => trigger.functionSlug === worker && trigger.name === `kello:${worker}:jobs`))
             throw new Error("Retained worker lacks its wake trigger");
       return observed.filter(selectedTrigger);
     }

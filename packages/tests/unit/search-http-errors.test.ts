@@ -46,7 +46,11 @@ test("search errors retain codes and HTTP 400 in RPC, REST and OpenAPI", async (
       const response = await app.fetch(
         new Request(`https://service.test/api/kello/${prefix}/${code}`, {
           method: "POST",
-          headers: { "content-type": "application/json", "x-loom-version": version, "x-loom-protocol": "loom-orpc-2" },
+          headers: {
+            "content-type": "application/json",
+            "x-kello-version": version,
+            "x-kello-protocol": "kello-orpc-2",
+          },
           body,
         }),
       );
@@ -194,7 +198,11 @@ test("owned FTS input rejects before the handler in RPC and OpenAPI without trus
       return app.fetch(
         new Request(`https://service.test/api/kello/${prefix}/${route}`, {
           method: "POST",
-          headers: { "content-type": "application/json", "x-loom-version": version, "x-loom-protocol": "loom-orpc-2" },
+          headers: {
+            "content-type": "application/json",
+            "x-kello-version": version,
+            "x-kello-protocol": "kello-orpc-2",
+          },
           body: prefix === "rpc" ? `{"json":${serializedInput}}` : serializedInput,
         }),
       );

@@ -16,8 +16,8 @@ export async function startIntegrationBackend(
   const address = new URL(connectionString);
   if (!["127.0.0.1", "localhost", "[::1]"].includes(address.hostname)) throw new Error("Local test database required");
   const project = await loadProject(root);
-  if (project.protocol !== "loom-orpc-2") throw new Error("Expected native contracts");
-  const database = `loom_integrations_${crypto.randomUUID().replaceAll("-", "")}`;
+  if (project.protocol !== "kello-orpc-2") throw new Error("Expected native contracts");
+  const database = `kello_integrations_${crypto.randomUUID().replaceAll("-", "")}`;
   const role = `${database}_runtime`;
   const admin = new pg.Client({ connectionString });
   await admin.connect();
@@ -53,7 +53,7 @@ export async function startIntegrationBackend(
     address.username = role;
     address.password = password;
     const keys = await generateKeyPair("ES256");
-    const issuer = "https://integration.loom.test";
+    const issuer = "https://integration.kello.test";
     const verify = createJwtVerifier([
       { issuer, keys: { type: "local", jwks: { keys: [await exportJWK(keys.publicKey)] } } },
     ]);

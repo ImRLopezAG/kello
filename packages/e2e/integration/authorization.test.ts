@@ -16,19 +16,19 @@ import { defineRelations, sql } from "drizzle-orm";
 import pg from "pg";
 import * as v from "valibot";
 
-const connectionString = process.env.LOOM_TEST_DATABASE_URL;
+const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "verified invocation identity drives RLS without leaking through a pooled session",
   async () => {
     if (!connectionString) throw new Error("Missing database URL");
     const suffix = crypto.randomUUID().replaceAll("-", "");
-    const metadataNamespace = `loom_auth_${suffix}`;
-    const runtimeRole = `loom_runtime_${suffix}`;
+    const metadataNamespace = `kello_auth_${suffix}`;
+    const runtimeRole = `kello_runtime_${suffix}`;
     const admin = new pg.Client({ connectionString });
     await admin.connect();
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
-      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'loom-test-only'`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       await admin.query(`CREATE TABLE "${metadataNamespace}".documents (
       id text PRIMARY KEY, issuer text NOT NULL, owner text NOT NULL, tenant text NOT NULL, title text NOT NULL
     )`);
@@ -36,14 +36,14 @@ test.skipIf(!connectionString)(
       ('a', 'trusted', 'alice', 'one', 'Alice'), ('b', 'trusted', 'bob', 'two', 'Bob')`);
       await admin.query(`ALTER TABLE "${metadataNamespace}".documents ENABLE ROW LEVEL SECURITY`);
       await admin.query(`CREATE POLICY document_owner ON "${metadataNamespace}".documents USING (
-      issuer = (nullif(current_setting('loom.identity', true), '')::jsonb ->> 'issuer')
-      AND owner = (nullif(current_setting('loom.identity', true), '')::jsonb ->> 'subject')
-      AND tenant = (nullif(current_setting('loom.identity', true), '')::jsonb ->> 'tenantId')
+      issuer = (nullif(current_setting('kello.identity', true), '')::jsonb ->> 'issuer')
+      AND owner = (nullif(current_setting('kello.identity', true), '')::jsonb ->> 'subject')
+      AND tenant = (nullif(current_setting('kello.identity', true), '')::jsonb ->> 'tenantId')
     )`);
       await admin.query(`GRANT SELECT, UPDATE ON "${metadataNamespace}".documents TO "${runtimeRole}"`);
       const address = new URL(connectionString);
       address.username = runtimeRole;
-      address.password = "loom-test-only";
+      address.password = "kello-test-only";
       const schema = defineSchema(() => ({}));
       const relations = defineRelations(schema.tables);
       const connection = await connectDatabase({
@@ -59,12 +59,10 @@ test.skipIf(!connectionString)(
           connection,
           replay: { deployment: "authorization-test", metadataNamespace },
           authorize: async ({ db, identity }: { db: typeof connection.db; identity: InvocationIdentity | null }) => {
-            const bound = await db.execute<{ identity: string; legacy_identity: string | null }>(
-              sql`SELECT current_setting('kello.identity') AS identity,
-                         current_setting('loom.identity', true) AS legacy_identity`,
+            const bound = await db.execute<{ identity: string }>(
+              sql`SELECT current_setting('kello.identity') AS identity`,
             );
             expect(bound.rows[0]?.identity).toBe(JSON.stringify(identity));
-            expect(bound.rows[0]?.legacy_identity).toBe(JSON.stringify(identity));
           },
         };
         const read = bindRpcDatabaseProcedure(
@@ -127,11 +125,10 @@ test.skipIf(!connectionString)(
         expect((await admin.query(`SELECT tenant FROM "${metadataNamespace}".documents WHERE id = 'a'`)).rows).toEqual([
           { tenant: "one" },
         ]);
-        const outside = await connection.pool.query<{ identity: string | null; legacy_identity: string | null }>(
-          "SELECT nullif(current_setting('kello.identity', true), '') AS identity, nullif(current_setting('loom.identity', true), '') AS legacy_identity",
+        const outside = await connection.pool.query<{ identity: string | null }>(
+          "SELECT nullif(current_setting('kello.identity', true), '') AS identity",
         );
         expect(outside.rows[0]?.identity).toBeNull();
-        expect(outside.rows[0]?.legacy_identity).toBeNull();
         expect((await connection.db.execute<{ id: string; tenant: string }>(sql`SELECT * FROM ${table}`)).rows).toEqual(
           [],
         );

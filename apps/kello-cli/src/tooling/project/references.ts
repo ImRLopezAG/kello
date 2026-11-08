@@ -13,14 +13,14 @@ export function projectReferences(
   },
 ): BunPlugin {
   return {
-    name: "loom-project-references",
+    name: "kello-project-references",
     setup(build) {
-      build.onResolve({ filter: /^kello:contracts$/ }, () => ({ path: "contracts", namespace: "loom-contracts" }));
-      build.onLoad({ filter: /.*/, namespace: "loom-contracts" }, () => {
+      build.onResolve({ filter: /^kello:contracts$/ }, () => ({ path: "contracts", namespace: "kello-contracts" }));
+      build.onLoad({ filter: /.*/, namespace: "kello-contracts" }, () => {
         return { contents: application.contracts, loader: "js" };
       });
-      build.onResolve({ filter: /^kello:relations$/ }, () => ({ path: "relations", namespace: "loom-relations" }));
-      build.onLoad({ filter: /.*/, namespace: "loom-relations" }, () => ({
+      build.onResolve({ filter: /^kello:relations$/ }, () => ({ path: "relations", namespace: "kello-relations" }));
+      build.onLoad({ filter: /.*/, namespace: "kello-relations" }, () => ({
         contents: relationsFile
           ? `export { default } from ${JSON.stringify(relationsFile)};`
           : `import { defineRelations } from "drizzle-orm"; import schema from ${JSON.stringify(join(backend, "schema.ts"))}; export default defineRelations(schema.tables);`,
@@ -28,22 +28,22 @@ export function projectReferences(
       }));
       build.onResolve({ filter: /_generated\// }, ({ path, importer }) => {
         const filename = resolve(dirname(importer), path).replace(/\.[cm]?[jt]s$/, "");
-        if (filename === join(backend, "_generated/rpc")) return { path: "rpc", namespace: "loom-application-rpc" };
+        if (filename === join(backend, "_generated/rpc")) return { path: "rpc", namespace: "kello-application-rpc" };
         const contractIndex = application.modules.findIndex(
           (module) => filename === join(backend, "_generated/contracts", module.path.replace(/\.[cm]?[jt]s$/, "")),
         );
         if (contractIndex !== undefined && contractIndex >= 0)
-          return { path: String(contractIndex), namespace: "loom-contract-entry" };
+          return { path: String(contractIndex), namespace: "kello-contract-entry" };
         if (filename === join(backend, "_generated/server"))
-          return { path: "server", namespace: "loom-reference-entry" };
+          return { path: "server", namespace: "kello-reference-entry" };
         if (["api", "internal"].some((name) => filename === join(backend, "_generated", name)))
           throw new Error("Server procedures must import procedure objects directly, not generated client bindings");
       });
-      build.onLoad({ filter: /.*/, namespace: "loom-contract-entry" }, ({ path }) => ({
+      build.onLoad({ filter: /.*/, namespace: "kello-contract-entry" }, ({ path }) => ({
         contents: `export { contract${path} as default } from "kello:contracts";`,
         loader: "js",
       }));
-      build.onLoad({ filter: /.*/, namespace: "loom-application-rpc" }, () => {
+      build.onLoad({ filter: /.*/, namespace: "kello-application-rpc" }, () => {
         return {
           contents: `import { createApplicationRpc } from "kello/server";
 import app from ${JSON.stringify(join(backend, "app.config.ts"))};
@@ -55,7 +55,7 @@ ${application.builders.map((key, index) => `const builder${index} = rpc[${JSON.s
           loader: "js",
         };
       });
-      build.onLoad({ filter: /.*/, namespace: "loom-reference-entry" }, () => ({
+      build.onLoad({ filter: /.*/, namespace: "kello-reference-entry" }, () => ({
         contents: `import relations from "kello:relations";
 import schema from ${JSON.stringify(join(backend, "schema.ts"))};
 ${serverBindings(false)}

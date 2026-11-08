@@ -221,7 +221,7 @@ export async function prepareApplicationEnvironment<Env extends ApplicationEnvir
   const env = await parseApplicationEnvironment(app.environmentSchema, source);
   const components = await prepareComponentEnvironments(graph, env, source);
   // Without the deployment-managed secret, .live() issuance stays unconfigured and fails closed.
-  const secret = source.LOOM_REALTIME_SECRET;
+  const secret = source.KELLO_REALTIME_SECRET;
   if (secret && app.liveQueries && !target)
     throw new Error("Live queries require the runtime database and deployment binding");
   const liveQueries =

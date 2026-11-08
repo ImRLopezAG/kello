@@ -21,7 +21,7 @@ const identity = v.pipe(value, v.regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/));
 const publicEnvironment = v.strictObject({
   NEON_PROJECT_ID: v.optional(identity),
   NEON_BRANCH_ID: v.optional(identity),
-  LOOM_URL: v.optional(v.nullable(url)),
+  KELLO_URL: v.optional(v.nullable(url)),
   NEON_AUTH_URL: v.optional(v.nullable(url)),
 });
 export type ManagedPublicEnvironment = v.InferInput<typeof publicEnvironment>;

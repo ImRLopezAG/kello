@@ -20,12 +20,12 @@ import {
 import type { DeploymentDatabaseProvider, MigrationArtifact, NeonReleaseDatabaseOptions } from "kello-cli";
 
 // All Kello calls use the public package. The provider fixture only resolves a local target.
-const databaseUrl = fullTextLocalTarget(process.env.LOOM_TEST_DATABASE_URL);
+const databaseUrl = fullTextLocalTarget(process.env.KELLO_TEST_DATABASE_URL);
 
 async function withFixture(run: (fixture: Awaited<ReturnType<typeof prepareFixture>>) => Promise<void>) {
   const suffix = crypto.randomUUID().replaceAll("-", "");
   const namespace = `fts_release_${suffix}`;
-  const metadataNamespace = `loom_release_${suffix}`;
+  const metadataNamespace = `kello_release_${suffix}`;
   const runtimeRole = `fts_release_role_${suffix}`;
   const root = await mkdtemp(join(tmpdir(), "kello-006-release-"));
   const admin = new pg.Client({ connectionString: databaseUrl });
@@ -193,7 +193,7 @@ export default defineSchema(s=>({tasks:defineTable({title:s.text(),body:s.text()
         format: 1,
         slugs: { service: "service", worker: "worker" },
         activationTokenEnv: "DEPLOY_TOKEN",
-        variables: { LOOM_DATABASE_URL: "RUNTIME_URL" },
+        variables: { KELLO_DATABASE_URL: "RUNTIME_URL" },
       }),
     );
     return planProjectRelease(root, "release.json", planner);
