@@ -1,6 +1,6 @@
 {
   "name": "kello-cli",
-  "version": "0.0.1-alpha.4",
+  "version": "0.0.1-beta.1",
   "description": "Development, migrations and Neon deployment tooling for Kello.",
   "homepage": "https://github.com/ImRLopezAG/kello#readme",
   "bugs": {
@@ -32,7 +32,7 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/",
-    "tag": "alpha"
+    "tag": "beta"
   },
   "scripts": {
     "build": "vp pack && bun ../kello/scripts/third-party.ts --tooling",

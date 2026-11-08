@@ -1,4 +1,4 @@
-name: Publish alpha
+name: Publish beta
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: npm-alpha
+  group: npm-beta
   cancel-in-progress: false
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
           echo "commit=$release_commit" >> "$GITHUB_OUTPUT"
-      - name: Require a reviewed alpha version and package identity
+      - name: Require a reviewed beta version and package identity
         run: |
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';
@@ -55,10 +55,10 @@ jobs:
           if (process.env.GITHUB_REF_TYPE === 'tag') {
             assert.equal(process.env.GITHUB_REF_NAME, `v${pkg.version}`, 'Release tag must match the package version');
           }
-          assert.match(pkg.version, /^\d+\.\d+\.\d+-alpha\.\d+$/);
+          assert.match(pkg.version, /^\d+\.\d+\.\d+-beta\.\d+$/);
           assert.equal(pkg.license, 'MIT');
           assert.equal(pkg.repository.url, `git+https://github.com/${process.env.GITHUB_REPOSITORY}.git`);
-          assert.equal(pkg.publishConfig.tag, 'alpha');
+          assert.equal(pkg.publishConfig.tag, 'beta');
           assert.equal(pkg.publishConfig.access, 'public');
           assert.equal(readFileSync('LICENSE', 'utf8'), readFileSync('apps/kello/LICENSE', 'utf8'));
           const cli = JSON.parse(readFileSync('apps/kello-cli/package.json', 'utf8'));
@@ -66,7 +66,7 @@ jobs:
           assert.equal(cli.version, pkg.version);
           assert.equal(cli.license, pkg.license);
           assert.equal(cli.repository.url, pkg.repository.url);
-          assert.equal(cli.publishConfig.tag, 'alpha');
+          assert.equal(cli.publishConfig.tag, 'beta');
           assert.equal(cli.publishConfig.access, 'public');
           assert.equal(readFileSync('LICENSE', 'utf8'), readFileSync('apps/kello-cli/LICENSE', 'utf8'));
           JS
@@ -124,7 +124,7 @@ jobs:
             assert(local.equals(Buffer.from(await archive.arrayBuffer())), 'CLI bootstrap differs from verified CI artifact');
             const tags = await get(`${registry}/-/package/kello-cli/dist-tags`);
             assert(tags.ok, 'CLI tags lookup failed');
-            assert.equal((await tags.json()).alpha, version);
+            assert.equal((await tags.json()).beta, version);
             published = true;
           }
           appendFileSync(process.env.GITHUB_OUTPUT, `published=${published}\n`);
@@ -133,10 +133,10 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ""
           NPM_TOKEN: ""
-        run: npm publish "$RUNNER_TEMP/kello-release/kello.tgz" --ignore-scripts --access public --tag alpha
+        run: npm publish "$RUNNER_TEMP/kello-release/kello.tgz" --ignore-scripts --access public --tag beta
       - name: Publish verified CLI artifact with OIDC
         if: steps.cli.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ""
           NPM_TOKEN: ""
-        run: npm publish "$RUNNER_TEMP/kello-release/kello-cli.tgz" --ignore-scripts --access public --tag alpha
+        run: npm publish "$RUNNER_TEMP/kello-release/kello-cli.tgz" --ignore-scripts --access public --tag beta
