@@ -20,6 +20,7 @@ import type { RpcAuthDefinition } from "./auth/rpc-definition";
 import type { JobMigration } from "./jobs/rpc-migrations";
 import { createRpcJobQueue } from "./jobs/rpc-queue";
 import { createRpcJobWorker } from "./jobs/rpc-worker";
+import { createIdleBackoff } from "./jobs/idle-backoff";
 import { createRpcCronDispatcher } from "./jobs/rpc-crons";
 import { createTransactionalRpcScheduler } from "./jobs/rpc-service";
 import { bindRuntimeGraph } from "./rpc/runtime-graph";
@@ -227,6 +228,8 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       maxAttempts: config.jobs.maxAttempts,
       retryDelaySeconds: config.jobs.retryBaseMs / 1000,
     });
+    // One per isolate: the wake gate, worker and ingress paths that create work share it.
+    const idle = createIdleBackoff();
     let componentStorage: ReturnType<typeof createComponentStorageRuntime> | undefined;
     let storage:
       | {
@@ -288,7 +291,11 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
             own(
               limit,
               async (input, current) => {
-                const root = await cleanup.run(input, current);
+                // A failed cleanup must retry on the next wake rather than wait out the backoff.
+                const root = await cleanup.run(input, current).catch((cause: unknown) => {
+                  idle.reset();
+                  throw cause;
+                });
                 const components = await scopedStorage.cleanup(input, current);
                 return { processed: root.processed + components.processed, failed: root.failed + components.failed };
               },
@@ -313,8 +320,31 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
         }),
         events: Object.freeze<typeof events>({
           receive: (delivery, signal) =>
-            own(delivery, (input, current) => scopedStorage.receive(input, current), signal),
-          reconcile: (limit, signal) => own(limit, (input, current) => scopedStorage.reconcile(input, current), signal),
+            own(
+              delivery,
+              async (input, current) => {
+                const received = await scopedStorage.receive(input, current);
+                idle.reset();
+                return received;
+              },
+              signal,
+            ),
+          reconcile: (limit, signal) =>
+            own(
+              limit,
+              async (input, current) => {
+                try {
+                  const result = await scopedStorage.reconcile(input, current);
+                  // Reconciled events enqueue handler jobs, and pending ones need the next wake.
+                  if (result.dispatched || result.pending || result.failed) idle.reset();
+                  return result;
+                } catch (cause) {
+                  idle.reset();
+                  throw cause;
+                }
+              },
+              signal,
+            ),
         }),
       });
     }
@@ -370,6 +400,7 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
     const worker = Object.freeze(
       createRpcJobWorker({
         queue,
+        idle,
         internal: graph.internal,
         assertActive: activate,
         leaseSeconds: config.jobs.leaseMs / 1000,
@@ -382,6 +413,7 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
       crons: allCrons,
       assertIngress: ingress,
       assertActive: activate,
+      idle,
     });
     const crons = Object.freeze<typeof cronDispatcher>({
       dispatch: (name, at, signal, delivery) =>

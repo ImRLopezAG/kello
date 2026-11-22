@@ -7,6 +7,7 @@ import { join } from "node:path";
 import pg from "pg";
 import * as v from "valibot";
 import { createKelloNeonApi } from "kello-cli";
+import { acceptanceExpiry } from "./lifecycle";
 
 test.skipIf(!process.env.KELLO_CLOUD_COMPONENT_SOURCE_RECEIPT)(
   "schema-only Neon branch adopts all component histories without data or work",
@@ -63,6 +64,8 @@ test.skipIf(!process.env.KELLO_CLOUD_COMPONENT_SOURCE_RECEIPT)(
       assert("branchId" in receipt);
       branchId = receipt.branchId;
       assert.notEqual(branchId, source.branchId);
+      // Provisioning has no expiry input; bound the branch lifetime before anything else can fail.
+      await neon(["branches", "set-expiration", branchId, "--expires-at", acceptanceExpiry()]);
       assert.deepEqual(await tooling.provisionProjectBranch(source.fixtureRoot, "schema-branch.json"), receipt);
       checks.push("public-provisioning-idempotent");
       const connectionString = await neon([

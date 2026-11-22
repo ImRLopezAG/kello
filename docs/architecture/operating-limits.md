@@ -81,7 +81,7 @@ bunx neon@6.0.0 branches delete <created-branch-id> --project-id <project-id>
 bunx neon@6.0.0 branches list --project-id <project-id> --output json
 ```
 
-The suite skips when `KELLO_CLOUD_PROJECT_ID` is absent. When it is present, an explicit branch ID is required. Default, protected, unrelated and ambiguously resolved branches are refused. The suite creates uniquely named metadata and runtime roles and removes them in `finally`; the caller owns branch deletion and must verify its absence even when the test fails. CLI diagnostics and credentials are not printed. Database failures report the operation stage and a validated SQLSTATE when available.
+The suite skips when `KELLO_CLOUD_PROJECT_ID` is absent. When it is present, an explicit branch ID is required. Default, protected, unrelated and ambiguously resolved branches are refused. The suite creates uniquely named metadata and runtime roles and removes them in `finally`; the caller owns branch deletion and must verify its absence even when the test fails. The runner refuses a branch with no expiry or one more than 7 days away, tears down the Functions, `accept_*` schemas and generated `runtime_*` role of the Neon Auth suites in `finally`, and `bun run cleanup:cloud` (dry run unless `--apply`) removes leftovers from a `kello-acceptance-*` branch. CLI diagnostics and credentials are not printed. Database failures report the operation stage and a validated SQLSTATE when available.
 
 ## Acceptance boundary
 

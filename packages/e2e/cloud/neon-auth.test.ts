@@ -285,8 +285,9 @@ test.skipIf(process.env.KELLO_CLOUD_NEON_AUTH !== "1")(
               region: process.env.KELLO_CLOUD_REGION,
               version: generated.version,
               schemaExpansion,
-              functions: deployed.functions.map(({ role, functionId, deploymentId, invocationUrl }) => ({
+              functions: deployed.functions.map(({ role, slug, functionId, deploymentId, invocationUrl }) => ({
                 role,
+                slug,
                 functionId,
                 deploymentId,
                 invocationUrl,

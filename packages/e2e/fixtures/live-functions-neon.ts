@@ -1,4 +1,5 @@
 /** Explicit, disposable-provider acceptance fixture. Never runs during offline tests. */
+import { projectId, branchId, branchName, endpointId as acceptanceEndpointId } from "./acceptance-target";
 import assert from "node:assert/strict";
 import { mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -19,9 +20,7 @@ import { initializeProject, generateProject, loadProject, createKelloNeonApi } f
 import { createKelloNeonClient, waitForRealtimeProxyOrigins } from "../../../apps/kello-cli/src/tooling/neon/api";
 import * as v from "valibot";
 
-const projectId = "late-moon-69483649";
-const branchId = "br-dark-block-awbbt60w";
-const endpointId = "ep-solitary-block-awijudvn";
+const endpointId = acceptanceEndpointId;
 const run = crypto.randomUUID();
 const namespace = `live_${run.replaceAll("-", "")}`;
 const metadataNamespace = `kello_${namespace}`;
@@ -72,7 +71,7 @@ try {
   const branch = branches.find((entry) => entry.id === branchId);
   const database = databases.find((entry) => entry.name === "neondb");
   assert(project.pgVersion === 18 && branch && !branch.isDefault && !branch.protected);
-  assert.equal(branch.name, "kello-acceptance-kello-002-optimistic-20261007");
+  assert.equal(branch.name, branchName);
   assert(
     endpoint.branch_id === branchId && realtime.enabled && !realtime.pending && realtime.invocation_url && database,
   );

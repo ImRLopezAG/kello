@@ -12,6 +12,7 @@ import * as v from "valibot";
 import { bootstrapDatabase, createKelloNeonApi } from "kello-cli";
 import { createStorageIntents } from "kello/server";
 import { createNeonObjectStorage } from "kello/neon";
+import { acceptanceExpiry } from "./lifecycle";
 
 /** Live provider regression: each test owns both branches and revokes its credentials. */
 test.skipIf(process.env.KELLO_CLOUD_STORAGE_BRANCH !== "1")(
@@ -50,7 +51,17 @@ test.skipIf(process.env.KELLO_CLOUD_STORAGE_BRANCH !== "1")(
       const name = `${prefix}-${crypto.randomUUID()}`;
       intendedBranches.push({ name, parentId: parent });
       const raw: unknown = JSON.parse(
-        await neon(["branches", "create", "--parent", parent, "--name", name, "--no-secrets"]),
+        await neon([
+          "branches",
+          "create",
+          "--parent",
+          parent,
+          "--name",
+          name,
+          "--no-secrets",
+          "--expires-at",
+          acceptanceExpiry(),
+        ]),
       );
       const branchRecord = v.object({ id: v.string(), name: v.string() });
       const parsed = v.parse(v.union([branchRecord, v.object({ branch: branchRecord })]), raw);

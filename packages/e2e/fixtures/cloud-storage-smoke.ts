@@ -1,4 +1,5 @@
 /** Explicit provider acceptance on the authorized disposable branch; not part of offline tests. */
+import { projectId, branchId, branchName, endpointId as acceptanceEndpointId } from "./acceptance-target";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,8 +8,6 @@ import { writeFile } from "node:fs/promises";
 import { createNeonObjectStorage } from "kello/neon";
 import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello-cli";
 
-const projectId = "late-moon-69483649";
-const branchId = "br-dark-block-awbbt60w";
 const run = crypto.randomUUID();
 const bucket = `kello-smoke-${run}`;
 const credentialName = `kello-storage-smoke-${run}`;
@@ -49,8 +48,8 @@ try {
     "preview",
     api,
   );
-  assert.equal(target.branchName, "kello-acceptance-kello-002-optimistic-20261007");
-  assert.equal(target.endpointId, "ep-solitary-block-awijudvn");
+  assert.equal(target.branchName, branchName);
+  assert.equal(target.endpointId, acceptanceEndpointId);
   assert.equal(target.protected, false);
   assert(!(await api.listBranchBuckets(projectId, branchId)).some((entry) => entry.name === bucket));
   assert(!(await api.listCredentials(projectId, branchId)).some((entry) => entry.name === credentialName));

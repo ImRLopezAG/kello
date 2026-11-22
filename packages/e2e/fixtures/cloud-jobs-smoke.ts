@@ -1,4 +1,5 @@
 /** Explicit hosted-worker regression on the already authorized disposable branch. */
+import { projectId, branchId, branchName, endpointId as acceptanceEndpointId } from "./acceptance-target";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,8 +15,6 @@ import {
   inspectDeploymentTarget,
 } from "kello-cli";
 
-const projectId = "late-moon-69483649";
-const branchId = "br-dark-block-awbbt60w";
 const run = crypto.randomUUID();
 const suffix = run.replaceAll("-", "");
 const slug = `kj${suffix.slice(0, 18)}`;
@@ -48,8 +47,8 @@ try {
     "preview",
     api,
   );
-  assert.equal(target.branchName, "kello-acceptance-kello-002-optimistic-20261007");
-  assert.equal(target.endpointId, "ep-solitary-block-awijudvn");
+  assert.equal(target.branchName, branchName);
+  assert.equal(target.endpointId, acceptanceEndpointId);
   assert.equal(target.protected, false);
   assert(!(await api.listBranchFunctions(projectId, branchId)).some((entry) => entry.slug === slug));
   const databases = await api.listBranchDatabases(projectId, branchId);

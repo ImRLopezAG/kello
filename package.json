@@ -24,6 +24,7 @@
     "test:integration": "turbo run test:integration",
     "test:browser": "turbo run test:browser",
     "test:cloud": "turbo run test:cloud",
+    "cleanup:cloud": "bun run --cwd packages/e2e cleanup:cloud",
     "format": "vp fmt",
     "format:check": "vp fmt --check",
     "check:static": "vp check"

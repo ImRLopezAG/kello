@@ -5,6 +5,7 @@ import * as v from "valibot";
 import { scheduleOptions } from "./contracts";
 import { validateIdempotencyOptions } from "../idempotency";
 import type { IdempotencyOptions } from "../idempotency";
+import type { IdleBackoff } from "./idle-backoff";
 const deliveryReceipt = v.strictObject({
   invocationId: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
   triggerId: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
@@ -51,12 +52,14 @@ export interface DurableCronDispatcherOptions extends IdempotencyOptions {
   readonly crons: ReadonlyMap<string, CronEnqueue>;
   readonly assertActive: (signal: AbortSignal) => Promise<void>;
   readonly assertIngress?: (signal: AbortSignal, transaction: NodePgDatabase) => Promise<void>;
+  /** When idle, wake-ups are skipped before any database access so serverless Postgres can suspend. */
+  readonly idle?: Pick<IdleBackoff, "shouldPoll" | "reset">;
 }
 const cronName = v.pipe(v.string(), v.regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/));
 /** Trusted ingress after provider verification. Never infer or backfill occurrences that were not delivered. */
 export function createDurableCronDispatcher(options: DurableCronDispatcherOptions) {
   validateIdempotencyOptions(options);
-  const { db, assertActive, deployment } = options;
+  const { db, assertActive, deployment, idle } = options;
   const receipts = sql`${sql.identifier(options.metadataNamespace)}.${sql.identifier("trigger_receipts")}`;
   async function record(
     transaction: NodePgDatabase,
@@ -84,15 +87,18 @@ export function createDurableCronDispatcher(options: DurableCronDispatcherOption
       input: TriggerDeliveryReceipt,
       scheduledAt: Date,
       signal: AbortSignal = new AbortController().signal,
-    ): Promise<void> {
+    ): Promise<boolean> {
       const delivery = v.parse(deliveryReceipt, structuredClone(input));
       const at = new Date(v.parse(v.date(), scheduledAt).getTime());
       signal.throwIfAborted();
+      // Skipped wakes are not recorded: receipts audit work, and an idle insert would wake the database.
+      if (idle && !idle.shouldPoll()) return false;
       await assertActive(signal);
       signal.throwIfAborted();
       await db.transaction(async (transaction) => {
         await record(transaction, delivery, at, "wake", null);
       });
+      return true;
     },
     async dispatch(
       name: string,
@@ -113,14 +119,18 @@ export function createDurableCronDispatcher(options: DurableCronDispatcherOption
       const enqueue = async (transaction: NodePgDatabase) => {
         return configured(transaction, occurrence, `cron:${key}`);
       };
-      if (!delivery && !options.assertIngress) return enqueue(db);
-      return db.transaction(async (transaction) => {
-        await options.assertIngress?.(signal, transaction);
-        const jobId = await enqueue(transaction);
-        signal.throwIfAborted();
-        if (delivery) await record(transaction, delivery, occurrence, "cron", jobId);
-        return jobId;
-      });
+      const jobId =
+        !delivery && !options.assertIngress
+          ? await enqueue(db)
+          : await db.transaction(async (transaction) => {
+              await options.assertIngress?.(signal, transaction);
+              const jobId = await enqueue(transaction);
+              signal.throwIfAborted();
+              if (delivery) await record(transaction, delivery, occurrence, "cron", jobId);
+              return jobId;
+            });
+      idle?.reset();
+      return jobId;
     },
   });
 }

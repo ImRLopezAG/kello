@@ -44,6 +44,17 @@ Neon resources and can take several minutes. The Realtime fixtures use their
 existing admitted disposable branch with UUID-isolated resources; coordinate
 access with other contributors. The hook stops at the first failure.
 
+The branch must also carry an expiry no more than 7 days out; the runner refuses
+a branch without one (`neon branches set-expiration <id> --expires-at <iso>`),
+and branches the suites create get a 24-hour expiry. After the Neon Auth suites
+(`tasks`, `jobs-storage`, `next`, `start`, `components-browser`), pass or fail, the
+runner deletes the Functions it deployed (stopping their wake triggers) and then
+drops the `accept_<hash>`/`kello_accept_<hash>` schemas and the `runtime_<hash>`
+role it generated. If teardown reports leftovers, or an older run left some, list
+them with `bun run cleanup:cloud -- --project-id <id> --branch <id>` (a dry run
+that prints names only) and remove them by adding `--apply`; `--keep <slug>`
+preserves a function. It refuses non-acceptance, protected and default branches.
+
 Missing credentials, failed tests, unstaged tracked changes, untracked source, or
 tracked changes during verification block the commit. There is no cached pass. Without an API key, the existing Neon tooling uses
 the authenticated CLI profile. `bun run test:precommit` tests the gate with command doubles;

@@ -17,7 +17,12 @@ export const neonTriggerBindingValidator = v.variant("kind", [
 export type NeonTriggerBinding = v.InferOutput<typeof neonTriggerBindingValidator>;
 export interface NeonTriggersOptions {
   readonly bindings: Readonly<Record<string, NeonTriggerBinding>>;
-  readonly crons: Pick<ReturnType<typeof createDurableCronDispatcher>, "dispatch" | "recordWake">;
+  readonly crons: Pick<ReturnType<typeof createDurableCronDispatcher>, "dispatch"> & {
+    /** `false` means the idle backoff skipped this wake; `void` is treated as recorded. */
+    recordWake(
+      ...args: Parameters<ReturnType<typeof createDurableCronDispatcher>["recordWake"]>
+    ): Promise<boolean | void>;
+  };
   readonly worker: Pick<ReturnType<typeof createDurableJobWorker>, "run">;
   readonly cleanup?: Pick<ReturnType<typeof createStorageCleanup>, "run"> | undefined;
   readonly storage?:
@@ -100,7 +105,10 @@ export function createNeonTriggers(options: NeonTriggersOptions): Hono {
         triggerName: occurrence.trigger.name,
       };
       if (configured.kind === "cron") await crons.dispatch(configured.cron, scheduledAt, signal, delivery);
-      else await crons.recordWake(delivery, scheduledAt, signal);
+      else if ((await crons.recordWake(delivery, scheduledAt, signal)) === false) {
+        // Idle backoff: no claim, reconcile or cleanup, so the database can suspend between wakes.
+        return Response.json({ ok: true, idle: true }, { headers: { "cache-control": "no-store" } });
+      }
       signal.throwIfAborted();
       // Await durable work in the invocation. Worker shutdown owns cancellation of its shared execution slot.
       const result = await worker.run();
