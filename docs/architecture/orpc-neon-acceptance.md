@@ -8,6 +8,8 @@ Authenticated CLI inspection on 2026-09-24 confirmed project `late-moon-69483649
 
 Acceptance uses a project-scoped temporary API key and disposable branches. Credentials are kept outside the repository and are not included here. Existing branches are not modified.
 
+Lifecycle: acceptance branches must expire within 7 days (the runner refuses others, and suite-created branches get a 24-hour expiry). Deployed Functions carry a `* * * * *` wake trigger, so leftovers keep a branch awake; the runner therefore deletes the Functions it deployed first, then drops the fixture's `accept_<hash>`/`kello_accept_<hash>` schemas and generated `runtime_<hash>` role (REASSIGN/DROP OWNED, DROP ROLE) after every Neon Auth suite run. `bun run cleanup:cloud -- --project-id <id> --branch <id> [--apply]` lists, and with `--apply` removes, leftovers on a `kello-acceptance-*` branch.
+
 ## Tasks: real Neon Auth and Functions
 
 - Branch: `br-nameless-cloud-aw8zphwm`, `kello-acceptance-orpc-tasks`; expires 2026-09-25 22:07 UTC.

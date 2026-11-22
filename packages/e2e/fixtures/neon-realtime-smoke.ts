@@ -1,4 +1,5 @@
 // Acceptance fixture: imports current integrated sources and their pinned dependencies.
+import { projectId, branchId, branchName, endpointId as acceptanceEndpointId } from "./acceptance-target";
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -16,9 +17,7 @@ import { createNeonLiveClient } from "kello/client";
 import { sql, eq, and, exists } from "drizzle-orm";
 import { pgSchema, text, integer, boolean, doublePrecision } from "drizzle-orm/pg-core";
 import * as v from "valibot";
-const projectId = "late-moon-69483649",
-  branchId = "br-dark-block-awbbt60w",
-  endpointId = "ep-solitary-block-awijudvn";
+const endpointId = acceptanceEndpointId;
 const runId = crypto.randomUUID(),
   namespace = "kello_" + runId.replaceAll("-", "");
 interface ProviderReport {
@@ -88,14 +87,7 @@ try {
   ]);
   const b = bs.find((x) => x.id === branchId),
     database = databases.find((x) => x.name === "neondb");
-  assert(
-    p.id === projectId &&
-      p.pgVersion === 18 &&
-      b &&
-      !b.isDefault &&
-      !b.protected &&
-      b.name === "kello-acceptance-kello-002-optimistic-20261007",
-  );
+  assert(p.id === projectId && p.pgVersion === 18 && b && !b.isDefault && !b.protected && b.name === branchName);
   assert(
     endpoint.branch_id === branchId && realtime.enabled && !realtime.pending && realtime.invocation_url && database,
   );

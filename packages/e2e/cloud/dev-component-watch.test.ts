@@ -11,6 +11,7 @@ import * as v from "valibot";
 import { createKelloNeonApi } from "kello-cli";
 import { prepareCloudComponents } from "../fixtures/cloud-components";
 import { createCloudIssuer } from "../fixtures/cloud-issuer";
+import { acceptanceExpiry } from "./lifecycle";
 
 const readySchema = v.object({ event: v.literal("ready"), version: v.string(), url: v.string() });
 
@@ -101,7 +102,19 @@ if(!row) throw new Error("Insert failed"); return row;
       const branch = v.object({ id: v.string(), name: v.string() });
       const result = v.parse(
         v.union([branch, v.object({ branch })]),
-        JSON.parse(await neon(["branches", "create", "--parent", main.id, "--name", branchName, "--no-secrets"])),
+        JSON.parse(
+          await neon([
+            "branches",
+            "create",
+            "--parent",
+            main.id,
+            "--name",
+            branchName,
+            "--no-secrets",
+            "--expires-at",
+            acceptanceExpiry(),
+          ]),
+        ),
       );
       const created = "branch" in result ? result.branch : result;
       assert.equal(created.name, branchName);

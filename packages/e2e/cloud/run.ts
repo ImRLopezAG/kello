@@ -9,6 +9,8 @@ import pg from "pg";
 import * as v from "valibot";
 import { defineConfig, inspectDeploymentTarget } from "kello-cli";
 import { runHistoricalAcceptance } from "../historical/run";
+import { acceptanceSchemasForRole, assertDisposableBranch, redact } from "./lifecycle";
+import { executeTeardown } from "./teardown";
 
 const suite = v.parse(
   v.picklist([
@@ -41,11 +43,19 @@ const directory = resolve(process.env.KELLO_CLOUD_RECEIPT_DIR ?? join(cwd, ".clo
 await mkdir(directory, { recursive: true });
 const env = { ...process.env };
 const neonCli = createRequire(import.meta.resolve("kello-cli")).resolve("neon/dist/index.js");
-async function neon(args: string[]) {
+async function neon(args: string[], branchScoped = true) {
   try {
     const result = await promisify(execFile)(
       "node",
-      [neonCli, ...args, "--project-id", projectId, "--branch", branchId, "--output", "json"],
+      [
+        neonCli,
+        ...args,
+        "--project-id",
+        projectId,
+        ...(branchScoped ? ["--branch", branchId] : []),
+        "--output",
+        "json",
+      ],
       { timeout: 90000 },
     );
     return result.stdout;
@@ -53,6 +63,23 @@ async function neon(args: string[]) {
     // Provider diagnostics can contain credentials. Keep them out of CI output.
     throw new Error(`Neon acceptance setup failed: ${args.slice(0, 3).join(" ")}`);
   }
+}
+// Leftover functions keep their wake triggers firing, so a branch without a bounded expiry would stay awake forever.
+const branchRecord = v.object({
+  name: v.string(),
+  protected: v.optional(v.boolean()),
+  default: v.optional(v.boolean()),
+  expires_at: v.optional(v.nullable(v.string())),
+});
+/** The Neon CLI prints either the branch itself or `{ branch }`. */
+function parseBranch(output: string) {
+  const parsed = v.parse(v.union([v.object({ branch: branchRecord }), branchRecord]), JSON.parse(output));
+  return "branch" in parsed ? parsed.branch : parsed;
+}
+assertDisposableBranch(parseBranch(await neon(["branches", "get", branchId], false)));
+async function listFunctionSlugs() {
+  const listed: unknown = JSON.parse(await neon(["functions", "list"]));
+  return v.parse(v.array(v.object({ slug: v.string() })), listed).map(({ slug }) => slug);
 }
 if (!env.KELLO_MIGRATION_DATABASE_URL) {
   const result = await promisify(execFile)(
@@ -77,6 +104,8 @@ if (!env.KELLO_MIGRATION_DATABASE_URL) {
   assert.equal(address.searchParams.get("sslmode"), "verify-full");
   env.KELLO_MIGRATION_DATABASE_URL = address.href;
 }
+// Only a role this runner generated is owned by it and may be dropped during teardown.
+const ownsRuntimeRole = !env.KELLO_CLOUD_RUNTIME_ROLE;
 env.KELLO_CLOUD_RUNTIME_ROLE ??= `runtime_${crypto.randomUUID().replaceAll("-", "")}`;
 // Verify even an explicitly supplied URL before Auth setup can execute DDL.
 const migrationAddress = new URL(env.KELLO_MIGRATION_DATABASE_URL);
@@ -175,15 +204,68 @@ const file =
 const receipt = join(directory, `${suite}.json`);
 await rm(receipt, { force: true });
 env.KELLO_CLOUD_RECEIPT = receipt;
-const child = Bun.spawn(["bun", "test", "cloud/target.test.ts", "cloud/database.test.ts", `cloud/${file}.test.ts`], {
-  cwd,
-  env,
-  stdout: "inherit",
-  stderr: "inherit",
-});
-assert.equal(await child.exited, 0, "Required cloud suite failed");
+const deploysFunctions = file === "neon-auth";
+const functionsBefore = deploysFunctions ? new Set(await listFunctionSlugs()) : new Set<string>();
+let exitCode: number;
+try {
+  const child = Bun.spawn(["bun", "test", "cloud/target.test.ts", "cloud/database.test.ts", `cloud/${file}.test.ts`], {
+    cwd,
+    env,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  exitCode = await child.exited;
+} finally {
+  if (deploysFunctions) await teardown();
+}
+assert.equal(exitCode, 0, "Required cloud suite failed");
 const saved = v.parse(
   v.object({ projectId: v.literal(projectId), branchId: v.literal(branchId), passed: v.literal(true) }),
   JSON.parse(await readFile(receipt, "utf8")),
 );
 console.log(`Required ${suite} acceptance passed on ${saved.branchId}; receipt ${receipt}`);
+
+/** Stops the deployed functions and wake triggers, then drops the fixture's schemas and runtime role. */
+async function teardown() {
+  const functions = new Set<string>();
+  const failures: string[] = [];
+  try {
+    for (const slug of await listFunctionSlugs()) if (!functionsBefore.has(slug)) functions.add(slug);
+  } catch {
+    failures.push("function listing");
+  }
+  try {
+    const recorded = v.parse(
+      v.object({ namespace: v.optional(v.string()), functions: v.array(v.object({ slug: v.string() })) }),
+      JSON.parse(await readFile(receipt, "utf8")),
+    );
+    for (const { slug } of recorded.functions) functions.add(slug);
+    if (recorded.namespace && !recorded.namespace.startsWith("accept_"))
+      // Example-configured namespaces are shared by later runs on the branch; report rather than drop them.
+      console.warn(`Acceptance teardown keeps configured namespace ${recorded.namespace}`);
+  } catch {
+    // Failed runs write no receipt; the listing diff above covers newly created functions.
+  }
+  const role = env.KELLO_CLOUD_RUNTIME_ROLE!;
+  try {
+    failures.push(
+      ...(await executeTeardown(
+        {
+          functions: [...functions],
+          schemas: ownsRuntimeRole ? acceptanceSchemasForRole(role) : [],
+          roles: ownsRuntimeRole ? [role] : [],
+        },
+        {
+          deleteFunction: (slug) => neon(["functions", "delete", slug]),
+          connectionString: env.KELLO_MIGRATION_DATABASE_URL!,
+        },
+      )),
+    );
+  } catch (cause) {
+    failures.push(redact(cause instanceof Error ? cause.message : "teardown"));
+  }
+  if (failures.length) {
+    process.exitCode = 1;
+    console.error(`Acceptance teardown incomplete (${failures.join(", ")}); run \`bun run cleanup:cloud\``);
+  } else console.log(`Acceptance teardown removed ${functions.size} function(s) and the fixture database objects`);
+}

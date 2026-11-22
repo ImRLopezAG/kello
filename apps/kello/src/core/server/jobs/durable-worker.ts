@@ -5,6 +5,7 @@ import type { JobFailureCode, JobLease } from "./contracts";
 import { leaseDuration, leaseOwner } from "./contracts";
 import { publishRuntimeMetric } from "../observability";
 import type { RuntimeMetric } from "../observability";
+import type { IdleBackoff } from "./idle-backoff";
 
 export type JobExecutionResult =
   | { readonly ok: true; readonly value: JsonValue }
@@ -21,6 +22,8 @@ export interface DurableWorkerOptions<Call> {
   readonly assertActive: (signal: AbortSignal) => Promise<void>;
   readonly owner?: string;
   readonly leaseSeconds?: number;
+  /** Shared with the wake gate; completed passes report how many jobs they claimed. */
+  readonly idle?: Pick<IdleBackoff, "record">;
 }
 export interface JobRunResult {
   claimed: number;
@@ -42,6 +45,7 @@ export function createDurableJobWorker<Call>(options: DurableWorkerOptions<Call>
   const queue = Object.freeze({ ...options.queue });
   const dispatch = options.execute;
   const assertActive = options.assertActive;
+  const idle = options.idle;
   let running: Promise<JobRunResult> | undefined;
   let active: AbortController | undefined;
   let stopped = false;
@@ -164,6 +168,11 @@ export function createDurableJobWorker<Call>(options: DurableWorkerOptions<Call>
       active = controller;
       running = Promise.resolve()
         .then(() => runPass(maxJobs, controller.signal))
+        .then((result) => {
+          // Only a clean pass proves an empty queue; failures and aborts keep the next wake polling.
+          if (!controller.signal.aborted) idle?.record(result.claimed);
+          return result;
+        })
         .finally(() => {
           active = undefined;
           running = undefined;

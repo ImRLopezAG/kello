@@ -1,4 +1,5 @@
 /** Explicit smoke test on the already authorized disposable branch; never imported by offline suites. */
+import { projectId, branchId, branchName, endpointId as acceptanceEndpointId } from "./acceptance-target";
 import assert from "node:assert/strict";
 import { mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -7,8 +8,6 @@ import { setTimeout } from "node:timers/promises";
 import { buildNeonFunctionBundle, createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello-cli";
 import * as v from "valibot";
 
-const projectId = "late-moon-69483649";
-const branchId = "br-dark-block-awbbt60w";
 const run = crypto.randomUUID();
 const slug = `ks${run.replaceAll("-", "").slice(0, 18)}`;
 const nonce = crypto.randomUUID();
@@ -49,8 +48,8 @@ try {
     "preview",
     api,
   );
-  assert.equal(target.branchName, "kello-acceptance-kello-002-optimistic-20261007");
-  assert.equal(target.endpointId, "ep-solitary-block-awijudvn");
+  assert.equal(target.branchName, branchName);
+  assert.equal(target.endpointId, acceptanceEndpointId);
   assert.equal(target.protected, false);
   assert(!(await api.listBranchFunctions(projectId, branchId)).some((fn) => fn.slug === slug));
   await symlink(await realpath(new URL("../node_modules", import.meta.url)), join(root, "node_modules"));

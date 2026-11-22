@@ -7,6 +7,7 @@
     "typecheck": "bun check --no-script -p tsconfig.json",
     "test:integration": "bun test ./integration",
     "test:cloud": "bun ./cloud/run.ts",
+    "cleanup:cloud": "bun ./cloud/cleanup.ts",
     "test:browser": "bun test ./browser"
   },
   "dependencies": {
