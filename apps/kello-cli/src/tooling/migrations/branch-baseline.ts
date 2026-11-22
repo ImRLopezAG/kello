@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import { acquireMigrationLock, assertMigrationConnection, quoteIdentifier } from "./connection";
 import { catalogFingerprint } from "./drift";
 import { frameworkMigrations } from "./bootstrap";
@@ -16,9 +16,9 @@ interface SchemaBaseline {
   readonly fingerprint: string;
 }
 // A baseline is usable only while its source's owned session still holds the locks.
-const sources = new WeakMap<SchemaBaseline, pg.Client>();
+const sources = new WeakMap<SchemaBaseline, DatabaseSession>();
 
-async function snapshot(client: pg.Client, scope: HistoryScope, artifacts: readonly MigrationArtifact[]) {
+async function snapshot(client: DatabaseSession, scope: HistoryScope, artifacts: readonly MigrationArtifact[]) {
   const state = await inspectHistory(client, scope, artifacts);
   if (state.issues.length || (state.initialized && !state.applied.length))
     throw new Error("Schema baseline requires consistent, applied source migrations");
@@ -36,7 +36,7 @@ async function snapshot(client: pg.Client, scope: HistoryScope, artifacts: reado
 
 /** Capture before branch creation. Keep this callback's owned source connection open until adoption finishes. */
 export async function captureSchemaBaseline(
-  source: pg.Client,
+  source: DatabaseSession,
   scope: HistoryScope,
   artifacts: readonly MigrationArtifact[],
 ): Promise<SchemaBaseline> {
@@ -57,8 +57,8 @@ export async function captureSchemaBaseline(
 
 /** Adopt all scopes in one transaction: metadata is shared, so per-scope emptiness checks are unsafe. */
 export async function establishSchemaBaselines(
-  source: pg.Client,
-  target: pg.Client,
+  source: DatabaseSession,
+  target: DatabaseSession,
   entries: readonly { readonly baseline: SchemaBaseline; readonly artifacts: readonly MigrationArtifact[] }[],
   ownership: readonly { readonly mount_path: string; readonly namespace: string; readonly state: string }[] = [],
 ): Promise<void> {
@@ -194,8 +194,8 @@ export async function establishSchemaBaselines(
 
 /** Compatibility entrypoint for a single application scope. */
 export async function establishSchemaBaseline(
-  source: pg.Client,
-  target: pg.Client,
+  source: DatabaseSession,
+  target: DatabaseSession,
   baseline: SchemaBaseline,
   artifacts: readonly MigrationArtifact[],
 ): Promise<void> {

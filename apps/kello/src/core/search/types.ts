@@ -198,12 +198,11 @@ export type SearchNestedSelection<Graph extends AnyRelations, Table extends Tabl
 };
 type RootMatching<Policy> = [Capability<Policy, "fullText">] extends [never]
   ? { readonly fullText?: never }
-  :
-      | { readonly fullText?: never }
-      | {
-          readonly fullText: { readonly document: Capability<Policy, "fullText">; readonly query: string };
-          readonly orderBy?: never;
-        };
+  : | { readonly fullText?: never }
+    | {
+        readonly fullText: { readonly document: Capability<Policy, "fullText">; readonly query: string };
+        readonly orderBy?: never;
+      };
 /** One finite root page. Order priority is an array, never object key order. */
 export type SearchSelection<
   Graph extends AnyRelations,
@@ -255,19 +254,18 @@ type RelationRow<
 > = Policy extends { relations: infer Policies }
   ? Name extends keyof Policies
     ? Table["relations"][Name] extends infer Relation extends AnyRelation
-      ?
-          | RelationResultKind<
-              SearchRow<Graph, FindTargetTableInRelationalConfig<Graph, Relation>, Policies[Name], NonNullable<Input>>,
-              Input,
-              Relation
-            >
-          | (Relation extends AnyOne
-              ? Policies[Name] extends { scope: "public" }
-                ? "where" extends keyof NonNullable<Input>
-                  ? null
-                  : never
-                : null
-              : never)
+      ? | RelationResultKind<
+            SearchRow<Graph, FindTargetTableInRelationalConfig<Graph, Relation>, Policies[Name], NonNullable<Input>>,
+            Input,
+            Relation
+          >
+        | (Relation extends AnyOne
+            ? Policies[Name] extends { scope: "public" }
+              ? "where" extends keyof NonNullable<Input>
+                ? null
+                : never
+              : null
+            : never)
       : never
     : never
   : never;

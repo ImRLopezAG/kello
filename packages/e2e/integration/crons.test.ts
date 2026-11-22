@@ -16,7 +16,7 @@ import { bootstrapDatabase, defineConfig, prepareNeonScheduleTriggers } from "ke
 import type { DeploymentTriggerProvider } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -154,11 +154,11 @@ test.skipIf(!connectionString)(
             3,
           );
           await assert.rejects(
-            connection.pool.query(`DELETE FROM "${metadataNamespace}".trigger_receipts`),
+            connection.pool.execute(`DELETE FROM "${metadataNamespace}".trigger_receipts`),
             /permission denied/,
           );
           await assert.rejects(
-            connection.pool.query(`UPDATE "${metadataNamespace}".trigger_receipts SET trigger_name = 'changed'`),
+            connection.pool.execute(`UPDATE "${metadataNamespace}".trigger_receipts SET trigger_name = 'changed'`),
             /permission denied/,
           );
           const providerTriggers: Awaited<ReturnType<DeploymentTriggerProvider["listBranchTriggers"]>> = [];

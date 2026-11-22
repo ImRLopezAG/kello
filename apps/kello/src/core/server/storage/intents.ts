@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import * as v from "valibot";
 import type { InvocationIdentity } from "../auth/context";
 import { lockRuntimeActivation } from "../activation";
@@ -22,7 +22,7 @@ export interface StorageAuthorization {
   readonly signal: AbortSignal;
 }
 export interface StorageIntentsOptions {
-  readonly db: NodePgDatabase;
+  readonly db: Database;
   readonly metadataNamespace: string;
   readonly deployment: string;
   readonly projectId: string;
@@ -34,7 +34,7 @@ export interface StorageIntentsOptions {
   readonly buckets: readonly string[];
   readonly storage: ObjectStorageBackend;
   /** Use the supplied database for activation reads while an intent transaction owns a connection. */
-  readonly assertActive: (signal: AbortSignal, db?: NodePgDatabase) => Promise<void>;
+  readonly assertActive: (signal: AbortSignal, db?: Database) => Promise<void>;
   /** Required application policy, in addition to owner and tenant isolation. Throw to deny. */
   readonly authorize: (context: StorageAuthorization) => void | Promise<void>;
 }
@@ -83,7 +83,7 @@ export function createStorageIntents(options: StorageIntentsOptions) {
   }
   async function transaction<Result>(
     signal: AbortSignal,
-    operation: (database: NodePgDatabase) => Promise<Result>,
+    operation: (database: Database) => Promise<Result>,
   ): Promise<Result> {
     return db.transaction(
       async (tx) => {

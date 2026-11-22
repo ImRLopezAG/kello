@@ -9,15 +9,15 @@
   },
   "devDependencies": {
     "@kello/ts-config": "workspace:*",
-    "@neon/realtime": "0.2.0",
+    "@neon/realtime": "0.2.1",
     "@neon/realtime-drizzle": "0.2.0",
     "@neon/realtime-react": "0.2.0",
-    "@neon/realtime-tanstack": "0.3.0",
+    "@neon/realtime-tanstack": "0.3.1",
     "@standard-schema/spec": "1.1.0",
     "@tanstack/db": "1.0.0-rc.1.4",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
-    "drizzle-orm": "1.0.0-rc.5",
+    "drizzle-orm": "1.0.0-rc.6",
     "react": "19.3.1",
     "typescript": "7.0.2"
   }

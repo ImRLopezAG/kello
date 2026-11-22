@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import type { DeploymentDatabaseProvider } from "kello-cli";
 import {
   captureSchemaBaseline,

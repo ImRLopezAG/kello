@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Context, Effect } from "effect";
 import { ORPCError } from "@orpc/server";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import type { InvocationContext, InvocationIdentity } from "../auth/context";
 import { assertOutsideRpcDatabase, ownRpcDatabaseWork } from "../rpc/database";
 import { isRateLimitDefinitions } from "./policy";
@@ -39,12 +39,7 @@ export class RateLimits extends Context.Service<RateLimits, InvocationRateLimits
 /** Runtime-created scope; implementations own SQL admission and independent attempt commit. */
 export interface RateLimitScope {
   readonly definitions: RateLimitDefinitions;
-  readonly quota: (
-    db: NodePgDatabase,
-    identity: InvocationIdentity,
-    name: string,
-    signal: AbortSignal,
-  ) => Promise<void>;
+  readonly quota: (db: Database, identity: InvocationIdentity, name: string, signal: AbortSignal) => Promise<void>;
   readonly attempt: (identity: InvocationIdentity, name: string, signal: AbortSignal) => Promise<void>;
 }
 interface Owner {

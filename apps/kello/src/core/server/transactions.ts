@@ -1,7 +1,7 @@
 import { setTimeout } from "node:timers/promises";
 import type { AnyRelations } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { DatabaseConnection } from "./database/connection";
+import type { DatabaseTransaction } from "./database/types";
 import { withTransactionSignal } from "./database/connection";
 import { publishRuntimeMetric } from "./observability";
 
@@ -32,7 +32,7 @@ function retryable(error: Error): boolean {
 export async function runFunctionTransaction<Relations extends AnyRelations, Result>(
   connection: DatabaseConnection<Relations>,
   kind: "query" | "mutation",
-  operation: (tx: Parameters<Parameters<NodePgDatabase<Relations>["transaction"]>[0]>[0]) => Promise<Result>,
+  operation: (tx: DatabaseTransaction<Relations>) => Promise<Result>,
   options: TransactionOptions = {},
 ): Promise<Result> {
   const maxAttempts = options.maxAttempts ?? 3;

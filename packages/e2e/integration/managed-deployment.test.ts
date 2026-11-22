@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test, expect } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { bootstrapDatabase, defineConfig } from "kello-cli";
 import type { DeploymentDatabaseProvider } from "kello-cli";
 import { resolveManagedDeploymentCredentials } from "../../../apps/kello-cli/src/tooling/deploy/neon/managed-credentials";

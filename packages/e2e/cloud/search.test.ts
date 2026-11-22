@@ -3,7 +3,7 @@ import { test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { createKelloNeonApi, defineConfig, inspectDeploymentTarget } from "kello-cli";
 import { prepareCloudSearch } from "../fixtures/cloud-search";

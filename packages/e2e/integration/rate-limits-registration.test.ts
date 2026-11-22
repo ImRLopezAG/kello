@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { defineRateLimits } from "../../../apps/kello/src/core/server/rate-limits/policy";
 import { bootstrapSession } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 import { quoteIdentifier } from "../../../apps/kello-cli/src/tooling/migrations/connection";
@@ -25,7 +25,7 @@ beforeAll(async () => {
   await client.connect();
   const version = await client.query("SHOW server_version_num");
   expect(Math.floor(Number(version.rows[0].server_version_num) / 10000)).toBe(18);
-  await bootstrapSession(client, metadataNamespace, runtimeRole);
+  await bootstrapSession(client.session, metadataNamespace, runtimeRole);
 });
 afterAll(async () => {
   await client.query(`DROP SCHEMA IF EXISTS ${quoteIdentifier(metadataNamespace)} CASCADE`);
@@ -34,12 +34,12 @@ afterAll(async () => {
 });
 
 test("two releases agree; version bumps and component mounts register independent identities", async () => {
-  await registerRateLimitPolicies(client, input);
-  await registerRateLimitPolicies(client, {
+  await registerRateLimitPolicies(client.session, input);
+  await registerRateLimitPolicies(client.session, {
     ...input,
     scopes: [{ mountPath: "", definitions: defineRateLimits({ action: policy }) }],
   });
-  await registerRateLimitPolicies(client, {
+  await registerRateLimitPolicies(client.session, {
     ...input,
     scopes: [
       { mountPath: "", definitions: defineRateLimits({ action: { ...policy, version: 2 } }) },
@@ -56,9 +56,9 @@ test("two releases agree; version bumps and component mounts register independen
 });
 
 test("same version conflict is safe and rolls back every earlier new row", async () => {
-  await registerRateLimitPolicies(client, input);
+  await registerRateLimitPolicies(client.session, input);
   await assert.rejects(
-    registerRateLimitPolicies(client, {
+    registerRateLimitPolicies(client.session, {
       ...input,
       scopes: [
         {
@@ -79,12 +79,12 @@ test("same version conflict is safe and rolls back every earlier new row", async
 test("all input validates before writes, including bounds and canonical definitions", async () => {
   const invalid = ["\0", "\uD800", "é".repeat(129)];
   for (const applicationNamespace of invalid) {
-    await assert.rejects(registerRateLimitPolicies(client, { ...input, applicationNamespace }), {
+    await assert.rejects(registerRateLimitPolicies(client.session, { ...input, applicationNamespace }), {
       message: "Invalid rate limit registration input",
     });
   }
   await assert.rejects(
-    registerRateLimitPolicies(client, {
+    registerRateLimitPolicies(client.session, {
       ...input,
       scopes: [
         { mountPath: "fresh", definitions },
@@ -95,11 +95,14 @@ test("all input validates before writes, including bounds and canonical definiti
   );
   expect((await client.query(`SELECT * FROM ${table} WHERE mount_path='fresh'`)).rows).toHaveLength(0);
   for (const mountPath of invalid) {
-    await assert.rejects(registerRateLimitPolicies(client, { ...input, scopes: [{ mountPath, definitions }] }), {
-      message: "Invalid rate limit registration input",
-    });
+    await assert.rejects(
+      registerRateLimitPolicies(client.session, { ...input, scopes: [{ mountPath, definitions }] }),
+      {
+        message: "Invalid rate limit registration input",
+      },
+    );
   }
-  await assert.rejects(registerRateLimitPolicies(client, { ...input, metadataNamespace: 'bad"schema' }), {
+  await assert.rejects(registerRateLimitPolicies(client.session, { ...input, metadataNamespace: 'bad"schema' }), {
     message: "Invalid rate limit registration input",
   });
 });
@@ -108,7 +111,7 @@ test("128 policies and valid Unicode namespace boundaries remain supported", asy
   const policies = Object.fromEntries(Array.from({ length: 128 }, (_, index) => [`p${index}`, policy]));
   const bounded = defineRateLimits(policies);
   const applicationNamespace = "😀".repeat(64);
-  await registerRateLimitPolicies(client, {
+  await registerRateLimitPolicies(client.session, {
     ...input,
     applicationNamespace,
     scopes: [{ mountPath: "", definitions: bounded }],
@@ -121,7 +124,7 @@ test("128 policies and valid Unicode namespace boundaries remain supported", asy
     ).rows[0].count,
   ).toBe(128);
   await assert.rejects(
-    registerRateLimitPolicies(client, {
+    registerRateLimitPolicies(client.session, {
       ...input,
       scopes: [
         {
@@ -138,7 +141,7 @@ test("128 policies and valid Unicode namespace boundaries remain supported", asy
 });
 
 test("registration preserves existing buckets and removed policy rows", async () => {
-  await registerRateLimitPolicies(client, input);
+  await registerRateLimitPolicies(client.session, input);
   const buckets = `${quoteIdentifier(metadataNamespace)}.rate_limit_buckets`;
   await client.query(
     `INSERT INTO ${buckets}
@@ -147,8 +150,11 @@ test("registration preserves existing buckets and removed policy rows", async ()
     [Buffer.alloc(32)],
   );
   const before = (await client.query(`SELECT * FROM ${buckets}`)).rows;
-  await registerRateLimitPolicies(client, { ...input, scopes: [{ mountPath: "", definitions: defineRateLimits({}) }] });
-  await registerRateLimitPolicies(client, input);
+  await registerRateLimitPolicies(client.session, {
+    ...input,
+    scopes: [{ mountPath: "", definitions: defineRateLimits({}) }],
+  });
+  await registerRateLimitPolicies(client.session, input);
   expect((await client.query(`SELECT * FROM ${buckets}`)).rows).toEqual(before);
 });
 
@@ -166,7 +172,7 @@ test("stricter statement timeout survives registration and bounds a blocked inse
       ["0".repeat(64)],
     );
     await assert.rejects(
-      registerRateLimitPolicies(client, {
+      registerRateLimitPolicies(client.session, {
         ...input,
         scopes: [{ mountPath: "", definitions: defineRateLimits({ blocked: policy }) }],
       }),
@@ -186,12 +192,12 @@ test("stricter statement timeout survives registration and bounds a blocked inse
 test("active and aborted caller transactions are rejected without committing or rolling them back", async () => {
   await client.query("BEGIN");
   try {
-    await assert.rejects(registerRateLimitPolicies(client, input), {
+    await assert.rejects(registerRateLimitPolicies(client.session, input), {
       message: "Rate limit registration requires an idle connection",
     });
     expect(client.getTransactionStatus()).toBe("T");
     await assert.rejects(client.query("SELECT 1/0"));
-    await assert.rejects(registerRateLimitPolicies(client, input), {
+    await assert.rejects(registerRateLimitPolicies(client.session, input), {
       message: "Rate limit registration requires an idle connection",
     });
     // ErrorResponse may reject before ReadyForQuery updates pg's status. A
@@ -211,12 +217,12 @@ test("cancellation while waiting for ownership rolls back and pooled clients ret
   const controller = new AbortController();
   try {
     await blocker.query("SELECT pg_advisory_lock(hashtextextended('kello:component-ownership',0))");
-    const pending = registerRateLimitPolicies(pooled, { ...input, signal: controller.signal });
+    const pending = registerRateLimitPolicies(pooled.session, { ...input, signal: controller.signal });
     setTimeout(() => controller.abort(), 100);
     await assert.rejects(pending);
     expect(pooled.getTransactionStatus()).toBe("I");
     await blocker.query("SELECT pg_advisory_unlock_all()");
-    await registerRateLimitPolicies(pooled, input);
+    await registerRateLimitPolicies(pooled.session, input);
     expect(
       (
         await pooled.query(
@@ -238,7 +244,7 @@ test("caller session locks are reentrant and mounted namespace locks serialize r
   try {
     await client.query("SELECT pg_advisory_lock(hashtextextended($1,0))", ["kello:component-ownership"]);
     await client.query("SELECT pg_advisory_lock(hashtextextended($1,0))", ["kello:migrations:app"]);
-    await registerRateLimitPolicies(client, input);
+    await registerRateLimitPolicies(client.session, input);
     expect(
       (
         await client.query(
@@ -248,7 +254,7 @@ test("caller session locks are reentrant and mounted namespace locks serialize r
     ).toBe(2);
     await blocker.query("SELECT pg_advisory_lock(hashtextextended($1,0))", [namespaceKey]);
     const controller = new AbortController();
-    const pending = registerRateLimitPolicies(client, {
+    const pending = registerRateLimitPolicies(client.session, {
       ...input,
       scopes: [{ mountPath: "locked", definitions }],
       signal: controller.signal,

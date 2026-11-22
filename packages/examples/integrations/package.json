@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@orpc/server": "2.0.0-beta.49",
-    "drizzle-orm": "1.0.0-rc.5",
-    "effect": "4.1.2",
+    "drizzle-orm": "1.0.0-rc.6",
+    "effect": "4.1.5",
     "kello": "workspace:*",
     "valibot": "1.5.0",
     "zod": "4.6.7"
@@ -28,7 +28,6 @@
     "@kello/ts-config": "workspace:*",
     "@orpc/tanstack-query": "2.0.0-beta.49",
     "@types/bun": "1.4.4",
-    "@types/pg": "8.23.1",
     "kello-cli": "workspace:*",
     "typescript": "7.0.2"
   }

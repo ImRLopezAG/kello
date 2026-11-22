@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { defineRelations, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { bigint, pgSchema, text, uuid } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
-import pg from "pg";
+import * as pg from "../../fixtures/postgres";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 
@@ -32,7 +32,7 @@ test.skipIf(!connectionString)("PostgreSQL 18 native IDs, constraints, migration
     projects: { tasks: r.many.tasks() },
   }));
   const pool = new pg.Pool({ connectionString });
-  const db = drizzle({ client: pool, relations });
+  const db = drizzle({ client: pool.driver, relations });
   try {
     const version = await pool.query<{ server_version_num: string }>("SHOW server_version_num");
     expect(Number(version.rows[0]?.server_version_num)).toBeGreaterThanOrEqual(180000);

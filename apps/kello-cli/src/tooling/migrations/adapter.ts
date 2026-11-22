@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { generateDrizzleJson, generateMigration, inspectSchema } from "drizzle-kit/api-postgres";
 import type { Hint } from "drizzle-kit/api-postgres";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { PgAsyncDatabase } from "drizzle-orm/pg-core/async";
+import type { PostgresQueryResultHKT } from "drizzle-orm/postgres";
+import type { AnyRelations } from "drizzle-orm";
 import type { SchemaDefinition } from "kello/server";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { pgSchema } from "drizzle-orm/pg-core";
@@ -14,7 +16,10 @@ import { alignCheckExpressions, alignFullTextIndexes, normalizeFullTextIndexes }
 export type MigrationSnapshot = v.InferOutput<typeof snapshotValidator>;
 export type RenameHint = Extract<Hint, { type: "rename"; kind: "table" | "column" }>;
 
-export async function inspectSnapshot(database: NodePgDatabase, namespace: string): Promise<MigrationSnapshot> {
+export async function inspectSnapshot(
+  database: PgAsyncDatabase<PostgresQueryResultHKT, AnyRelations>,
+  namespace: string,
+): Promise<MigrationSnapshot> {
   const selectedNamespace = v.parse(databaseIdentifier, namespace);
   // Deparse catalog regconfig literals without confusing a search_path-shadowing application config.
   const snapshot = await database.transaction(async (tx) => {

@@ -4,7 +4,7 @@ import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { defineRelations } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { defineApplication, defineComponent } from "kello";
 import { createRpcHttpApp } from "kello/neon";

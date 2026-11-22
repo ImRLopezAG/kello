@@ -2,13 +2,13 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { call, defineMeta, os, Procedure, ORPCError } from "@orpc/server";
 import type { AnySchema, ErrorMap, Middleware, InferSchemaInput } from "@orpc/server";
 import type { AnyRelations } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import * as v from "valibot";
 import { Context } from "effect";
 import { composeInvocationSignals } from "../invocation-deadline";
 import type { DatabaseConnection } from "../database/connection";
 import { captureInvocationGuard, hasDatabaseInvocation } from "../database/connection";
-import { scopedDatabase } from "../database/context";
+import { scopedDatabase, scopedEffectDatabase } from "../database/context";
 import { bindDatabaseIdentity } from "../auth/context";
 import { runFunctionTransaction } from "../transactions";
 import type { IdempotencyOptions } from "../idempotency";
@@ -80,7 +80,7 @@ export function resolveDatabasePolicy(
   return context.operation && ["query", "infinite", "streamed", "live"].includes(context.operation) ? "read" : "write";
 }
 interface ActiveDatabase {
-  readonly db: NodePgDatabase;
+  readonly db: Database;
   readonly policy: DatabasePolicy;
   readonly automatic: boolean;
   readonly invocation: symbol;
@@ -109,7 +109,7 @@ export function assertOutsideRpcDatabase(): void {
 /** Scheduling uses the same guarded transaction and cannot escape its lifetime.
  * A caught scheduling error still aborts the owning database attempt. */
 export function ownRpcDatabaseWork<T>(
-  work: (db: NodePgDatabase, identity: ProcedureContext["identity"]) => Promise<T>,
+  work: (db: Database, identity: ProcedureContext["identity"]) => Promise<T>,
   expected?: Pick<ProcedureContext, "requestId" | "identity">,
 ): Promise<T> {
   const active = currentDatabase.getStore();
@@ -159,7 +159,7 @@ export function createDatabaseMiddleware<
 >(relations: Relations, policy: DatabasePolicy | "automatic", schema: Schema) {
   if (!isNativeRelations(relations)) throw new Error("Expected native Drizzle relations");
   validateSchemaRelations(schema, relations);
-  const { Database, Tables, Validators, Search } = createProjectServices<Schema, Relations>();
+  const { Database, EffectDatabase, Tables, Validators, Search } = createProjectServices<Schema, Relations>();
   const validators = createSearchValidators(schema, relations);
   const search = createSearchContext(relations);
   const middleware = os
@@ -183,12 +183,14 @@ export function createDatabaseMiddleware<
         },
       });
       const db = scopedDatabase(current.db, relations);
+      const effectDb = scopedEffectDatabase(current.db, relations);
       return next({
         context: {
           db,
           scheduler,
           "effect/context": context["effect/context"].pipe(
             Context.add(Database, db),
+            Context.add(EffectDatabase, effectDb),
             Context.add(RpcSchedulerService, scheduler),
             Context.add(Tables, schema.tables),
             Context.add(Validators, validators),
@@ -220,7 +222,7 @@ export interface RpcDatabaseOptions<Relations extends AnyRelations> {
     | undefined;
   readonly authorize: (
     context: ProcedureContext & {
-      readonly db: NodePgDatabase<Relations>;
+      readonly db: Database<Relations>;
       readonly path: readonly string[];
       readonly input: RpcValue;
       readonly databasePolicy: DatabasePolicy | "automatic";
@@ -364,7 +366,7 @@ export function bindRpcDatabaseProcedure<
         await options.authorize({
           ...context,
           signal,
-          db: parent.db as NodePgDatabase<Relations>,
+          db: parent.db as Database<Relations>,
           path,
           input: deserializeRpcValue(structuredClone(capturedInput)),
           databasePolicy: binding,

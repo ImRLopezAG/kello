@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import * as pg from "../fixtures/postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
 import { eq } from "drizzle-orm";
@@ -22,7 +22,7 @@ test.skipIf(!connectionString)(
     const namespace = `kello_pages_${crypto.randomUUID().replaceAll("-", "")}`;
     const { schema, relations } = createSearchFixture(namespace);
     const pool = new pg.Pool({ connectionString, options: "-c timezone=America/New_York" });
-    const db = drizzle({ client: pool, relations });
+    const db = drizzle({ client: pool.driver, relations });
     const { validators } = createProjectContext(schema, relations);
     const search = validators.tables.tasks.search({
       scope: {

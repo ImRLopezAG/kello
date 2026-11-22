@@ -7,9 +7,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { bigint, index, pgSchema, text, uuid } from "drizzle-orm/pg-core";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import {
   createNativeSnapshot,
   emptySnapshot,
@@ -204,7 +204,7 @@ test("pre-U1 native historical artifacts stay immutable and regenerate unchanged
       if (!plan.safety.automatic) await assert.rejects(applyMigrations(options), /requires review/);
       expect((await applyMigrations({ ...options, reviewedHashes: [plan.hash] })).applied).toEqual([plan.hash]);
       expect((await applyMigrations(options)).applied).toEqual([]);
-      const inspected = await inspectSnapshot(drizzle({ client }), namespace);
+      const inspected = await inspectSnapshot(drizzle({ client: client.connection }), namespace);
       if (method === "gin") {
         const liveRegenerated = await planMigration(inspected, schema, [], plan.hash);
         expect(liveRegenerated.statements).toEqual([]);
@@ -282,7 +282,7 @@ test("native weighted expression GIN round-trips through Kello's migration lifec
     expect(gin?.definition).toContain("'A'::\"char\"");
     expect(gin?.definition).toContain("'D'::\"char\"");
     expect(catalog.rows.filter((row) => row.amname === "btree")).toHaveLength(2);
-    const live = await inspectSnapshot(drizzle({ client }), namespace);
+    const live = await inspectSnapshot(drizzle({ client: client.connection }), namespace);
     console.log(
       "U1_LIVE_INDEXES",
       JSON.stringify(live.ddl.filter((e) => e.entityType === "indexes").sort((a, b) => a.name.localeCompare(b.name))),
@@ -303,7 +303,9 @@ test("native weighted expression GIN round-trips through Kello's migration lifec
     expect(live.ddl.filter((e) => e.entityType === "indexes").sort((a, b) => a.name.localeCompare(b.name))).toEqual(
       initial.snapshot.ddl.filter((e) => e.entityType === "indexes").sort((a, b) => a.name.localeCompare(b.name)),
     );
-    expect(snapshotHash(await inspectSnapshot(drizzle({ client }), namespace))).toBe(snapshotHash(live));
+    expect(snapshotHash(await inspectSnapshot(drizzle({ client: client.connection }), namespace))).toBe(
+      snapshotHash(live),
+    );
     expect(regenerated.hash).toBe(migrationHash(regenerated));
     console.log(
       "U1_SNAPSHOT_DIFFERENCES",
@@ -355,7 +357,7 @@ test("native weighted expression GIN round-trips through Kello's migration lifec
       await assert.rejects(applyMigrations(options), /requires review/);
       expect((await applyMigrations({ ...options, reviewedHashes: [plan.hash] })).applied).toEqual([plan.hash]);
       expect((await applyMigrations(options)).applied).toEqual([]);
-      const inspected = await inspectSnapshot(drizzle({ client }), namespace);
+      const inspected = await inspectSnapshot(drizzle({ client: client.connection }), namespace);
       expect((await planMigration(inspected, target)).statements).toEqual([]);
       expect(
         inspected.ddl.filter((e) => e.entityType === "indexes").sort((a, b) => a.name.localeCompare(b.name)),
@@ -387,7 +389,7 @@ test("native weighted expression GIN round-trips through Kello's migration lifec
     await client.query(
       `CREATE INDEX documents_search_idx ON "${namespace}".documents USING gin (setweight(to_tsvector('pg_catalog.simple'::regconfig, coalesce(body, '')), 'B'::"char"))`,
     );
-    const wrong = await inspectSnapshot(drizzle({ client }), namespace);
+    const wrong = await inspectSnapshot(drizzle({ client: client.connection }), namespace);
     const correction = await planMigration(wrong, fixture(namespace, "english", "B", "body"));
     expect(correction.statements).toHaveLength(2);
     expect(correction.safety.automatic).toBe(false);
@@ -399,12 +401,12 @@ test("native weighted expression GIN round-trips through Kello's migration lifec
       `CREATE INDEX documents_search_idx ON "${namespace}".documents USING gin (setweight(to_tsvector('${namespace}.simple'::regconfig, coalesce(body, '')), 'D'::"char"))`,
     );
     await client.query(`SET search_path = "${namespace}", pg_catalog`);
-    const shadowed = await inspectSnapshot(drizzle({ client }), namespace);
+    const shadowed = await inspectSnapshot(drizzle({ client: client.connection }), namespace);
     const shadowedIndex = shadowed.ddl.find((e) => e.entityType === "indexes" && e.name === "documents_search_idx");
     assert(shadowedIndex?.entityType === "indexes");
     expect(shadowedIndex.columns[0]?.value).toContain(`${namespace}.simple`);
     expect((await client.query("SHOW search_path")).rows[0].search_path).toBe(`${namespace}, pg_catalog`);
-    await drizzle({ client }).transaction(async (tx) => {
+    await drizzle({ client: client.connection }).transaction(async (tx) => {
       await inspectSnapshot(tx, namespace);
       const restored = await tx.execute<{ search_path: string }>(sql`SHOW search_path`);
       expect(restored.rows[0]?.search_path).toBe(`${namespace}, pg_catalog`);
@@ -422,7 +424,7 @@ test("native weighted expression GIN round-trips through Kello's migration lifec
       `CREATE INDEX documents_search_idx ON "${namespace}".documents USING btree (setweight(to_tsvector('pg_catalog.english'::regconfig, coalesce(body, '')), 'D'::"char"))`,
     );
     const wrongMethod = await planMigration(
-      await inspectSnapshot(drizzle({ client }), namespace),
+      await inspectSnapshot(drizzle({ client: client.connection }), namespace),
       fixture(namespace, "english", "B", "body"),
     );
     expect(wrongMethod.statements).toHaveLength(2);
@@ -436,7 +438,7 @@ test("native weighted expression GIN round-trips through Kello's migration lifec
     expect(
       (
         await planMigration(
-          await inspectSnapshot(drizzle({ client }), renamedNamespace),
+          await inspectSnapshot(drizzle({ client: client.connection }), renamedNamespace),
           fixture(renamedNamespace, "english", "B", "body"),
         )
       ).statements,

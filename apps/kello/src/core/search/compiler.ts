@@ -224,7 +224,7 @@ export function compileSearch(
     if (incoming?.relation.throughTable) junction(incoming.node, incoming.relation);
     return {
       // Junction authorization references the joined relation alias. Keep it in scope
-      // rather than moving the predicate into RC5's pre-join optimized subquery.
+      // rather than moving the predicate into Drizzle's pre-join optimized subquery.
       strategy: "basic",
       columns: Object.fromEntries(selectedColumns(node.public, selection).map((name) => [name, true])),
       with: children,

@@ -19,6 +19,16 @@ Use matching Kello and Kello CLI release versions. Import configuration and migr
 
 Deployment builds Neon function archives with Vite+ (Rolldown). The deployed functions do not need `kello-cli` or `vite-plus`. `kello dev` watches source and deploys to the linked Neon preview branch. Handlers, jobs and cron schedules execute there; no local backend runs. Stop ends watching and leaves the preview release available.
 
+## Upgrading to the Drizzle rc.6 driver
+
+Kello now runs on the Postgres driver bundled with Drizzle ORM `1.0.0-rc.6`, which is an exact peer dependency. `pg` and `@types/pg` are no longer dependencies.
+
+- Type database handles with `Database` and `DatabaseTransaction` from `kello/server` instead of Drizzle's `NodePgDatabase`.
+- `DatabaseConnection.pool` is the driver's pool (`drizzle-orm/postgres`), not a `pg.Pool`.
+- Generated bindings now also export the `EffectDatabase` service. Regenerate them with the matching `kello-cli`.
+- `*.neon.tech` hosts connect through Neon's secure WebSocket proxy. Other hosts connect over TCP and read `sslmode` as node-postgres did: none or `disable` is plaintext, `no-verify` encrypts without verifying, and every other mode verifies the certificate and hostname.
+- Each statement inside a function transaction is bounded by the smaller of the invocation's remaining time and 30 seconds. An aborted invocation closes its connection, and the server stops the statement at that bound.
+
 ## Validators and upstream dependencies
 
 Public contracts accept Standard Schema validators, including Valibot and Zod. Standard Schema defines how to call a validator; it does not implement validation itself. Zod is not a required application validator. Kello CLI bundles a patched Zod version for its migration/config tooling. Generated live-query output schemas currently support the verified Valibot and Zod shapes, rather than every Standard Schema implementation.

@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import { parse } from "libpg-query";
 import * as v from "valibot";
 import { databaseIdentifier, quoteIdentifier } from "./connection";
@@ -94,7 +94,7 @@ export interface ConcurrentRecoveryScope {
   readonly namespace: string;
   readonly metadataNamespace: string;
 }
-export async function readConcurrentRecovery(client: pg.Client, scope: ConcurrentRecoveryScope) {
+export async function readConcurrentRecovery(client: DatabaseSession, scope: ConcurrentRecoveryScope) {
   return (
     await client.query<{ ordinal: number; hash: string; before_catalog_hash: string }>(
       `SELECT ordinal, hash, before_catalog_hash FROM ${quoteIdentifier(scope.metadataNamespace)}.nontransactional_migrations WHERE namespace=$1`,
@@ -104,7 +104,7 @@ export async function readConcurrentRecovery(client: pg.Client, scope: Concurren
 }
 
 export async function verifyConcurrentBaseline(
-  client: pg.Client,
+  client: DatabaseSession,
   scope: ConcurrentRecoveryScope,
   artifact: MigrationArtifact,
   beforeCatalog: string,
@@ -127,7 +127,7 @@ export async function verifyConcurrentBaseline(
 
 /** Caller owns the migration lock; DDL runs outside a transaction and the journal survives every failed step. */
 export async function executeConcurrentIndexes(
-  client: pg.Client,
+  client: DatabaseSession,
   scope: ConcurrentRecoveryScope,
   artifact: MigrationArtifact,
   beforeCatalog: string,

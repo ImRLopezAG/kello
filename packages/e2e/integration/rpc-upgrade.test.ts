@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test, expect } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { defineRelations, sql } from "drizzle-orm";
 import { bootstrapDatabase, withProcedureUpgrade, ProcedureUpgradeError } from "kello-cli";
@@ -100,25 +100,25 @@ test.skipIf(!connectionString)(
           migrations: [migration],
         };
         await assert.rejects(
-          withProcedureUpgrade(admin, { ...upgrade, migrations: [] }, async () => {}),
+          withProcedureUpgrade(admin.session, { ...upgrade, migrations: [] }, async () => {}),
           (error) => error instanceof ProcedureUpgradeError && error.inventory[0]?.reason === "missing-mapping",
         );
         expect(
           (await admin.query(`SELECT claim_version FROM ${meta}.jobs WHERE id=$1`, [id])).rows[0].claim_version,
         ).toBeNull();
         await assert.rejects(
-          withProcedureUpgrade(admin, upgrade, async () => {
+          withProcedureUpgrade(admin.session, upgrade, async () => {
             throw new Error("activation failed");
           }),
           /activation failed/,
         );
         expect((await admin.query(`SELECT count(*) FROM ${meta}.procedure_releases`)).rows[0].count).toBe("0");
-        await withProcedureUpgrade(admin, { ...upgrade, dryRun: true }, async () => {});
+        await withProcedureUpgrade(admin.session, { ...upgrade, dryRun: true }, async () => {});
         expect(
           (await admin.query(`SELECT claim_version FROM ${meta}.jobs WHERE id=$1`, [id])).rows[0].claim_version,
         ).toBeNull();
-        await withProcedureUpgrade(admin, upgrade, async () => {});
-        await withProcedureUpgrade(admin, upgrade, async () => {});
+        await withProcedureUpgrade(admin.session, upgrade, async () => {});
+        await withProcedureUpgrade(admin.session, upgrade, async () => {});
         expect(
           (await admin.query(`SELECT call,claim_version,fencing_token::text FROM ${meta}.jobs WHERE id=$1`, [id])).rows,
         ).toEqual([{ call: original, claim_version: version, fencing_token: "1" }]);
@@ -155,7 +155,7 @@ test.skipIf(!connectionString)(
           );
           await assert.rejects(oldClaim(), /different runtime version/);
           await assert.rejects(
-            withProcedureUpgrade(admin, { ...upgrade, version: "c".repeat(64) }, async () => {}),
+            withProcedureUpgrade(admin.session, { ...upgrade, version: "c".repeat(64) }, async () => {}),
             (error) => error instanceof ProcedureUpgradeError && error.inventory[0]?.reason === "replay-receipt",
           );
           expect(await runtime.worker.run()).toMatchObject({ completed: 1 });
@@ -165,7 +165,7 @@ test.skipIf(!connectionString)(
         }
         const invalid = await insert({ ...original, args: { amount: "wrong" } });
         await assert.rejects(
-          withProcedureUpgrade(admin, upgrade, async () => {}),
+          withProcedureUpgrade(admin.session, upgrade, async () => {}),
           ProcedureUpgradeError,
         );
         await admin.query(`DELETE FROM ${meta}.jobs WHERE id=$1`, [invalid]);
@@ -175,7 +175,7 @@ test.skipIf(!connectionString)(
           ["d".repeat(64), createHash("sha256").update(receiptJob).digest("hex")],
         );
         await assert.rejects(
-          withProcedureUpgrade(admin, upgrade, async () => {}),
+          withProcedureUpgrade(admin.session, upgrade, async () => {}),
           (error) => error instanceof ProcedureUpgradeError && error.inventory[0]?.reason === "replay-receipt",
         );
         await admin.query(`DELETE FROM ${meta}.jobs WHERE id=$1`, [receiptJob]);
@@ -183,7 +183,7 @@ test.skipIf(!connectionString)(
         await insert(JSON.parse(JSON.stringify(current)));
         await assert.rejects(
           withProcedureUpgrade(
-            admin,
+            admin.session,
             { ...upgrade, version: "e".repeat(64), protocol: "kello-legacy-1", migrations: [] },
             async () => {},
           ),

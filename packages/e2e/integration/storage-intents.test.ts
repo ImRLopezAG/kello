@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "bun:test";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import * as pg from "../fixtures/postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { bootstrapDatabase } from "kello-cli";
 import { createStorageIntents } from "kello/server";
 import { storageProviderFixture } from "../fixtures/storage-provider";
@@ -18,6 +18,7 @@ test.skipIf(!connectionString)(
     const provider = storageProviderFixture();
     await admin.connect();
     let pool: pg.Pool | undefined;
+    let db: ReturnType<typeof drizzle> | undefined;
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
       await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
@@ -25,6 +26,7 @@ test.skipIf(!connectionString)(
       address.username = runtimeRole;
       address.password = "kello-test-only";
       pool = new pg.Pool({ connectionString: address.href });
+      db = drizzle(address.href);
       let active = true;
       let permitted = true;
       async function requireFence() {
@@ -36,7 +38,7 @@ test.skipIf(!connectionString)(
         assert.equal(held.rows[0]?.held, true, "Storage provider calls must retain the retirement barrier");
       }
       const options = {
-        db: drizzle({ client: pool }),
+        db,
         metadataNamespace,
         deployment: "app",
         projectId: "project",
@@ -227,6 +229,7 @@ test.skipIf(!connectionString)(
       assert.equal((await intents.status(alice, interrupted.id)).state, "pending");
       assert.equal((await intents.finalize(alice, interrupted.id)).state, "ready");
     } finally {
+      await db?.$client.end();
       await pool?.end();
       await provider.cleanup();
       await admin.query(`DROP SCHEMA IF EXISTS "${metadataNamespace}" CASCADE`);

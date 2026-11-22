@@ -16,7 +16,7 @@ import { ORPCError } from "@orpc/server";
 import { bootstrapDatabase } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

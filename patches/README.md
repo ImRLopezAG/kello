@@ -1,20 +1,20 @@
 # Drizzle migration API patch
 
-`drizzle-kit@1.0.0-rc.5.patch` modifies only the PostgreSQL API bundles (ESM/CommonJS) and their declarations. Bun applies it through root `patchedDependencies` and records its hash in the lockfile.
+`drizzle-kit@1.0.0-rc.6.patch` modifies only the PostgreSQL API entry (`api-postgres.js`) and its declaration. RC6 publishes drizzle-kit as ESM only, so there is no CommonJS bundle to patch. Bun applies it through root `patchedDependencies` and records its hash in the lockfile.
 
-RC5 supplies the upstream `generateMigration(before, after, { hints })` API and structured `missing_hints` errors. Kello no longer patches rename resolution. SQL generation remains Drizzle-owned.
+Upstream drizzle-kit provides `generateMigration(before, after, { hints })` and structured `missing_hints` errors, so Kello does not patch rename resolution. SQL generation remains Drizzle-owned.
 
-The remaining patch exposes `inspectSchema(database, schemaFilters)` through Drizzle's existing PostgreSQL introspector and snapshot serializer. Empty schema selection and unsupported introspection metadata fail closed. Queries run serially on the caller's dedicated session; the caller controls isolation and locking. Kello validates a single selected namespace and the returned entity vocabulary. ESM and CommonJS initialize the introspector before its first call.
+The remaining patch exposes `inspectSchema(database, schemaFilters)` through Drizzle's existing PostgreSQL introspector and snapshot serializer. Empty schema selection and unsupported introspection metadata fail closed. Queries run serially on the caller's dedicated session, a Drizzle database built on the bundled `drizzle-orm/postgres` driver; the caller controls isolation and locking. Kello validates a single selected namespace and the returned entity vocabulary. The introspector loads through the same lazy chunk imports that the upstream `pushSchema` uses, so re-porting after an upgrade means updating those chunk names.
 
-RC5 returns version 9 snapshots. Kello validates the native envelope and its restricted entity vocabulary, then stores its existing version 8 envelope. Committed migration files, SQL, hashes and deployed ledger identifiers remain unchanged. Tests validate all eight committed example plans; unsupported native entities or extra properties are rejected rather than discarded. This conversion belongs to Kello's private artifact adapter; users should follow Drizzle's own upgrade instructions for standalone Drizzle Kit journals.
+RC6 returns version 10 snapshots, whose index entries no longer carry `concurrently`, because Drizzle removed concurrent index builds from its transactional migrations. Kello validates the native envelope and its restricted entity vocabulary, restores `concurrently: false` on every index, and stores its existing version 8 envelope. Kello's own nontransactional artifacts remain the only route to concurrent index builds. Committed migration files, SQL, hashes and deployed ledger identifiers remain unchanged. Tests validate all eight committed example plans; unsupported native entities or extra properties are rejected rather than discarded. This conversion belongs to Kello's private artifact adapter; users should follow Drizzle's own upgrade instructions for standalone Drizzle Kit journals.
 
-Current offline checks cover additive generation, ambiguous table/column rejection, explicit renames, invalid source rejection and snapshot conversion. Real PostgreSQL introspection, populated rename, packed consumers and Neon acceptance must pass again for RC5; previous-version runtime evidence is historical.
+Current offline checks cover additive generation, ambiguous table/column rejection, explicit renames, invalid source rejection and snapshot conversion. Real PostgreSQL introspection, populated rename, packed consumers and Neon acceptance must pass again for RC6; previous-version runtime evidence is historical.
 
 The published package declares MIT licensing, while the upstream repository root separately carries Apache-2.0. Preserve upstream package provenance and notices when distributing tooling. The API version and patch are part of Kello's compatibility baseline.
 
 ## Neon bucket privacy metadata patch
 
-`@neon%2Fconfig@1.13.0.patch` changes only `normalizeBucketAccessLevel` and its explanatory comment in `dist/lib/neon-api-real.js`. The upstream package carries Apache-2.0 licensing. Preserve its license and notices with any distribution. The dependency is pinned directly and transitively through `@neon/config-runtime@1.12.0`, and Bun applies the exact patch from the root manifest and lockfile.
+`@neon%2Fconfig@1.14.6.patch` changes only `normalizeBucketAccessLevel` and its explanatory comment in `dist/lib/neon-api-real.js`. The upstream package carries Apache-2.0 licensing. Preserve its license and notices with any distribution. The dependency is pinned directly and transitively through `@neon/config-runtime@1.12.9`, and Bun applies the exact patch from the root manifest and lockfile.
 
 The original SDK converts missing and unrecognized `access_level` values into `private`. That default cannot prove that an existing remote bucket is private. The patch accepts exactly `private` and `public_read`; all other responses throw before a normalized snapshot reaches Kello. It does not change provider requests, known access values or API types.
 
@@ -22,7 +22,7 @@ A pre-patch integration regression accepted `public_write` metadata instead of r
 
 ## Neon Realtime Drizzle parameter patch
 
-`@neon%2Frealtime-drizzle@0.2.0.patch` changes `encodeDrizzleParameter` in `dist/adapter.js` and widens the `drizzle-orm` peer range in `package.json` to include `1.0.0-rc.5`. Drizzle RC leaves PostgreSQL arrays and JSON objects for the driver to encode. The patch encodes arrays (nested arrays, `NULL`, quoted strings and scalars) and plain objects as PostgreSQL text, and still rejects class instances such as unbound placeholders. Upstream 0.2.0 still rejects both and still declares only `>=0.45.2 <0.46.0`, so the patch carries forward unchanged from 0.1.0.
+`@neon%2Frealtime-drizzle@0.2.0.patch` changes `encodeDrizzleParameter` in `dist/adapter.js` and widens the `drizzle-orm` peer range in `package.json` to include `1.0.0-rc.6`. Drizzle RC leaves PostgreSQL arrays and JSON objects for the driver to encode. The patch encodes arrays (nested arrays, `NULL`, quoted strings and scalars) and plain objects as PostgreSQL text, and still rejects class instances such as unbound placeholders. Upstream 0.2.0 still rejects both and still declares only `>=0.45.2 <0.46.0`, so the patch carries forward unchanged from 0.1.0.
 
 ## Packed tooling delivery
 

@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vite-plus/test";
-import pg from "pg";
+import { fakeSession } from "../fixtures/fake-session-driver";
 import * as v from "valibot";
 import { defineConfig } from "kello-cli";
 import { activateGrant, prepareGrant } from "../../../apps/kello-cli/src/tooling/deploy/neon/activation";
@@ -20,10 +20,10 @@ test("health preserves caller cancellation instead of replacing it with a health
 
 for (const rollbackFails of [false, true])
   test(`activation drains rollback before preserving cancellation (rollback fails: ${rollbackFails})`, async () => {
-    const client = new pg.Client();
+    const client = fakeSession();
     const controller = new AbortController();
     const cancellation = new DOMException("Cancelled", "AbortError");
-    const result = { rows: [], rowCount: 1, oid: 0, fields: [], command: "SELECT" };
+    const result = { rows: [], rowCount: 1 };
     const queries = vi
       .spyOn(client, "query")
       .mockImplementationOnce(async () => result)
@@ -65,7 +65,7 @@ const { createDevelopmentCoordinator } = await import("../../../apps/kello-cli/s
 for (const rollback of ["success", "error", "falsey"] as const)
   for (const successor of [false, true])
     test(`outer activation rollback ${rollback}, successful successor ${successor}`, async () => {
-      const client = new pg.Client();
+      const client = fakeSession();
       const binding = {
         metadataNamespace: "kello_meta",
         deployment: "preview",
@@ -84,7 +84,7 @@ for (const rollback of ["success", "error", "falsey"] as const)
       const pending = new Promise<void>((resolve) => {
         finish = resolve;
       });
-      const result = { rows: [], rowCount: 1, oid: 0, fields: [], command: "SELECT" };
+      const result = { rows: [], rowCount: 1 };
       let rollbackCompleted = false;
       const queries = vi.spyOn(client, "query").mockImplementation(async (sql) => {
         if (v.is(v.string(), sql) && sql.includes(" AS blocked")) {

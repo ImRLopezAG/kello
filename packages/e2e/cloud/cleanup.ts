@@ -10,7 +10,7 @@
 import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { parseArgs, promisify } from "node:util";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { assertAcceptanceBranch, selectLeftovers } from "./lifecycle";
 import { executeTeardown } from "./teardown";

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import { buildNeonFunctionBundle } from "kello-cli";
 import { createAuthClient } from "better-auth/client";

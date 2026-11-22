@@ -4,7 +4,7 @@ import { mkdir, realpath, symlink, writeFile, readFile } from "node:fs/promises"
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { unzipSync } from "fflate";
-import pg from "pg";
+import * as pg from "./postgres";
 import * as v from "valibot";
 import { createRealNeonApi } from "@neon/config-runtime/v1";
 import type { NeonApi } from "@neon/config-runtime/v1";

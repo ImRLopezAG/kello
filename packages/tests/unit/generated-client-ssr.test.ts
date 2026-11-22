@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import { createORPCClient } from "@orpc/client";
 import { implement, os } from "@orpc/server";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { QueryClient } from "@tanstack/react-query";
 import * as v from "valibot";

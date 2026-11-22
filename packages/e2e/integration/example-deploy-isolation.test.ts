@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "bun:test";
 import { applyMigrations, loadProject } from "kello-cli";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

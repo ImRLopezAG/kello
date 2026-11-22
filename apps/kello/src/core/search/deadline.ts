@@ -1,13 +1,13 @@
 import { sql } from "drizzle-orm";
 import type { AnyRelations } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../server/database/types";
 import { ORPCError } from "@orpc/server";
 import { scopedDatabase } from "../server/database/context";
 import { captureInvocationGuard } from "../server/database/connection";
 
 /** Bound the whole search evaluation, using only its already-owned transaction. */
 export async function withSearchDeadline<Result>(
-  database: NodePgDatabase,
+  database: Database,
   relations: AnyRelations,
   timeoutMs: number,
   signal: AbortSignal,

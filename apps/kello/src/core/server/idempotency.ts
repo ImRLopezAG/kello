@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "./database/types";
 import type { JsonValue } from "../schema/fields";
 import { canonical } from "../validation/canonical";
 
@@ -32,7 +32,7 @@ export function prepareMutationReplay(
   scope: JsonValue,
   key: string | undefined,
   args: JsonValue,
-): (db: NodePgDatabase, invoke: () => Promise<JsonValue>) => Promise<JsonValue> {
+): (db: Database, invoke: () => Promise<JsonValue>) => Promise<JsonValue> {
   if (!key || !/^[a-zA-Z0-9_-]{1,128}$/.test(key)) throw new IdempotencyError("INVALID_IDEMPOTENCY_KEY");
   const table = sql`${sql.identifier(options.metadataNamespace)}.${sql.identifier("mutation_results")}`;
   const scopeHash = digest(canonical([options.deployment, scope]));

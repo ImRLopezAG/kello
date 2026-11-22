@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { and, asc, desc, defineRelations, eq, isNull, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { createFullTextFixture, fullTextRank, fullTextVector } from "../fixtures/search-full-text";
 import { exactRankFloat4 } from "../../../apps/kello/src/core/search/rank";
 import * as v from "valibot";
@@ -41,7 +41,7 @@ test("PG18 native RQB weighted rank aliases, selective GIN and exact bidirection
   const namespace = `rankproof_${crypto.randomUUID().replaceAll("-", "")}`;
   const pool = new pg.Pool({ connectionString, max: 1 });
   const { documents, relations } = createFullTextFixture(namespace);
-  const db = drizzle({ client: pool, relations });
+  const db = drizzle({ client: pool.driver, relations });
   const query = "quasar";
   const table = sql`${documents}`;
   // Independent oracle deliberately spells out the fixed semantics, without the builder.
@@ -373,7 +373,7 @@ test("U4 actual ranked handler: exact encrypted boundaries, traversal, invalidat
     roleCreated = true;
     await owner.query(`GRANT USAGE ON SCHEMA "${namespace}" TO "${role}"`);
     await owner.query(`GRANT SELECT ON ALL TABLES IN SCHEMA "${namespace}" TO "${role}"`);
-    const seed = drizzle({ client: owner, relations });
+    const seed = drizzle({ client: owner.driver, relations });
     const ties = Array.from({ length: 240 }, (_, index) => ({
       _id: v.parse(schema.id("documents"), id(index + 1)),
       label: `tie-${index}`,

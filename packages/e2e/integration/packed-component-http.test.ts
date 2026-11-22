@@ -4,7 +4,7 @@ import { createHmac } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { prepareCloudComponents } from "../fixtures/cloud-components";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;

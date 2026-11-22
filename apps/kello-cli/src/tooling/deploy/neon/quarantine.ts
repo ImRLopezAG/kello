@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import type { DeploymentEnvironment, DeploymentTarget } from "./target";
 import * as v from "valibot";
 import { configValidator } from "../../config/define-config";
@@ -34,7 +34,7 @@ export type PreviewQuarantineReceipt = BranchQuarantineReceipt;
 
 /** Internal stage: the caller owns the verified deployment connection and lock. */
 export async function quarantineDeploymentConnection(
-  client: pg.Client,
+  client: DatabaseSession,
   namespace: string,
   target: DeploymentTarget,
   environment: DeploymentEnvironment,
@@ -46,7 +46,7 @@ export async function quarantineDeploymentConnection(
 
 /** Internal transaction; callers own a verified nonproduction target and its deployment lock. */
 export async function quarantineBranchConnection(
-  client: pg.Client,
+  client: DatabaseSession,
   namespace: string,
   target: Pick<DeploymentTarget, "projectId" | "branchId" | "endpointId">,
   signal?: AbortSignal,

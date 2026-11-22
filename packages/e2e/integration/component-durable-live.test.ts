@@ -5,7 +5,7 @@ import * as v from "valibot";
 import type { RpcJobCall } from "../../../apps/kello/src/core/server/jobs/rpc-contracts";
 import { createRpcScheduler } from "../../../apps/kello/src/core/server/jobs/rpc-scheduler";
 import { compileJobMigrations } from "../../../apps/kello/src/core/server/jobs/rpc-migrations";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 
 const version = "a".repeat(64);
 const procedure = os.input(v.string()).handler(({ input }) => input);
@@ -278,7 +278,7 @@ test.skipIf(!connectionString)(
         }
         const { quarantineBranchConnection } =
           await import("../../../apps/kello-cli/src/tooling/deploy/neon/quarantine");
-        const quarantined = await quarantineBranchConnection(admin, namespace, {
+        const quarantined = await quarantineBranchConnection(admin.session, namespace, {
           projectId: "project",
           branchId: "clone",
           endpointId: "endpoint",

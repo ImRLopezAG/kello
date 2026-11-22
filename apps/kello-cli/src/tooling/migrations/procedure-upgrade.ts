@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import * as v from "valibot";
 import { compileJobMigrations, isLegacyJobCall } from "kello/server";
 import type { JobMigration, RuntimeProcedureEntry, JsonValue } from "kello/server";
@@ -57,11 +57,11 @@ export class ProcedureUpgradeError extends Error {
   }
 }
 const hash = v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/));
-const upgrades = new WeakMap<pg.Client, { metadataNamespace: string; deployment: string; version: string }>();
+const upgrades = new WeakMap<DatabaseSession, { metadataNamespace: string; deployment: string; version: string }>();
 
 /** Only the activation callback inside the verified transaction owns this scope. */
 export function ownsProcedureUpgrade(
-  client: pg.Client,
+  client: DatabaseSession,
   binding: { readonly metadataNamespace: string; readonly deployment: string; readonly version: string },
 ): boolean {
   const active = upgrades.get(client);
@@ -77,7 +77,7 @@ export function ownsProcedureUpgrade(
  * Previously attempted work must drain on its retained release: a new mapping
  * cannot prove that an external effect or old-format receipt is replay-compatible. */
 export async function withProcedureUpgrade<T>(
-  client: pg.Client,
+  client: DatabaseSession,
   options: ProcedureUpgradeOptions,
   activate: () => Promise<T>,
 ): Promise<T> {

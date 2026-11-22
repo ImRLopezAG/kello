@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { connectDatabase, createRpcRuntime } from "kello/server";
 import type { InvocationIdentity, JsonValue } from "kello/server";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 
 test("tasks example loads its schema, relations, authorization and registered functions", async () => {
@@ -101,7 +101,7 @@ test.skipIf(!connectionString)(
               args,
               identity,
               name === "projects:list" || name === "tasks:list"
-                ? { database, query: (sql, values) => connection.pool.query(sql, values) }
+                ? { database, query: (sql, values) => connection.pool.execute(sql, values, { mode: "object" }) }
                 : undefined,
             );
           expect(await call("projects:list", "query", {}, null)).toMatchObject({
@@ -155,14 +155,15 @@ test.skipIf(!connectionString)(
             value: [{ ...task, done: true }],
           });
           assert.equal(task._id[14], "7", "task ids use PostgreSQL UUIDv7");
-          const persisted = await connection.pool.query<{ created: string }>(
+          const persisted = await connection.pool.execute(
             'SELECT "_createdAt"::text AS created FROM app.tasks WHERE "_id" = $1',
             [task._id],
+            { mode: "object" },
           );
-          const createdAt = Number(persisted.rows[0]?.created);
+          const createdAt = Number(v.parse(v.object({ created: v.string() }), persisted.rows[0]).created);
           assert(Number.isSafeInteger(createdAt) && Math.abs(Date.now() - createdAt) < 60_000);
           await assert.rejects(
-            connection.pool.query("INSERT INTO app.tasks (project_id, title) VALUES ($1, $2)", [
+            connection.pool.execute("INSERT INTO app.tasks (project_id, title) VALUES ($1, $2)", [
               crypto.randomUUID(),
               "Invalid reference",
             ]),
@@ -172,7 +173,7 @@ test.skipIf(!connectionString)(
           assert(bobCreated.ok);
           expect(await call("projects:list", "query", {}, bob)).toMatchObject({ ok: true, value: [bobCreated.value] });
           expect(await call("projects:list", "query", {})).toMatchObject({ ok: true, value: [ownerProject] });
-          await assert.rejects(connection.pool.query("ALTER TABLE app.tasks ADD COLUMN forbidden text"), /owner/);
+          await assert.rejects(connection.pool.execute("ALTER TABLE app.tasks ADD COLUMN forbidden text"), /owner/);
         } finally {
           await runtime.stop();
         }

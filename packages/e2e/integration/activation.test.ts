@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { createHash } from "node:crypto";
 import { createNeonActivationVerifier, createRpcHttpApp } from "kello/neon";
 import {
@@ -30,6 +30,7 @@ test.skipIf(!connectionString)(
     const keys = ["NEON_BRANCH", "DATABASE_URL", "KELLO_ACTIVATION_TOKEN"] as const;
     const saved = keys.map((key) => [key, process.env[key]] as const);
     await admin.connect();
+    const db = drizzle(connectionString);
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
       const address = new URL(connectionString);
@@ -50,7 +51,7 @@ test.skipIf(!connectionString)(
       });
       const signal = new AbortController().signal;
       const context = {
-        db: drizzle({ client: admin }),
+        db,
         connectionString,
         deployment: "app",
         version,
@@ -204,6 +205,7 @@ test.skipIf(!connectionString)(
       await admin.query("RESET ROLE");
       await admin.query(`DROP SCHEMA IF EXISTS "${metadataNamespace}" CASCADE`);
       await admin.query(`DROP ROLE IF EXISTS "${runtimeRole}"`);
+      await db.$client.end();
       await admin.end();
     }
   },

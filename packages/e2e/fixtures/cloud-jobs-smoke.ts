@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { setTimeout } from "node:timers/promises";
-import pg from "pg";
+import * as pg from "./postgres";
 import {
   bootstrapDatabase,
   buildNeonFunctionBundle,

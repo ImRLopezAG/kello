@@ -147,7 +147,7 @@ export function componentReferences(
           const setupFile = setupFiles[Number(path.slice("bootstrap-server:".length))];
           if (!setupFile) throw new Error("Unknown bootstrap component server");
           return {
-            contents: `import component from ${JSON.stringify(setupFile)}; import { createProjectServices, createComponentEnvironmentAccess } from "kello/server"; export const { Database, Tables, Validators, Search } = createProjectServices(); export const env = createComponentEnvironmentAccess(() => component);`,
+            contents: `import component from ${JSON.stringify(setupFile)}; import { createProjectServices, createComponentEnvironmentAccess } from "kello/server"; export const { Database, EffectDatabase, Tables, Validators, Search } = createProjectServices(); export const env = createComponentEnvironmentAccess(() => component);`,
             loader: "js",
           };
         }
@@ -171,7 +171,7 @@ export function componentReferences(
           if (part === "schema-bindings")
             return `import schema from ${JSON.stringify(componentVirtual(scope, "schema"))}; import relations from ${JSON.stringify(componentVirtual(scope, "relations"))}; import { createProjectContext } from "kello/server"; export { schema, relations }; export const { tables, validators } = createProjectContext(schema, relations);`;
           if (part === "server")
-            return `import component from ${JSON.stringify(scope.setupFile)}; import schema from ${JSON.stringify(componentVirtual(scope, "schema"))}; import relations from ${JSON.stringify(componentVirtual(scope, "relations"))}; import { createComponentEnvironmentAccess, createProjectContext, createProjectServices } from "kello/server"; export const env = createComponentEnvironmentAccess(() => component); export const {tables, validators} = createProjectContext(schema, relations); export const { Database, Tables, Validators, Search } = createProjectServices();`;
+            return `import component from ${JSON.stringify(scope.setupFile)}; import schema from ${JSON.stringify(componentVirtual(scope, "schema"))}; import relations from ${JSON.stringify(componentVirtual(scope, "relations"))}; import { createComponentEnvironmentAccess, createProjectContext, createProjectServices } from "kello/server"; export const env = createComponentEnvironmentAccess(() => component); export const {tables, validators} = createProjectContext(schema, relations); export const { Database, EffectDatabase, Tables, Validators, Search } = createProjectServices();`;
           if (part?.startsWith("contract-"))
             return `export { contract${part.slice(9)} as default } from ${JSON.stringify(componentVirtual(scope, "contracts"))};`;
           throw new Error("Unknown component reference entry");

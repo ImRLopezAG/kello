@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { createKelloNeonApi } from "kello-cli";
 import { prepareCloudComponents } from "../fixtures/cloud-components";

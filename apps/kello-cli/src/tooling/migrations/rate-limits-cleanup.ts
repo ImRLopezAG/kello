@@ -1,8 +1,9 @@
-import pg from "pg";
-import { quoteIdentifier } from "./connection";
+import { closeSession, createDatabaseSession, createSessionPool, quoteIdentifier } from "./connection";
+import type { DatabaseSession } from "./connection";
+import type { SessionResult, SessionRow } from "./connection";
+import type { Pool } from "drizzle-orm/postgres/client/node";
 import { frameworkMigrations } from "./bootstrap";
 import { classifyFrameworkHistory } from "./framework-history";
-import { cancelDatabaseStatement } from "kello/internal/tooling";
 
 export interface CleanupRateLimitsOptions {
   readonly connectionString: string;
@@ -57,29 +58,29 @@ export async function cleanupRateLimits(options: CleanupRateLimitsOptions): Prom
   const batchSize = budget(options.batchSize, 500);
   const maxBatches = budget(options.maxBatches, 20);
   const maxDurationMs = budget(options.maxDurationMs, 30_000);
-  if (url.hostname.endsWith(".neon.tech")) url.searchParams.set("sslmode", "verify-full");
   const deadline = started + maxDurationMs;
   // Reserve transport cancellation and local close time inside the same run
   // budget. Short runs split their budget rather than adding a 2s cancel tail.
   const closeReserveMs = Math.min(50, maxDurationMs / 10);
   const workDeadline = deadline - Math.min(2000, maxDurationMs / 2) - closeReserveMs;
   const remaining = () => Math.max(1, Math.ceil(workDeadline - performance.now()));
-  let client: pg.Client;
+  let pool: Pool;
   try {
-    client = new pg.Client({
-      connectionString: url.href,
-      connectionTimeoutMillis: remaining(),
-      statement_timeout: remaining(),
-      lock_timeout: remaining(),
-      application_name: "kello-rate-limits-cleanup",
-      options: "-c search_path=pg_catalog",
+    const timeout = remaining();
+    pool = createSessionPool(url.href, {
+      applicationName: "kello-rate-limits-cleanup",
+      connectTimeout: timeout,
+      options: `-c search_path=pg_catalog -c statement_timeout=${timeout} -c lock_timeout=${timeout}`,
     });
   } catch (error) {
     throw cleanupFailed({ primary: { error }, cleanup: [] });
   }
+  // Aborting sends the transport's CancelRequest for the statement in flight.
+  const cancellation = new AbortController();
+  let client: DatabaseSession | undefined;
   let activeQuery: Promise<unknown> | undefined;
   let connected = false;
-  let connectionAttempt: Promise<pg.Client> | undefined;
+  let connectionAttempt: ReturnType<Pool["connect"]> | undefined;
   let stopped = false;
   let shutdownPromise: Promise<void> | undefined;
   let removed = 0;
@@ -88,7 +89,7 @@ export async function cleanupRateLimits(options: CleanupRateLimitsOptions): Prom
   const cleanupFailures: { phase: "cancel" | "destroy" | "connect-drain" | "query-drain" | "close"; error: unknown }[] =
     [];
   // One owner of shutdown, including when the run fails while cancellation is
-  // still in flight. Keep the original pooler mapping until cancel settles.
+  // still in flight. The session stays open until its cancel settles.
   function shutdown(): Promise<void> {
     // Install the shared promise before any driver callback can reenter stop.
     return (shutdownPromise ??= Promise.resolve().then(async () => {
@@ -104,40 +105,35 @@ export async function cleanupRateLimits(options: CleanupRateLimitsOptions): Prom
             // close/drain still runs if no cancellation budget remains.
             const cancellationBudget = deadline - performance.now() - closeReserveMs;
             if (cancellationBudget <= 0) throw new Error("Rate limit cleanup failed");
-            await cancelDatabaseStatement(client, cancellationBudget);
+            cancellation.abort();
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const settled = await Promise.race([
+              Promise.allSettled([draining, client?.connection.cancelSettled]).then(() => true),
+              new Promise<false>((resolve) => {
+                timer = setTimeout(resolve, cancellationBudget, false);
+              }),
+            ]).finally(() => clearTimeout(timer));
+            if (!settled) throw new Error("Rate limit cleanup failed");
           } catch (error) {
             cleanupFailures.push({ phase: "cancel", error });
           }
         }
-        if (connectionAttempt && !connected) {
-          // pg.end() marks a connecting Client as ending and can suppress its
-          // connect rejection. Destroy first, then await that rejection before end.
-          try {
-            client.connection.stream.destroy();
-          } catch (error) {
-            cleanupFailures.push({ phase: "destroy", error });
-          }
-          await connectionAttempt.catch((error) => {
-            cleanupFailures.push({ phase: "connect-drain", error });
-          });
-        }
-        // Attach the close rejection immediately, even while query drain is still
-        // pending. A close failure must not strand either owned promise.
-        let closing: Promise<void> | undefined;
-        try {
-          closing = client.end().catch((error) => {
-            cleanupFailures.push({ phase: "close", error });
-          });
-        } catch (error) {
+        // Ending the pool also abandons a connect still in flight. Attach the close
+        // rejection immediately, so a close failure cannot strand an owned promise.
+        const closing = closeSession(pool, client).catch((error) => {
           cleanupFailures.push({ phase: "close", error });
-        }
-        // Cancel has settled; this dedicated socket may now be destroyed. Await
-        // end's native close event rather than wait indefinitely for a peer EOF.
-        try {
-          client.connection.stream.destroy();
-        } catch (error) {
-          cleanupFailures.push({ phase: "destroy", error });
-        }
+        });
+        // A connect that settles after shutdown began is closed here and never runs SQL.
+        if (connectionAttempt && !connected)
+          await connectionAttempt.then(
+            (late) =>
+              late.client.end().catch((error) => {
+                cleanupFailures.push({ phase: "close", error });
+              }),
+            (error) => {
+              cleanupFailures.push({ phase: "connect-drain", error });
+            },
+          );
         if (draining)
           await draining.catch((error) => {
             cleanupFailures.push({ phase: "query-drain", error });
@@ -160,27 +156,18 @@ export async function cleanupRateLimits(options: CleanupRateLimitsOptions): Prom
     // shutdown promise below, so no event handler creates an unhandled rejection.
     void shutdown().catch(() => {});
   };
-  // Include idle connection loss as an operation failure, without publishing
-  // provider details. Query/close callbacks join this same shutdown.
-  client.on("error", (error) => {
-    if (shutdownPromise) {
-      cleanupFailures.push({ phase: "close", error });
-      return;
-    }
-    primaryFailure ??= { error };
-    stop();
-  });
   function assertWork(): void {
     if (stopped || performance.now() >= workDeadline) throw new Error("Rate limit cleanup failed");
     options.signal?.throwIfAborted();
   }
-  async function query<R extends pg.QueryResultRow = pg.QueryResultRow>(
+  async function query<R extends object = SessionRow>(
     text: string,
     values?: unknown[],
     confirmed?: () => void,
-  ): Promise<pg.QueryResult<R>> {
+  ): Promise<SessionResult<R>> {
     assertWork();
-    const pending = client.query<R>(text, values);
+    if (!client) throw new Error("Rate limit cleanup failed");
+    const pending = client.query<R>(text, values, { signal: cancellation.signal });
     activeQuery = pending;
     try {
       const result = await pending;
@@ -205,9 +192,12 @@ export async function cleanupRateLimits(options: CleanupRateLimitsOptions): Prom
     let stoppedBy: RateLimitCleanupResult["stoppedBy"] = "empty";
     options.signal?.throwIfAborted();
     if (performance.now() >= workDeadline) throw new Error();
-    connectionAttempt = client.connect();
-    await connectionAttempt;
+    const attempt = pool.connect();
+    connectionAttempt = attempt;
+    const checkout = await attempt;
+    if (stopped) throw new Error("Rate limit cleanup failed");
     connected = true;
+    client = createDatabaseSession(checkout.client);
     assertWork();
     const version = await query<{ server_version_num: string }>("SHOW server_version_num");
     if (Math.floor(Number(version.rows[0]?.server_version_num) / 10000) !== 18) throw new Error();

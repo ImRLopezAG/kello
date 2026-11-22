@@ -9,10 +9,10 @@ import { RPCHandler as HttpHandler } from "@orpc/server/fetch";
 import { RPCHandler as SocketHandler } from "@orpc/server/websocket";
 import { Context, Effect } from "effect";
 import { defineRelations, sql } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { bootstrapDatabase } from "kello-cli";
-import type { ProcedureContext } from "kello/server";
+import type { EffectDatabase, ProcedureContext } from "kello/server";
 import { oc } from "kello/contract";
 import {
   bindRpcDatabaseProcedure,
@@ -199,6 +199,31 @@ test.skipIf(!connectionString)(
           options,
         );
         expect(await call(effectRead, undefined, { context })).toBe(2);
+        const { EffectDatabase } = createProjectServices<typeof schema, typeof relations>();
+        let retainedEffectDb: EffectDatabase<typeof relations> | undefined;
+        const effectDatabaseRead = bindRpcDatabaseProcedure(
+          procedure.use(read).effect(function* () {
+            const db = yield* EffectDatabase;
+            retainedEffectDb = db;
+            const result = yield* db.execute<{ value: number; readOnly: string }>(
+              sql`SELECT value, current_setting('transaction_read_only') AS "readOnly" FROM ${table}`,
+            );
+            // An Effect transaction nests inside the function transaction and stays read-only.
+            const write = yield* Effect.exit(db.transaction((tx) => tx.execute(sql`UPDATE ${table} SET value = 99`)));
+            return { ...result.rows[0]!, writeRejected: write._tag === "Failure" };
+          }),
+          options,
+        );
+        expect(await call(effectDatabaseRead, undefined, { context })).toEqual({
+          value: 2,
+          readOnly: "on",
+          writeRejected: true,
+        });
+        assert(retainedEffectDb);
+        const late = await Effect.runPromiseExit(retainedEffectDb.execute(sql`SELECT 1`));
+        expect(late._tag).toBe("Failure");
+        expect(String(late._tag === "Failure" ? late.cause : "")).toMatch(/Database invocation is inactive/);
+        expect((await admin.query(`SELECT value FROM "${metadataNamespace}".counter`)).rows).toEqual([{ value: 2 }]);
         let mutableAttempts = 0;
         let mutableOutputs = 0;
         const mutableInput = bindRpcDatabaseProcedure(

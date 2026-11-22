@@ -14,7 +14,7 @@ import {
 } from "kello/server";
 import { bootstrapDatabase } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
@@ -182,7 +182,7 @@ test.skipIf(!connectionString)(
           code: "IDEMPOTENCY_EXPIRED",
         });
         expect(handlerCalls).toBe(beforeExpiry);
-        expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+        expect(connection.pool.idleCount).toBe(connection.pool.size);
       } finally {
         await connection.close();
       }

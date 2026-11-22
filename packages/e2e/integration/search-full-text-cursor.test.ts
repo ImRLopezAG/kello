@@ -5,7 +5,7 @@ import type { InferSchemaInput } from "@orpc/server";
 import { Context } from "effect";
 import { defineRelations, eq } from "drizzle-orm";
 import { EncryptJWT, jwtDecrypt } from "jose";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import {
   bindRpcDatabaseProcedure,

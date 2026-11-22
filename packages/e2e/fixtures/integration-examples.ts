@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { projectRuntimeGraph, applyMigrations, loadProject, projectMigrationScopes } from "kello-cli";
 import { createJwtVerifier, createRpcRuntime, defineRpcAuth } from "kello/server";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import pg from "pg";
+import * as pg from "./postgres";
 
 /** Test-only identity issuer and disposable PostgreSQL database. Apps themselves
  * use the same generated clients and deployment config with real Neon. */

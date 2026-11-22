@@ -5,7 +5,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { Effect } from "effect";
 import { defineRelations, sql } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { bootstrapDatabase } from "kello-cli";
 import { createRpcHttpApp } from "kello/neon";

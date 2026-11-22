@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { setTimeout } from "node:timers/promises";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { createNeonApiFromOptions } from "@neon/config-runtime/v1";
 import { createClient } from "../fixtures/historical/client";

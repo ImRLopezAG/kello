@@ -16,7 +16,7 @@ import {
   writeMigration,
   migrationStatus,
 } from "kello-cli";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import type { DeploymentDatabaseProvider } from "kello-cli";
 import { catalogFingerprint } from "../../../apps/kello-cli/src/tooling/migrations/drift";
 
@@ -111,7 +111,7 @@ test.skipIf(!connectionString)(
         runtimeRole,
         reviewedHashes: [required.hash],
       };
-      await assert.rejects(applyMigrationsOnConnection(admin, sessionOptions), /owned migration connection/i);
+      await assert.rejects(applyMigrationsOnConnection(admin.session, sessionOptions), /owned migration connection/i);
       const deploymentOptions = {
         config: defineConfig({
           project: "tasks",
@@ -131,7 +131,10 @@ test.skipIf(!connectionString)(
       const closedClient = await withDeploymentConnection(
         deploymentOptions,
         async (client) => {
-          await assert.rejects(inspectReleaseDatabase(admin, root, releaseSchema), /owned deployment connection/i);
+          await assert.rejects(
+            inspectReleaseDatabase(admin.session, root, releaseSchema),
+            /owned deployment connection/i,
+          );
           await assert.rejects(inspectReleaseDatabase(client, root, releaseSchema), /not at the release schema/i);
           await assert.rejects(
             applyMigrationsOnConnection(client, { ...sessionOptions, reviewedHashes: [] }),
@@ -148,7 +151,7 @@ test.skipIf(!connectionString)(
           expect(live.head).toBe(required.after);
           expect(live.target.branchId).toBe("br-preview");
           expect(live.metadataNamespace).toBe(metadataNamespace);
-          expect(live.catalogHash).toBe(await catalogFingerprint(admin, namespace));
+          expect(live.catalogHash).toBe(await catalogFingerprint(admin.session, namespace));
           await assert.rejects(
             inspectReleaseDatabase(client, root, { ...releaseSchema, namespace: "other" }),
             /namespace/i,
@@ -174,12 +177,12 @@ test.skipIf(!connectionString)(
       await assert.rejects(applyMigrationsOnConnection(closedClient, sessionOptions), /owned migration connection/i);
       await assert.rejects(inspectReleaseDatabase(closedClient, root, releaseSchema), /owned deployment connection/i);
       expect((await applyMigrations(reviewed)).applied).toEqual([]);
-      const upgraded = await catalogFingerprint(admin, namespace);
+      const upgraded = await catalogFingerprint(admin.session, namespace);
       await admin.query(`DROP SCHEMA "${namespace}" CASCADE`);
       await admin.query(`DROP SCHEMA "${metadataNamespace}" CASCADE`);
       const activationOptions = { deployment: "preview", version: "a".repeat(64), activationToken: "b".repeat(64) };
       await assert.rejects(
-        withDeploymentActivationSessionOnConnection(admin, activationOptions, async () => {}),
+        withDeploymentActivationSessionOnConnection(admin.session, activationOptions, async () => {}),
         /owned deployment connection/i,
       );
       await assert.rejects(
@@ -225,7 +228,7 @@ test.skipIf(!connectionString)(
         api,
       );
       await assert.rejects(grant.assertActive(), /closed/i);
-      expect(await catalogFingerprint(admin, namespace)).toBe(upgraded);
+      expect(await catalogFingerprint(admin.session, namespace)).toBe(upgraded);
       await admin.query(`ALTER TABLE "${namespace}".tasks ADD COLUMN unmanaged text`);
       await assert.rejects(applyMigrations(reviewed), /drift/);
       expect((await migrationStatus(statusOptions)).issues).toContain("LIVE_DRIFT");

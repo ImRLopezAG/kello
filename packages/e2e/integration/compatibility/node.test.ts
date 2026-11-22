@@ -76,7 +76,7 @@ test.skipIf(!process.env.KELLO_TEST_DATABASE_URL)("Node 24 enforces database inv
         return async () => { await saved; };
       });
       await assert.rejects(late(), /inactive/i);
-      assert.equal(connection.pool.idleCount, connection.pool.totalCount);
+      assert.equal(connection.pool.idleCount, connection.pool.size);
     } finally { await connection.close(); }
     `,
     ],
@@ -98,13 +98,12 @@ test.skipIf(!process.env.KELLO_TEST_DATABASE_URL)(
           `
       import assert from "node:assert/strict";
       import { createRequire } from "node:module";
-      import { drizzle } from "drizzle-orm/node-postgres";
-      import pg from "pg";
+      import { drizzle } from "drizzle-orm/postgres";
+      import { connect } from "drizzle-orm/postgres/client/node";
       const api = process.argv[1] === "esm" ? await import("drizzle-kit/api-postgres")
         : createRequire(import.meta.url)("drizzle-kit/api-postgres");
       const namespace = "verify_" + crypto.randomUUID().replaceAll("-", "");
-      const client = new pg.Client({ connectionString: process.env.KELLO_TEST_DATABASE_URL });
-      await client.connect();
+      const client = await connect(process.env.KELLO_TEST_DATABASE_URL);
       try {
         await client.query('CREATE SCHEMA "' + namespace + '"');
         await client.query('CREATE TABLE "' + namespace + '".tasks (id integer PRIMARY KEY)');

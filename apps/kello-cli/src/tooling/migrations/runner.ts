@@ -1,6 +1,6 @@
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import * as v from "valibot";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { migrate } from "drizzle-orm/pg-core/async";
 import { protectApplication } from "./application";
 import { bootstrapSession } from "./bootstrap";
@@ -79,7 +79,7 @@ export async function applyMigrations(options: ApplyMigrationsOptions): Promise<
 
 /** Runs on a connection owned by Kello. The migration lock remains held until its owning callback ends. */
 export async function applyMigrationsOnConnection(
-  client: pg.Client,
+  client: DatabaseSession,
   options: ApplyMigrationsOnConnectionOptions,
 ): Promise<MigrationReceipt> {
   assertMigrationConnection(client);
@@ -172,7 +172,7 @@ export async function applyMigrationsOnConnection(
     state.applied.length,
   );
   const applied: string[] = [];
-  const db = drizzle({ client });
+  const db = drizzle({ client: client.connection });
   let expectedCatalog = state.expectedCatalog;
   for (const [index, artifact] of artifacts.entries()) {
     if (index < state.applied.length) continue;

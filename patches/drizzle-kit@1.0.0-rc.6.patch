@@ -1,0 +1,55 @@
+diff --git a/api-postgres.d.ts b/api-postgres.d.ts
+index edfe656228007e26b66919d74b1ff943a982b49f..f91f8a4ac14b0f0730be4cf8c6c5378ea86b71ca 100644
+--- a/api-postgres.d.ts
++++ b/api-postgres.d.ts
+@@ -1,4 +1,5 @@
+ import { a as startStudioServer, i as reconstruct, n as generateMigration, o as up, r as pushSchema, t as generateDrizzleJson } from "./chunks/api-postgres-nC1uT2zq.js";
+ import { n as MissingHint, t as Hint } from "./chunks/hints-BQRI4FvZ.js";
+ import { t as MissingHintsError } from "./chunks/errors-eS2_X_U0.js";
+-export { type Hint, type MissingHint, type MissingHintsError, generateDrizzleJson, generateMigration, pushSchema, reconstruct, startStudioServer, up };
+\ No newline at end of file
++declare const inspectSchema: (database: import("drizzle-orm/pg-core/async").PgAsyncDatabase<any>, schemaFilters: string[]) => ReturnType<typeof generateDrizzleJson>;
++export { type Hint, type MissingHint, type MissingHintsError, generateDrizzleJson, generateMigration, inspectSchema, pushSchema, reconstruct, startStudioServer, up };
+\ No newline at end of file
+diff --git a/api-postgres.js b/api-postgres.js
+index dcb48999f1ab8f09d890711e03ff44b122486400..e762434fd500a7d4b4af37527de2093b41272acd 100644
+--- a/api-postgres.js
++++ b/api-postgres.js
+@@ -48,6 +48,31 @@ const generateMigration = async (prev, cur, options) => {
+ 		return sqlStatements;
+ 	});
+ };
++const inspectSchema = async (drizzleInstance, schemaFilters) => {
++	if (!schemaFilters.length) throw new Error("Introspection requires explicit schema filters");
++	const { prepareEntityFilter } = await import("./chunks/pull-utils-NZsXNPi9.js").then((n) => n.n);
++	const { fromDatabaseForDrizzle } = await import("./chunks/introspect-BU6p02rH.js");
++	const { sql } = await import("drizzle-orm");
++	let pending = Promise.resolve();
++	const db = { query: (query, _params) => {
++		const next = pending.then(async () => (await drizzleInstance.execute(sql.raw(query))).rows);
++		pending = next.then(() => {}, () => {});
++		return next;
++	} };
++	const filter = prepareEntityFilter("postgresql", {
++		schemas: schemaFilters,
++		tables: [],
++		extensions: [],
++		entities: void 0
++	}, []);
++	const previous = await fromDatabaseForDrizzle(db, filter, () => {}, {
++		schema: "drizzle",
++		table: "__drizzle_migrations"
++	});
++	const { ddl, errors } = interimToDDL(previous);
++	if (errors.length) throw new Error("PostgreSQL introspection produced unsupported metadata");
++	return schemaState("00000000-0000-0000-0000-000000000000", [], ddl.entities.list());
++};
+ const pushSchema = async (imports, drizzleInstance, entitiesConfig, migrationsConfig, options) => {
+ 	const { prepareEntityFilter } = await import("./chunks/pull-utils-NZsXNPi9.js").then((n) => n.n);
+ 	const { resolver } = await import("./chunks/prompts-BEsaBfRX.js").then((n) => n.t);
+@@ -167,4 +192,4 @@ const reconstruct = async (files, id) => {
+ 	return schemaState(id, migrations.snapshots.get(id).prevIds, state.entities.list());
+ };
+ //#endregion
+-export { generateDrizzleJson, generateMigration, pushSchema, reconstruct, startStudioServer, up };
++export { generateDrizzleJson, generateMigration, inspectSchema, pushSchema, reconstruct, startStudioServer, up };

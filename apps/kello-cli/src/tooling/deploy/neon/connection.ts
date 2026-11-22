@@ -1,6 +1,6 @@
 import { NeonCredentialError } from "../../neon/credentials";
 import { createKelloNeonApi } from "../../neon/api";
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import type { NeonApi } from "@neon/config-runtime/v1";
 import * as v from "valibot";
 import { configValidator } from "../../config/define-config";
@@ -43,9 +43,9 @@ interface DeploymentConnectionContext {
   readonly namespace: string;
   readonly signal: AbortSignal | undefined;
 }
-const deploymentConnections = new WeakMap<pg.Client, DeploymentConnectionContext>();
+const deploymentConnections = new WeakMap<DatabaseSession, DeploymentConnectionContext>();
 
-export function deploymentConnectionContext(client: pg.Client): DeploymentConnectionContext {
+export function deploymentConnectionContext(client: DatabaseSession): DeploymentConnectionContext {
   const context = deploymentConnections.get(client);
   if (!context) throw new Error("Stage requires an active owned deployment connection");
   return context;
@@ -90,7 +90,7 @@ function validateConnection(
 /** Owns a dedicated deployment lock and rechecks provider identity after acquiring it. Never returns credentials. */
 export async function withDeploymentConnection<T>(
   options: DeploymentConnectionOptions,
-  operation: (client: pg.Client, target: DeploymentTarget, database: DeploymentDatabaseIdentity) => Promise<T>,
+  operation: (client: DatabaseSession, target: DeploymentTarget, database: DeploymentDatabaseIdentity) => Promise<T>,
   provider?: DeploymentDatabaseProvider,
 ): Promise<T> {
   const signal = options.signal;

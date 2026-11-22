@@ -4,7 +4,10 @@ import { index, pgSchema, text } from "drizzle-orm/pg-core";
 import { assessMigration } from "../../../apps/kello-cli/src/tooling/migrations/assessment";
 import * as v from "valibot";
 import type { MigrationPlan } from "../../../apps/kello-cli/src/tooling/migrations/planner";
-import pg from "pg";
+import type { PoolConfig } from "drizzle-orm/postgres/client/node";
+import { FakeConnection, fakeCreatePool, fakePoolState } from "../fixtures/fake-session-driver";
+import type { DriverMock } from "../fixtures/fake-session-driver";
+import type { DatabaseSession } from "../../../apps/kello-cli/src/tooling/migrations/connection";
 import { withMigrationConnection } from "../../../apps/kello-cli/src/tooling/migrations/connection";
 import { classifyMigration } from "../../../apps/kello-cli/src/tooling/migrations/classifier";
 import { customSafety } from "../../../apps/kello-cli/src/tooling/migrations/custom";
@@ -206,40 +209,28 @@ vi.mock("../../../apps/kello-cli/src/tooling/migrations/status", () => ({
   databaseIdentity: async () => ({ database: "fixture" }),
 }));
 
+const driver = vi.hoisted((): DriverMock => ({}));
+vi.mock("drizzle-orm/postgres/client/node", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("drizzle-orm/postgres/client/node")>()),
+  createPool: (config: PoolConfig) => driver.createPool!(config),
+}));
+
 async function runnerFixture(
-  operation: (client: pg.Client, queries: { sql: string; timeout: string }[]) => Promise<void>,
+  operation: (client: DatabaseSession, queries: { sql: string; timeout: string }[]) => Promise<void>,
   failBuild = false,
   failRollback = false,
 ) {
   const queries: { sql: string; timeout: string }[] = [];
   let timeout = "60s";
-  const connect = vi.spyOn(pg.Client.prototype, "connect").mockResolvedValue(undefined);
-  const end = vi.spyOn(pg.Client.prototype, "end").mockResolvedValue(undefined);
   const buildFailure = new Error("build fixture failed");
-  // SAFETY: The native runner uses only awaited SQL strings/text configs and scalar bindings; the mock returns complete pg results.
-  const query = vi.spyOn(pg.Client.prototype, "query").mockImplementation((async (
-    input: string | { text: string },
-    values?: readonly (string | number | boolean | null)[],
-  ) => {
-    const sql = v.parse(
-      v.union([
-        v.pipe(
-          v.string(),
-          v.transform((text) => ({ text })),
-        ),
-        v.object({ text: v.string() }),
-      ]),
-      input,
-    ).text;
+  const state = fakePoolState();
+  state.connection = new FakeConnection(({ sql, values }) => {
     queries.push({ sql, timeout });
-    if (sql.includes("set_config('statement_timeout'")) timeout = v.parse(v.string(), values?.[0]);
+    if (sql.includes("set_config('statement_timeout'")) timeout = v.parse(v.string(), values[0]);
     if (failBuild && sql.startsWith("CREATE INDEX")) throw buildFailure;
     if (failRollback && sql.startsWith("rollback")) throw new Error("rollback fixture failed");
     return {
-      command: "SELECT",
       rowCount: 0,
-      oid: 0,
-      fields: [],
       rows:
         sql === "SHOW server_version_num"
           ? [{ server_version_num: "180006" }]
@@ -249,13 +240,12 @@ async function runnerFixture(
               ? [{ timeout }]
               : [],
     };
-  }) as pg.Client["query"]);
+  });
+  driver.createPool = fakeCreatePool(state);
   try {
     await withMigrationConnection("postgres://localhost/db", (client) => operation(client, queries));
   } finally {
-    connect.mockRestore();
-    end.mockRestore();
-    query.mockRestore();
+    delete driver.createPool;
     routing.applied = 0;
   }
   return buildFailure;

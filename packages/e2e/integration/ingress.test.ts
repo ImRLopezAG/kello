@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { defineRelations } from "drizzle-orm";
 import * as v from "valibot";
 import {

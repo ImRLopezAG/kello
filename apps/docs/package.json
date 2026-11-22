@@ -18,7 +18,7 @@
     "astro": "7.4.7",
     "class-variance-authority": "0.7.1",
     "cn": "0.5.2",
-    "drizzle-orm": "1.0.0-rc.5",
+    "drizzle-orm": "1.0.0-rc.6",
     "fumadocs-core": "16.18.2",
     "fumadocs-ui": "16.18.2",
     "kello": "workspace:*",

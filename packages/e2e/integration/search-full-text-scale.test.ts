@@ -7,7 +7,9 @@ import { Context } from "effect";
 import { defineRelations, eq } from "drizzle-orm";
 import { getTableConfig, pgSchema } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
+import type { Connection } from "drizzle-orm/postgres/client/node";
+import { observeConnections } from "../fixtures/observe-connections";
 import * as v from "valibot";
 import {
   bindRpcDatabaseProcedure,
@@ -24,15 +26,10 @@ import { searchErrors } from "../../../apps/kello/src/core/search/errors";
 import { fullTextLocalTarget } from "./full-text-local-target";
 import { cleanupScaleFixture, cleanupScaleTransaction } from "../fixtures/search-full-text-scale-cleanup";
 
-type NativeCallback = (error: Error, result: pg.QueryResult | pg.QueryArrayResult<unknown[]>) => void;
-type NativeArguments =
-  | [query: pg.Submittable]
-  | [query: string | pg.QueryConfig, values?: pg.QueryConfigValues<unknown[]>]
-  | [query: string | pg.QueryConfig, callback: NativeCallback]
-  | [query: string, values: pg.QueryConfigValues<unknown[]>, callback: NativeCallback];
-type NativeResult = pg.Submittable | Promise<pg.QueryResult | pg.QueryArrayResult<unknown[]>> | void;
+type NativeArguments = Parameters<Connection["query"]>;
+type NativeResult = ReturnType<Connection["query"]>;
 interface NativeDispatch {
-  apply(receiver: pg.PoolClient, args: NativeArguments): NativeResult;
+  apply(receiver: Connection, args: NativeArguments): NativeResult;
 }
 type CapturedStatement = { text: string; values: unknown[] };
 type PlanNode = {
@@ -225,6 +222,12 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
     const { validators } = createProjectContext(schema, relations);
     const { procedure } = createProjectProcedures(schema, relations);
     const read = createDatabaseMiddleware(relations, "read", schema);
+    // Independent pg session as the reader role, for planner inspection and replay.
+    const readerSession = async () => {
+      const client = new pg.Client({ connectionString: readerURL.href });
+      await client.connect();
+      return Object.assign(client, { release: () => client.end() });
+    };
     const makeHandler = async (fullTextTimeoutMs: number) => {
       const connection = await connectDatabase({
         schema,
@@ -236,8 +239,8 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
       // Rows/count remain separate from the ordered native command observation.
       const captured: CapturedStatement[] = [];
       const observedCommands: CapturedStatement[] = [];
-      const observed = new WeakSet<pg.PoolClient>();
-      connection.pool.on("acquire", (client) => {
+      const observed = new WeakSet<Connection>();
+      observeConnections(connection.pool, (client) => {
         if (observed.has(client)) return;
         observed.add(client);
         client.query = new Proxy(client.query, {
@@ -338,7 +341,7 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
         limit: 17,
         count: true,
       }) as const;
-    const explainClient = await handler.connection.pool.connect();
+    const explainClient = await readerSession();
     try {
       const planner = await explainClient.query<{ name: string; setting: string }>(
         "SELECT name,setting FROM pg_settings WHERE name IN ('enable_seqscan','enable_indexscan','enable_bitmapscan','plan_cache_mode') ORDER BY name",
@@ -350,7 +353,7 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
         { name: "plan_cache_mode", setting: "auto" },
       ]);
     } finally {
-      explainClient.release();
+      await explainClient.release();
     }
 
     for (const scenario of [
@@ -405,7 +408,7 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
       }
       expect(seen).toEqual(expected);
 
-      const replay = await handler.connection.pool.connect();
+      const replay = await readerSession();
       try {
         for (const [readIndex, captured] of reads.entries()) {
           expect(captured.text).toContain('"tenant"');
@@ -523,7 +526,7 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
           );
         }
       } finally {
-        replay.release();
+        await replay.release();
       }
       // First-run timing is measured after seeding/ANALYZE/oracle work. It is
       // explicitly NOT a guaranteed cold-cache run; no cache reset is performed.
@@ -537,7 +540,7 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
     // lock holds the read past the deadline, rather than relying on CPU speed.
     // Live active-epoch cancellation/reconnect belong to the live proof worker.
     const bounded = await makeHandler(5000);
-    const baselineClient = await bounded.connection.pool.connect();
+    const baselineClient = await readerSession();
     let inheritedStatementMs: number;
     let inheritedLockMs: number;
     try {
@@ -559,7 +562,7 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
       expect(inheritedStatementMs === 0 || inheritedStatementMs > 10000).toBe(true);
       expect(inheritedLockMs === 0 || inheritedLockMs > 10000).toBe(true);
     } finally {
-      baselineClient.release();
+      await baselineClient.release();
     }
     const first = await bounded.request(input("common"), "tenant-99");
     assert(first.nextCursor);
@@ -628,11 +631,11 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
           "SELECT 1 FROM pg_stat_activity WHERE usename=$1 AND (state='active' OR state LIKE 'idle in transaction%')",
           [role],
         );
-        if (active.rowCount === 0 && bounded.connection.pool.idleCount === bounded.connection.pool.totalCount) break;
+        if (active.rowCount === 0 && bounded.connection.pool.idleCount === bounded.connection.pool.size) break;
         assert(performance.now() < end, "Timed-out scale read must drain while blocker remains held");
         await setTimeout(10);
       }
-      expect(bounded.connection.pool.waitingCount).toBe(0);
+      expect(bounded.connection.pool.waiting).toBe(0);
       console.info(
         "U5 scale deadline",
         JSON.stringify({
@@ -673,8 +676,8 @@ test("U5 PG18 scale: actual authorized handler SQL, unforced GIN, sequential ora
       ).rows,
     ).toEqual([]);
     for (const connection of [handler.connection, bounded.connection]) {
-      expect(connection.pool.waitingCount).toBe(0);
-      expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+      expect(connection.pool.waiting).toBe(0);
+      expect(connection.pool.idleCount).toBe(connection.pool.size);
     }
     console.info(
       "U5 scale catalog/distribution",

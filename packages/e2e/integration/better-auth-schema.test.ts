@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { rejects } from "node:assert/strict";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import * as pg from "../fixtures/postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { betterAuth } from "better-auth";
 import { jwt, organization, twoFactor } from "better-auth/plugins";
 import { inbox } from "better-inbox";
@@ -106,6 +106,7 @@ for (const [name, configuration] of configurations)
     async () => {
       const namespace = `auth_${crypto.randomUUID().replaceAll("-", "")}`;
       const pool = new pg.Pool({ connectionString: process.env.KELLO_TEST_DATABASE_URL });
+      const db = drizzle(process.env.KELLO_TEST_DATABASE_URL!);
       try {
         const schema = compileBetterAuthSchema(configuration, namespace);
         const snapshot = await createNativeSnapshot({ namespace, tables: schema.ownedTables });
@@ -120,7 +121,7 @@ for (const [name, configuration] of configurations)
           ...configuration,
           secret: "kello-integration-secret-at-least-thirty-two-characters",
           baseURL: "https://auth.example.test",
-          database: createBetterAuthDatabase(drizzle({ client: pool }), namespace),
+          database: createBetterAuthDatabase(db, namespace),
           emailAndPassword: { enabled: true },
         });
         const result = await auth.api.signUpEmail({
@@ -212,6 +213,7 @@ for (const [name, configuration] of configurations)
         expect(await migrationStatements(snapshot, noChange)).toEqual([]);
       } finally {
         await pool.query(`DROP SCHEMA IF EXISTS "${namespace}" CASCADE`);
+        await db.$client.end();
         await pool.end();
       }
     },

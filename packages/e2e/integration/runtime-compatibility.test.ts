@@ -3,8 +3,8 @@ import { test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import * as pg from "../fixtures/postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { defineSchema } from "kello/server";
 import { applyMigrations, emptySnapshot, planMigration, writeMigration, inspectReleaseSchema } from "kello-cli";
 import { withMigrationConnection } from "../../../apps/kello-cli/src/tooling/migrations/connection";
@@ -73,7 +73,7 @@ test.skipIf(!connectionString)(
         recordRuntimeCompatibility(client, { ...identity, sourceSchema: initial.after, inspection: compatible }),
       );
       await applyMigrations(options);
-      const rows = await drizzle({ client: admin }).select().from(original.tables.tasks);
+      const rows = await drizzle({ client: admin.connection }).select().from(original.tables.tasks);
       assert.equal(rows[0]?.title, "preserved");
       assert.equal(Object.hasOwn(rows[0] ?? {}, "note"), false);
       await assert.rejects(

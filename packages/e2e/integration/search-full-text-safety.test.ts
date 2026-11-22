@@ -6,15 +6,24 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { bigint, index, pgSchema, text, uuid } from "drizzle-orm/pg-core";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { fullTextLocalTarget } from "./full-text-local-target";
 import * as v from "valibot";
 import { emptySnapshot, inspectSnapshot, snapshotHash } from "../../../apps/kello-cli/src/tooling/migrations/adapter";
 import type { MigrationSnapshot } from "../../../apps/kello-cli/src/tooling/migrations/adapter";
 import { assessMigration } from "../../../apps/kello-cli/src/tooling/migrations/assessment";
 import { withMigrationConnection } from "../../../apps/kello-cli/src/tooling/migrations/connection";
+import type { DatabaseSession } from "../../../apps/kello-cli/src/tooling/migrations/connection";
+
+// The suite reads columns without declaring them, as it did on node-postgres.
+type Session = Omit<DatabaseSession, "query"> & {
+  query<R = pg.QueryResultRow>(
+    text: string,
+    values?: readonly unknown[],
+  ): Promise<{ rows: R[]; rowCount: number | null }>;
+};
 import { catalogFingerprint } from "../../../apps/kello-cli/src/tooling/migrations/drift";
 import {
   readMigrations,
@@ -84,7 +93,7 @@ function fixture(
 
 async function nativeFixture(
   run: (context: {
-    client: pg.Client;
+    client: Session;
     admin: pg.Client;
     connectionString: string;
     options: { root: string; migrations: string; namespace: string; metadataNamespace: string; runtimeRole: string };
@@ -112,8 +121,10 @@ async function nativeFixture(
     targetVerified = true;
     console.log("U2_NATIVE_TARGET", JSON.stringify({ version, database, namespace: options.namespace }));
     await withMigrationConnection(connectionString, async (client) => {
-      ownedPid = (await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
-      await run({ client, admin, connectionString, options });
+      ownedPid = (await client.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]?.pid;
+      // SAFETY: the same session; the suite only reads the columns its SQL selects.
+      // oxlint-disable-next-line anti-slop/no-chained-type-assertions -- widens rows to node-postgres' untyped form.
+      await run({ client: client as unknown as Session, admin, connectionString, options });
     });
   } finally {
     try {
@@ -190,7 +201,7 @@ test("native runner denies historically automatic existing-table GIN without exa
     expect(
       (
         await planMigration(
-          await inspectSnapshot(drizzle({ client }), options.namespace),
+          await inspectSnapshot(drizzle({ client: client.connection }), options.namespace),
           fixture(options.namespace, { gin: true }),
           [],
           addition.hash,
@@ -210,7 +221,7 @@ async function artifactBytes(directory: string) {
   ]);
 }
 
-async function histories(client: pg.Client, options: { namespace: string; metadataNamespace: string }) {
+async function histories(client: Session, options: { namespace: string; metadataNamespace: string }) {
   return {
     kello: (
       await client.query(
@@ -226,7 +237,7 @@ async function histories(client: pg.Client, options: { namespace: string; metada
   };
 }
 
-async function assertGinCatalog(client: pg.Client, namespace: string) {
+async function assertGinCatalog(client: Session, namespace: string) {
   const rows = (
     await client.query(
       `SELECT c.relname, pg_get_indexdef(c.oid) AS definition, i.indisvalid, i.indisready, am.amname,
@@ -237,11 +248,11 @@ async function assertGinCatalog(client: pg.Client, namespace: string) {
     )
   ).rows;
   expect(rows).toHaveLength(1);
-  expect(rows[0].amname).toBe("gin");
-  expect(rows[0].indisvalid).toBe(true);
-  expect(rows[0].indisready).toBe(true);
-  expect(rows[0].owner).toBe(rows[0].expected_owner);
-  expect(rows[0].definition).toContain("to_tsvector");
+  expect(rows[0]!.amname).toBe("gin");
+  expect(rows[0]!.indisvalid).toBe(true);
+  expect(rows[0]!.indisready).toBe(true);
+  expect(rows[0]!.owner).toBe(rows[0]!.expected_owner);
+  expect(rows[0]!.definition).toContain("to_tsvector");
   console.log("U2_NATIVE_GIN_CATALOG", JSON.stringify(rows));
 }
 
@@ -308,7 +319,7 @@ test("seven pre-U1 format-2 artifacts retain bytes and historical safety under c
       expect((await applyMigrationsOnConnection(client, options)).applied).toEqual([]);
       if (method === "gin") {
         const regenerated = await planMigration(
-          await inspectSnapshot(drizzle({ client }), options.namespace),
+          await inspectSnapshot(drizzle({ client: client.connection }), options.namespace),
           schema,
           [],
           plan.hash,
@@ -364,7 +375,7 @@ test("new-table GIN and unrelated B-tree retain automatic native admission", asy
       ).rows,
     ).toEqual([{ amname: "btree" }]);
     const regenerated = await planMigration(
-      await inspectSnapshot(drizzle({ client }), options.namespace),
+      await inspectSnapshot(drizzle({ client: client.connection }), options.namespace),
       btreeSchema,
       [],
       btree.hash,
@@ -387,7 +398,7 @@ interface QueryObservation {
   code: string | undefined;
 }
 
-async function settings(client: pg.Client): Promise<Settings> {
+async function settings(client: Session): Promise<Settings> {
   return (
     await client.query<Settings>(
       "SELECT current_setting('statement_timeout') AS statement, current_setting('lock_timeout') AS lock",
@@ -398,25 +409,31 @@ async function settings(client: pg.Client): Promise<Settings> {
 // Observe the real driver's promise queries; forward the original query config/parameters unchanged.
 // Probes use the original driver method, never a replacement ORM/migrator. No probe runs in an
 // aborted transaction until PostgreSQL has executed the real rollback/savepoint recovery.
-function observeQueries(client: pg.Client) {
-  const original = client.query.bind(client);
-  const send = original;
+/* oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns,
+ * anti-slop/require-safety-comment-for-type-assertion --
+ * The observer forwards the driver's own arguments and results unchanged; it reads only the SQL text. */
+function observeQueries(client: Session) {
+  // The native migrator runs on the session's driver connection, so observe that connection.
+  const connection = client.connection;
+  const original = connection.query;
+  const send = original.bind(connection) as (text: string, values?: unknown, options?: unknown) => Promise<unknown>;
   const observations: QueryObservation[] = [];
   let aborted = false;
   const probe = async (): Promise<Settings> => {
-    const result = await send<Settings>(
+    const result = (await send(
       "SELECT current_setting('statement_timeout') AS statement, current_setting('lock_timeout') AS lock",
-    );
+      [],
+      { mode: "object" },
+    )) as { rows: Settings[] };
     return result.rows[0]!;
   };
-  // SAFETY: the owned native runner uses only promise query overloads; arguments and driver results are forwarded unchanged.
-  client.query = (async (query: string | pg.QueryConfig, values?: unknown[]) => {
-    const text = v.is(v.string(), query) ? query : query.text;
+  // SAFETY: arguments and driver results are forwarded unchanged to the original method.
+  connection.query = (async (text: string, values?: unknown, options?: unknown) => {
     const before = aborted ? null : await probe();
     const start = performance.now();
     let result;
     try {
-      result = await send(query, values);
+      result = await send(text, values, options);
     } catch (cause) {
       aborted = true;
       observations.push({
@@ -432,14 +449,17 @@ function observeQueries(client: pg.Client) {
     aborted = false;
     observations.push({ text, before, after: await probe(), elapsedMs, code: undefined });
     return result;
-  }) as pg.Client["query"];
+  }) as typeof connection.query;
   return {
     observations,
     restore: () => {
-      client.query = original;
+      connection.query = original;
     },
   };
 }
+
+/* oxlint-enable anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns,
+ * anti-slop/require-safety-comment-for-type-assertion */
 
 function postgresError(cause: unknown): { code: string; message: string } | undefined {
   if (!(cause instanceof Error)) return;
@@ -447,7 +467,7 @@ function postgresError(cause: unknown): { code: string; message: string } | unde
   return postgresError(cause.cause);
 }
 
-async function assertReleased(client: pg.Client, admin: pg.Client) {
+async function assertReleased(client: Session, admin: pg.Client) {
   expect(await settings(client)).toEqual({ statement: "1min", lock: "5s" });
   const pid = (await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
   // Owned-session advisory locks intentionally live until the callback closes. Relation and
@@ -569,7 +589,12 @@ test("real native GIN timeout rolls back, keeps the 5s lock limit, restores migr
         (await inspectHistory(client, options, await readMigrations(options.root, options.migrations))).issues,
       ).toEqual([]);
       expect(
-        (await planMigration(await inspectSnapshot(drizzle({ client }), options.namespace), baselineSchema)).statements,
+        (
+          await planMigration(
+            await inspectSnapshot(drizzle({ client: client.connection }), options.namespace),
+            baselineSchema,
+          )
+        ).statements,
       ).toEqual([]);
       await assertReleased(client, admin);
     };
@@ -665,14 +690,14 @@ test("real native GIN timeout rolls back, keeps the 5s lock limit, restores migr
       const afterHistory = await histories(client, options);
       expect(afterHistory.kello.map((row) => row.hash)).toEqual([baseline.hash, addition.hash]);
       expect(afterHistory.orm.map((row) => row.hash)).toEqual([baseline.hash, addition.hash]);
-      expect(afterHistory.kello[1].catalog_hash).toBe(await catalogFingerprint(client, options.namespace));
+      expect(afterHistory.kello[1]!.catalog_hash).toBe(await catalogFingerprint(client, options.namespace));
       expect(
         (await inspectHistory(client, options, await readMigrations(options.root, options.migrations))).issues,
       ).toEqual([]);
       expect(
         (
           await planMigration(
-            await inspectSnapshot(drizzle({ client }), options.namespace),
+            await inspectSnapshot(drizzle({ client: client.connection }), options.namespace),
             targetSchema,
             [],
             addition.hash,

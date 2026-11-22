@@ -44,7 +44,7 @@ export async function inspectRuntimeDatabase(input: RuntimeDatabaseOptions) {
       await client.query("BEGIN READ ONLY");
       // Runtime URLs may use transaction pooling, so settings must belong to this transaction.
       await client.query(
-        "SET LOCAL search_path = pg_catalog; SET LOCAL statement_timeout = '60s'; SET LOCAL lock_timeout = '5s'",
+        "SELECT set_config('search_path', 'pg_catalog', true), set_config('statement_timeout', '60s', true), set_config('lock_timeout', '5s', true)",
       );
       const authority = await client.query<{ safe: boolean }>(
         `

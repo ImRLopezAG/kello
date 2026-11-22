@@ -1,6 +1,6 @@
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import type { loadProject } from "../project/load";
 import { resolveProjectPath } from "../config/paths";
 import type { MigrationSnapshot } from "./adapter";
@@ -9,7 +9,7 @@ import { getTableConfig } from "drizzle-orm/pg-core";
 type Project = Awaited<ReturnType<typeof loadProject>>;
 
 /** Externally owned plugin tables must exist before any owned migration is applied. */
-export async function assertExternalAuthTables(client: pg.Client, project: Project): Promise<void> {
+export async function assertExternalAuthTables(client: DatabaseSession, project: Project): Promise<void> {
   for (const scope of project.authScopes) {
     for (const [name, table] of Object.entries(scope.schema.tables)) {
       if (scope.schema.ownedTables[name]) continue;

@@ -16,7 +16,7 @@ import {
 import { bootstrapDatabase } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
@@ -163,7 +163,7 @@ test.skipIf(!connectionString)("public HTTP verifies JWTs before atomic mutation
           { owner: "alice" },
           { owner: "alice" },
         ]);
-        expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+        expect(connection.pool.idleCount).toBe(connection.pool.size);
       } finally {
         await server.stop(true);
       }

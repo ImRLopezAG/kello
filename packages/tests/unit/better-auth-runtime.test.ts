@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { betterAuth } from "better-auth";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { defineBetterAuth } from "../../../apps/kello/src/core/better-auth/definition";
 import { resolveBetterAuthSchema } from "../../../apps/kello/src/core/better-auth/resolve";
 import { initializeBetterAuth } from "../../../apps/kello/src/core/better-auth/runtime";

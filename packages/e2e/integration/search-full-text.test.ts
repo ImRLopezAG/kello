@@ -5,10 +5,12 @@ import { call, ORPCError } from "@orpc/server";
 import type { InferSchemaInput } from "@orpc/server";
 import { Context } from "effect";
 import { and, defineRelations, eq, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
+import type { Connection } from "drizzle-orm/postgres/client/node";
+import { observeConnections } from "../fixtures/observe-connections";
 import * as v from "valibot";
 import {
   bindRpcDatabaseProcedure,
@@ -24,15 +26,10 @@ import type { ProcedureContext } from "../../../apps/kello/src/core/server/index
 import { searchErrors } from "../../../apps/kello/src/core/search/errors";
 import { fullTextLocalTarget } from "./full-text-local-target";
 
-type NativeQueryCallback = (error: Error, result: pg.QueryResult | pg.QueryArrayResult<unknown[]>) => void;
-type NativeQueryArguments =
-  | [query: pg.Submittable]
-  | [query: string | pg.QueryConfig, values?: pg.QueryConfigValues<unknown[]>]
-  | [query: string | pg.QueryConfig, callback: NativeQueryCallback]
-  | [query: string, values: pg.QueryConfigValues<unknown[]>, callback: NativeQueryCallback];
-type NativeQueryResult = pg.Submittable | Promise<pg.QueryResult | pg.QueryArrayResult<unknown[]>> | void;
+type NativeQueryArguments = Parameters<Connection["query"]>;
+type NativeQueryResult = ReturnType<Connection["query"]>;
 interface NativeQueryDispatch {
-  apply(receiver: pg.PoolClient, args: NativeQueryArguments): NativeQueryResult;
+  apply(receiver: Connection, args: NativeQueryArguments): NativeQueryResult;
 }
 
 // This is U3's owned executor proof. U4's full traversal/float-bit oracle and
@@ -102,7 +99,7 @@ test("U3 PG18 owned full-text handler: authorization, rank, snapshot and remaini
       END $gate$`);
     await owner.query(`REVOKE ALL ON FUNCTION "${namespace}".search_gate(bigint, bigint) FROM PUBLIC`);
     await owner.query(`GRANT EXECUTE ON FUNCTION "${namespace}".search_gate(bigint, bigint) TO "${role}"`);
-    const seed = drizzle({ client: owner, relations });
+    const seed = drizzle({ client: owner.driver, relations });
     const rows = [
       { label: "hidden-high", owner: "bob", title: "quasar quasar quasar", body: "quasar", published: true },
       { label: "title", owner: "alice", title: "quasar", body: null, published: true },
@@ -122,8 +119,8 @@ test("U3 PG18 owned full-text handler: authorization, rank, snapshot and remaini
     const connection = await connectDatabase({ schema, relations, connectionString: address.href, maxConnections: 1 });
     const statements: { text: string; values: unknown[] }[] = [];
     let beforeCount: (() => Promise<void>) | undefined;
-    const observed = new WeakSet<pg.PoolClient>();
-    connection.pool.on("acquire", (client) => {
+    const observed = new WeakSet<Connection>();
+    observeConnections(connection.pool, (client) => {
       if (observed.has(client)) return;
       observed.add(client);
       client.query = new Proxy(client.query, {
@@ -402,8 +399,8 @@ test("U3 PG18 owned full-text handler: authorization, rank, snapshot and remaini
           .sort(),
       ).toEqual(["body", "concurrent", "draft", "title"]);
 
-      const waitFor = async (predicate: () => Promise<boolean>) => {
-        const end = performance.now() + 5000;
+      const waitFor = async (predicate: () => Promise<boolean>, timeoutMs = 5000) => {
+        const end = performance.now() + timeoutMs;
         while (!(await predicate())) {
           assert(performance.now() < end, "Native database barrier did not arrive");
           await setTimeout(10); // Poll a causal database condition, never a guessed delay.
@@ -485,9 +482,12 @@ test("U3 PG18 owned full-text handler: authorization, rank, snapshot and remaini
                   [role],
                 )
               ).rowCount === 0,
+            // An aborted connection is closed, not cancelled; the server stops a
+            // blocked statement at its statement bound.
+            35_000,
           );
-          await waitFor(async () => connection.pool.idleCount === connection.pool.totalCount);
-          expect(connection.pool.waitingCount).toBe(0);
+          await waitFor(async () => connection.pool.idleCount === connection.pool.size);
+          expect(connection.pool.waiting).toBe(0);
         } finally {
           await blocker.query("SELECT pg_advisory_unlock($1::bigint), pg_advisory_unlock($2::bigint)", [
             rootKey,
@@ -513,4 +513,4 @@ test("U3 PG18 owned full-text handler: authorization, rank, snapshot and remaini
       await owner.end();
     }
   }
-}, 60_000);
+}, 120_000);

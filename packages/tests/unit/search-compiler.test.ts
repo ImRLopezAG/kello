@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import { eq, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { createProjectContext } from "../../../apps/kello/src/core/server/index";
 import { oc } from "../../../apps/kello/src/core/contract/index";

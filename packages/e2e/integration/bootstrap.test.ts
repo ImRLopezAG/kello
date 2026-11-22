@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { bootstrapDatabase, frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -141,19 +141,19 @@ test.skipIf(!connectionString)(
       await admin.query("SET search_path = pg_catalog");
       await admin.query(`CREATE SCHEMA "${namespace}"`);
       await admin.query(`CREATE TABLE "${namespace}".tasks (id integer PRIMARY KEY, title text)`);
-      const original = await catalogFingerprint(admin, namespace);
+      const original = await catalogFingerprint(admin.session, namespace);
       await admin.query(`INSERT INTO "${namespace}".tasks VALUES (1, 'initial')`);
       await admin.query(`UPDATE "${namespace}".tasks SET title = 'changed'`);
-      expect(await catalogFingerprint(admin, namespace)).toBe(original);
+      expect(await catalogFingerprint(admin.session, namespace)).toBe(original);
       await admin.query(`ALTER TABLE "${namespace}".tasks ADD COLUMN extra text`);
-      expect(await catalogFingerprint(admin, namespace)).not.toBe(original);
+      expect(await catalogFingerprint(admin.session, namespace)).not.toBe(original);
       await admin.query(`ALTER TABLE "${namespace}".tasks DROP COLUMN extra`);
-      expect(await catalogFingerprint(admin, namespace)).toBe(original);
+      expect(await catalogFingerprint(admin.session, namespace)).toBe(original);
       await admin.query(`CREATE POLICY example ON "${namespace}".tasks USING (id > 0)`);
-      expect(await catalogFingerprint(admin, namespace)).not.toBe(original);
+      expect(await catalogFingerprint(admin.session, namespace)).not.toBe(original);
       await admin.query(`DROP POLICY example ON "${namespace}".tasks`);
       await admin.query(`GRANT SELECT ON "${namespace}".tasks TO PUBLIC`);
-      expect(await catalogFingerprint(admin, namespace)).not.toBe(original);
+      expect(await catalogFingerprint(admin.session, namespace)).not.toBe(original);
     } finally {
       await admin.query(`DROP SCHEMA IF EXISTS "${namespace}" CASCADE`);
       await admin.end();

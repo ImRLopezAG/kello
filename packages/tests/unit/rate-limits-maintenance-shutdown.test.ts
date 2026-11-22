@@ -1,9 +1,9 @@
 import { afterEach, expect, test, vi } from "vite-plus/test";
+import type { PoolConfig } from "drizzle-orm/postgres/client/node";
 
 interface ShutdownState {
   events: string[];
-  ssl: boolean | object;
-  negotiation: string;
+  configs: PoolConfig[];
   stage: string;
   controller: AbortController | undefined;
   entered: (() => void) | undefined;
@@ -20,19 +20,13 @@ interface ShutdownState {
   lateConnect: boolean;
   releaseConnect: (() => void) | undefined;
   afterCommit: (() => void) | undefined;
-  reenterOnDestroy: boolean;
   failConstructor: boolean;
-  transportConnectDelay: number;
-  throwCancelDestroy: boolean;
-  reenterCancelDestroy: boolean;
-  throwCancelSend: boolean;
   rejectConnect: boolean;
 }
 
 const state = vi.hoisted((): ShutdownState => ({
   events: [],
-  ssl: false,
-  negotiation: "postgres",
+  configs: [],
   stage: "SHOW",
   controller: undefined,
   entered: undefined,
@@ -49,98 +43,44 @@ const state = vi.hoisted((): ShutdownState => ({
   lateConnect: false,
   releaseConnect: undefined,
   afterCommit: undefined,
-  reenterOnDestroy: false,
   failConstructor: false,
-  transportConnectDelay: 0,
-  throwCancelDestroy: false,
-  reenterCancelDestroy: false,
-  throwCancelSend: false,
   rejectConnect: false,
 }));
 
-vi.mock("pg", async () => {
-  const { EventEmitter } = await import("node:events");
-  class Connection extends EventEmitter {
-    constructor(config: { ssl: unknown; sslNegotiation: string }) {
-      super();
-      expect(config.ssl).toBe(state.ssl);
-      expect(config.sslNegotiation).toBe(state.negotiation);
-    }
-    stream = {
-      destroy: () => {
-        state.events.push("cancel-close");
-        if (state.reenterCancelDestroy) this.emit("error", new Error("PRIVATE_REENTRANT_CANCEL"));
-        if (state.throwCancelDestroy) throw new Error("PRIVATE_CANCEL_DESTROY");
-      },
-    };
-    connect() {
-      state.events.push("cancel-connect");
-      const establish = () => {
-        this.emit("connect");
-        if (state.ssl && state.negotiation === "direct") this.emit("sslconnect");
-      };
-      if (state.transportConnectDelay) setTimeout(establish, state.transportConnectDelay);
-      else queueMicrotask(establish);
-    }
-    requestSsl() {
-      state.events.push("ssl-request");
-      this.emit("sslconnect");
-    }
-    cancel(processID: number, secretKey: number) {
-      expect([processID, secretKey]).toEqual([123, 456]);
-      state.events.push("cancel-send");
-      if (state.throwCancelSend) throw new Error("PRIVATE_CANCEL_SEND");
-      state.releaseCancellation = () => this.emit(state.failCancellation ? "error" : "end", new Error("private"));
-    }
-  }
-  class Client extends EventEmitter {
-    constructor() {
-      super();
-      if (state.failConstructor) throw new Error("PRIVATE_CLIENT_CONSTRUCTOR_FAILURE");
-    }
-    host = "unused.invalid";
-    port = 5432;
-    processID = 123;
-    secretKey = 456;
-    connection = {
-      ssl: state.ssl,
-      sslNegotiation: state.negotiation,
-      stream: {
-        destroy: () => {
-          state.events.push("owner-destroy");
-          if (state.reenterOnDestroy) this.emit("error", new Error("PRIVATE_IDLE_ERROR"));
-          const drain = () => state.rejectRun?.(new Error("connection terminated"));
-          if (state.deferDrain) state.releaseDrain = drain;
-          else drain();
-        },
-      },
-    };
-    async connect() {
-      state.events.push("connect");
-      if (state.lateConnect) {
-        await new Promise<void>((resolve) => {
-          state.releaseConnect = resolve;
-          state.entered?.();
-        });
-        state.events.push("connect-settled");
-        if (state.rejectConnect) throw new Error("PRIVATE_CONNECT_FAILURE");
-        return;
-      }
-      if (state.stage === "connect") await this.pause();
-    }
-    pause() {
+// The driver's pooled connection: a query given a signal sends a CancelRequest when it fires, and the
+// query settles once the server reports the cancel. Ending the connection fails whatever is still running.
+vi.mock("drizzle-orm/postgres/client/node", async (importOriginal) => {
+  const original = await importOriginal<typeof import("drizzle-orm/postgres/client/node")>();
+  class FakeConnection {
+    inTransaction = false;
+    cancelSettled: Promise<void> | undefined;
+    pause(signal: AbortSignal | undefined) {
       return new Promise<never>((_resolve, reject) => {
         state.rejectRun = (error) => {
           state.events.push("run-settled");
           reject(error);
         };
+        signal?.addEventListener(
+          "abort",
+          () => {
+            state.events.push("cancel-send");
+            const settled = Promise.withResolvers<void>();
+            this.cancelSettled = settled.promise;
+            state.releaseCancellation = () => {
+              if (state.failCancellation) return;
+              settled.resolve();
+              state.rejectRun?.(Object.assign(new Error("canceling statement due to user request"), { code: "57014" }));
+            };
+          },
+          { once: true },
+        );
         state.entered?.();
       });
     }
-    async query(text: string) {
+    async query(text: string, _values: readonly unknown[], options: { signal?: AbortSignal }) {
       state.events.push(text.split(" ")[0]!);
       if (text.startsWith(state.failQuery ?? "\0")) throw new Error("PRIVATE_OPERATION_FAILURE");
-      if (text.startsWith(state.stage)) return this.pause();
+      if (text.startsWith(state.stage)) return this.pause(options.signal);
       if (text === "SHOW server_version_num") {
         return {
           rows: [
@@ -152,16 +92,18 @@ vi.mock("pg", async () => {
               },
             },
           ],
+          rowCount: 1,
         };
       }
-      if (text.includes("nspowner")) return { rows: [{ owned: true, framework: true, migrations: true }] };
+      if (text.includes("nspowner")) return { rows: [{ owned: true, framework: true, migrations: true }], rowCount: 1 };
       if (text.includes("SELECT version,hash")) {
         const { frameworkMigrations } = await import("../../../apps/kello-cli/src/tooling/migrations/bootstrap");
-        return { rows: frameworkMigrations("kello_shutdown").map(({ version, hash }) => ({ version, hash })) };
+        const rows = frameworkMigrations("kello_shutdown").map(({ version, hash }) => ({ version, hash }));
+        return { rows, rowCount: rows.length };
       }
-      if (text.includes(" AS now")) return { rows: [{ now: "1000" }] };
+      if (text.includes(" AS now")) return { rows: [{ now: "1000" }], rowCount: 1 };
       if (text.includes(" AS has_more"))
-        return { rows: [{ has_more: state.hasMore, oldest: state.hasMore ? "500" : null }] };
+        return { rows: [{ has_more: state.hasMore, oldest: state.hasMore ? "500" : null }], rowCount: 1 };
       if (text === "COMMIT") {
         state.commits++;
         if (state.hasMore && !state.afterCommit) state.failQuery = "DELETE";
@@ -171,7 +113,9 @@ vi.mock("pg", async () => {
     }
     async end() {
       state.events.push("owner-end");
-      if (!state.deferDrain) state.rejectRun?.(new Error("connection terminated"));
+      const drain = () => state.rejectRun?.(new Error("connection terminated"));
+      if (state.deferDrain) state.releaseDrain = drain;
+      else drain();
       await new Promise<void>((resolve) => {
         state.releaseClose = resolve;
       });
@@ -179,16 +123,36 @@ vi.mock("pg", async () => {
       if (state.failClose) throw new Error("PRIVATE_CLOSE_FAILURE");
     }
   }
-  return { default: { Client, Connection } };
+  return {
+    ...original,
+    createPool: (config: PoolConfig) => {
+      if (state.failConstructor) throw new Error("PRIVATE_POOL_CONSTRUCTOR_FAILURE");
+      state.configs.push(config);
+      let connection: FakeConnection | undefined;
+      return {
+        async connect() {
+          state.events.push("connect");
+          if (state.lateConnect) {
+            await new Promise<void>((resolve) => {
+              state.releaseConnect = resolve;
+              state.entered?.();
+            });
+            state.events.push("connect-settled");
+            if (state.rejectConnect) throw new Error("PRIVATE_CONNECT_FAILURE");
+          } else if (state.stage === "connect") await new FakeConnection().pause(undefined);
+          connection = new FakeConnection();
+          return { client: connection, release: () => {} };
+        },
+        async end() {
+          state.events.push("pool-end");
+          if (state.stage === "connect") state.rejectRun?.(new Error("pool ended"));
+        },
+      };
+    },
+  };
 });
 
 import { cleanupRateLimits } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits-cleanup";
-import { cancelDatabaseStatement } from "../../../apps/kello/src/core/server/database/cancel";
-import pg from "pg";
-
-function repeatCancellationEvent(): void {
-  state.releaseCancellation?.();
-}
 
 const weakMapSet = Object.getOwnPropertyDescriptor(WeakMap.prototype, "set")!;
 
@@ -208,87 +172,80 @@ function recordWeakMapWrites(): Array<[WeakKey, any]> {
   return calls;
 }
 
+function reset(stage: string): void {
+  state.events = [];
+  state.configs = [];
+  state.stage = stage;
+  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+}
+
 afterEach(() => {
   Object.defineProperty(WeakMap.prototype, "set", weakMapSet);
   vi.useRealTimers();
   vi.restoreAllMocks();
-  state.failClose = state.deferDrain = state.hasMore = false;
+  state.failClose = state.deferDrain = state.hasMore = state.failCancellation = false;
   state.failQuery = state.releaseDrain = undefined;
-  state.lateConnect = state.reenterOnDestroy = false;
-  state.failConstructor = false;
-  state.transportConnectDelay = 0;
-  state.throwCancelDestroy = state.reenterCancelDestroy = state.throwCancelSend = state.rejectConnect = false;
+  state.lateConnect = state.failConstructor = state.rejectConnect = false;
   state.releaseConnect = state.afterCommit = undefined;
   state.commits = 0;
 });
 
 test.each([
-  ["abort", "SHOW", false, "postgres", false],
-  ["abort", "BEGIN", true, "postgres", false],
-  ["abort", "COMMIT", true, "direct", false],
-  ["deadline", "SHOW", true, "postgres", false],
-  ["abort", "SHOW", true, "postgres", true],
-  ["abort", "connect", false, "postgres", false],
-] as const)(
-  "%s during %s uses owned cancellation then awaits close (%s/%s/failure=%s)",
-  async (reason, stage, ssl, negotiation, failCancellation) => {
-    state.events = [];
-    state.stage = stage;
-    state.ssl = ssl ? { rejectUnauthorized: true } : false;
-    state.negotiation = negotiation;
-    state.failCancellation = failCancellation;
-    state.releaseCancellation = state.releaseClose = state.rejectRun = undefined;
-    const controller = new AbortController();
-    const entered = Promise.withResolvers<void>();
-    state.entered = entered.resolve;
-    const pending = cleanupRateLimits({
-      connectionString: "postgresql://unused.invalid/db",
-      metadataNamespace: "kello_shutdown",
-      signal: controller.signal,
-      maxDurationMs: 1000,
-    });
-    let settled = false;
-    let failure: unknown;
-    const outcome = pending.then(
-      () => {
-        settled = true;
-        return "success";
-      },
-      (error) => {
-        settled = true;
-        failure = error;
-        return error.message;
-      },
-    );
-    await entered.promise;
-    if (reason === "deadline") {
-      // Useful work stops early to reserve cancellation inside the run budget.
-      await vi.waitFor(() => expect(state.events).toContain("cancel-send"));
-      controller.abort(); // A second stop joins the watchdog's existing shutdown.
-    } else controller.abort();
-    await vi.waitFor(() => expect(state.events).toContain(stage === "connect" ? "owner-end" : "cancel-send"));
-    if (stage !== "connect") {
-      expect(state.events).not.toContain("owner-end");
-      expect(state.events).not.toContain("owner-destroy");
-      expect(state.events.includes("ssl-request")).toBe(ssl && negotiation === "postgres");
-      state.releaseCancellation!();
-      await vi.waitFor(() => expect(state.events).toContain("owner-end"));
-    } else expect(state.events).not.toContain("cancel-connect");
+  ["abort", "SHOW"],
+  ["abort", "BEGIN"],
+  ["abort", "COMMIT"],
+  ["deadline", "SHOW"],
+  ["abort", "connect"],
+] as const)("%s during %s cancels in flight, then awaits the owned close", async (reason, stage) => {
+  reset(stage);
+  const controller = new AbortController();
+  const entered = Promise.withResolvers<void>();
+  state.entered = entered.resolve;
+  let settled = false;
+  let failure: unknown;
+  const outcome = cleanupRateLimits({
+    connectionString: "postgresql://unused.invalid/db",
+    metadataNamespace: "kello_shutdown",
+    signal: controller.signal,
+    maxDurationMs: 1000,
+  }).then(
+    () => {
+      settled = true;
+      return "success";
+    },
+    (error) => {
+      settled = true;
+      failure = error;
+      return error.message;
+    },
+  );
+  await entered.promise;
+  if (reason === "deadline") {
+    // Useful work stops early to reserve cancellation inside the run budget.
+    await vi.waitFor(() => expect(state.events).toContain("cancel-send"));
+    controller.abort(); // A second stop joins the watchdog's existing shutdown.
+  } else controller.abort();
+  if (stage !== "connect") {
+    await vi.waitFor(() => expect(state.events).toContain("cancel-send"));
+    // The session stays open until its cancel settles.
+    expect(state.events).not.toContain("owner-end");
+    state.releaseCancellation!();
+    await vi.waitFor(() => expect(state.events).toContain("owner-end"));
     expect(settled).toBe(false);
     state.releaseClose!();
-    expect(await outcome).toBe("Rate limit cleanup failed");
-    expect(failure).toMatchObject({ removed: 0, batches: 0 });
-    expect(state.events.filter((event) => event === "owner-end")).toHaveLength(1);
-    expect(state.events.filter((event) => event === "cancel-send")).toHaveLength(stage === "connect" ? 0 : 1);
-    expect(state.events).toContain("run-settled");
-    expect(state.events.at(-1)).toBe("closed");
-  },
-);
+  } else {
+    await vi.waitFor(() => expect(state.events).toContain("pool-end"));
+    expect(state.events).not.toContain("cancel-send");
+  }
+  expect(await outcome).toBe("Rate limit cleanup failed");
+  expect(failure).toMatchObject({ removed: 0, batches: 0 });
+  expect(state.events.filter((event) => event === "cancel-send")).toHaveLength(stage === "connect" ? 0 : 1);
+  expect(state.events.filter((event) => event === "pool-end")).toHaveLength(1);
+  expect(state.events).toContain("run-settled");
+});
 
 test("abort between queries issues no next query or cancellation", async () => {
-  state.events = [];
-  state.stage = "between";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  reset("between");
   state.controller = new AbortController();
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
@@ -299,13 +256,12 @@ test("abort between queries issues no next query or cancellation", async () => {
   state.releaseClose!();
   expect(await outcome).toBe("Rate limit cleanup failed");
   expect(state.events).not.toContain("SELECT");
-  expect(state.events).not.toContain("cancel-connect");
+  expect(state.events).not.toContain("cancel-send");
   state.controller = undefined;
 });
 
 test("already aborted invocation closes without connecting", async () => {
-  state.events = [];
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  reset("SHOW");
   const controller = new AbortController();
   controller.abort();
   const outcome = cleanupRateLimits({
@@ -313,41 +269,62 @@ test("already aborted invocation closes without connecting", async () => {
     metadataNamespace: "kello_shutdown",
     signal: controller.signal,
   }).catch((error) => error.message);
+  expect(await outcome).toBe("Rate limit cleanup failed");
+  expect(state.events).toEqual(["pool-end"]);
+});
+
+test("one dedicated session with fixed timeouts and pg_catalog search path", async () => {
+  reset("none");
+  const outcome = cleanupRateLimits({
+    connectionString: "postgresql://migrator@ep-fixture.eu.neon.tech/db?sslmode=require",
+    metadataNamespace: "kello_shutdown",
+  });
   await vi.waitFor(() => expect(state.events).toContain("owner-end"));
   state.releaseClose!();
-  expect(await outcome).toBe("Rate limit cleanup failed");
-  expect(state.events).toEqual(["owner-end", "owner-destroy", "closed"]);
+  await outcome;
+  expect(state.configs).toHaveLength(1);
+  expect(state.configs[0]).toMatchObject({
+    max: 1,
+    reconnect: false,
+    ssl: "verify-full",
+    applicationName: "kello-rate-limits-cleanup",
+  });
+  expect(state.configs[0]?.options).toMatch(/^-c search_path=pg_catalog -c statement_timeout=\d+ -c lock_timeout=\d+$/);
+});
+
+test("a Neon URL that disables TLS is refused before any connection work", async () => {
+  reset("none");
+  const error = await cleanupRateLimits({
+    connectionString: "postgresql://migrator@ep-fixture.eu.neon.tech/db?sslmode=disable",
+    metadataNamespace: "kello_shutdown",
+  }).catch((error) => error);
+  expect(error).toMatchObject({ message: "Rate limit cleanup failed", removed: 0, batches: 0 });
+  expect(state.configs).toEqual([]);
+  expect(state.events).toEqual([]);
 });
 
 test("successful result also awaits owned close settlement", async () => {
-  state.events = [];
-  state.stage = "none";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  reset("none");
   let settled = false;
-  const pending = cleanupRateLimits({
+  const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
     metadataNamespace: "kello_shutdown",
-  });
-  const outcome = pending.then((result) => {
+  }).then((result) => {
     settled = true;
     return result;
   });
   await vi.waitFor(() => expect(state.events).toContain("owner-end"));
   expect(settled).toBe(false);
-  expect(state.events).not.toContain("cancel-connect");
+  expect(state.events).not.toContain("cancel-send");
   state.releaseClose!();
   expect(await outcome).toMatchObject({ removed: 1, batches: 1, hasMore: false });
-  expect(state.events.at(-1)).toBe("closed");
+  expect(state.events.at(-1)).toBe("pool-end");
 });
 
 test("cancellation consumes only the remaining run budget before owned close", async () => {
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-  state.events = [];
-  state.stage = "SHOW";
-  state.ssl = false;
-  state.negotiation = "postgres";
-  state.failCancellation = false;
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "performance"] });
+  reset("SHOW");
+  state.failCancellation = true;
   const entered = Promise.withResolvers<void>();
   state.entered = entered.resolve;
   const controller = new AbortController();
@@ -372,58 +349,24 @@ test("cancellation consumes only the remaining run budget before owned close", a
   controller.abort();
   await vi.advanceTimersByTimeAsync(0);
   expect(state.events).toContain("cancel-send");
+  state.releaseCancellation!(); // The server never acknowledges this cancel.
   await vi.advanceTimersByTimeAsync(549);
   expect(state.events).not.toContain("owner-end");
-  expect(state.events).not.toContain("owner-destroy");
   await vi.advanceTimersByTimeAsync(1);
-  expect(state.events).toContain("cancel-close");
   expect(state.events).toContain("owner-end");
-  expect(state.events.indexOf("cancel-close")).toBeLessThan(state.events.indexOf("owner-destroy"));
   expect(settled).toBe(false);
   state.releaseClose!();
+  await vi.advanceTimersByTimeAsync(0);
   expect(await outcome).toBe("Rate limit cleanup failed");
   expect(performance.now()).toBe(950);
-  expect(state.events.filter((event) => event === "cancel-connect")).toHaveLength(1);
+  expect(state.events.filter((event) => event === "cancel-send")).toHaveLength(1);
   expect(state.events.filter((event) => event === "owner-end")).toHaveLength(1);
-  expect(state.events.at(-1)).toBe("closed");
 });
-
-test.each([undefined, 100, 5000])(
-  "shared cancellation preserves/caps its transport budget (%s)",
-  async (maxDurationMs) => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-    state.events = [];
-    state.ssl = false;
-    state.negotiation = "postgres";
-    state.failCancellation = false;
-    const expected = Math.min(maxDurationMs ?? 2000, 2000);
-    let settled = false;
-    const outcome = cancelDatabaseStatement(new pg.Client(), maxDurationMs).then(
-      () => {
-        settled = true;
-        return "success";
-      },
-      (error) => {
-        settled = true;
-        return error.message;
-      },
-    );
-    await vi.advanceTimersByTimeAsync(expected - 1);
-    expect(state.events).toContain("cancel-send");
-    expect(state.events).not.toContain("cancel-close");
-    expect(settled).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(await outcome).toBe("PostgreSQL cancellation transport failed");
-    expect(state.events.at(-1)).toBe("cancel-close");
-  },
-);
 
 test.each(["deadline", "abort"] as const)(
   "%s during successful close rejects after owned settlement",
   async (reason) => {
-    state.events = [];
-    state.stage = "none";
-    state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+    reset("none");
     const controller = new AbortController();
     let settled = false;
     const outcome = cleanupRateLimits({
@@ -448,15 +391,12 @@ test.each(["deadline", "abort"] as const)(
     state.releaseClose!();
     expect(await outcome).toBe("Rate limit cleanup failed");
     expect(state.events.filter((event) => event === "owner-end")).toHaveLength(1);
-    expect(state.events).not.toContain("cancel-connect");
-    expect(state.events.at(-1)).toBe("closed");
+    expect(state.events).not.toContain("cancel-send");
   },
 );
 
 test("late close cannot succeed even before the deadline watchdog gets a turn", async () => {
-  state.events = [];
-  state.stage = "none";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  reset("none");
   const started = performance.now();
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
@@ -472,13 +412,10 @@ test("late close cannot succeed even before the deadline watchdog gets a turn", 
   vi.spyOn(performance, "now").mockReturnValue(started + 2000);
   state.releaseClose!();
   expect(await outcome).toBe("Rate limit cleanup failed");
-  expect(state.events.at(-1)).toBe("closed");
 });
 
 test.each([false, true])("confirmed batches survive operation failure and close failure (%s)", async (failClose) => {
-  state.events = [];
-  state.stage = "none";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  reset("none");
   state.hasMore = true;
   state.failClose = failClose;
   const outcome = cleanupRateLimits({
@@ -499,9 +436,7 @@ test.each([false, true])("confirmed batches survive operation failure and close 
 });
 
 test("close failure rejects a completed run and retains confirmed commits", async () => {
-  state.events = [];
-  state.stage = "none";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  reset("none");
   state.failClose = true;
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
@@ -516,12 +451,8 @@ test("close failure rejects a completed run and retains confirmed commits", asyn
 });
 
 test("one shutdown joins query drain even when cancellation and close fail", async () => {
-  state.events = [];
-  state.stage = "SHOW";
-  state.ssl = false;
-  state.negotiation = "postgres";
+  reset("SHOW");
   state.failCancellation = state.failClose = state.deferDrain = true;
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
   const entered = Promise.withResolvers<void>();
   state.entered = entered.resolve;
   const controller = new AbortController();
@@ -530,6 +461,7 @@ test("one shutdown joins query drain even when cancellation and close fail", asy
     connectionString: "postgresql://unused.invalid/db",
     metadataNamespace: "kello_shutdown",
     signal: controller.signal,
+    maxDurationMs: 1000,
   }).then(
     () => {
       settled = true;
@@ -543,7 +475,6 @@ test("one shutdown joins query drain even when cancellation and close fail", asy
   await entered.promise;
   controller.abort(new Error("PRIVATE_ABORT_FAILURE"));
   await vi.waitFor(() => expect(state.events).toContain("cancel-send"));
-  expect(state.events).not.toContain("owner-destroy");
   state.releaseCancellation!();
   await vi.waitFor(() => expect(state.events).toContain("owner-end"));
   state.releaseClose!();
@@ -557,10 +488,8 @@ test("one shutdown joins query drain even when cancellation and close fail", asy
   expect(state.events.filter((event) => event === "cancel-send")).toHaveLength(1);
 });
 
-test("late successful connect is drained and closed without issuing SQL", async () => {
-  state.events = [];
-  state.stage = "none";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+test("late successful connect is closed without issuing SQL", async () => {
+  reset("none");
   state.lateConnect = true;
   const entered = Promise.withResolvers<void>();
   state.entered = entered.resolve;
@@ -582,41 +511,19 @@ test("late successful connect is drained and closed without issuing SQL", async 
   );
   await entered.promise;
   controller.abort();
-  await vi.waitFor(() => expect(state.events).toContain("owner-destroy"));
-  expect(state.events).not.toContain("owner-end");
+  await vi.waitFor(() => expect(state.events).toContain("pool-end"));
   expect(settled).toBe(false);
   state.releaseConnect!();
   await vi.waitFor(() => expect(state.events).toContain("owner-end"));
   expect(state.events).not.toContain("SHOW");
-  expect(state.events).not.toContain("cancel-connect");
   expect(settled).toBe(false);
   state.releaseClose!();
   expect(await outcome).toMatchObject({ message: "Rate limit cleanup failed", removed: 0, batches: 0 });
   expect(state.events.filter((event) => event === "owner-end")).toHaveLength(1);
 });
 
-test("reentrant driver failure during close joins one shutdown", async () => {
-  state.events = [];
-  state.stage = "none";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
-  state.reenterOnDestroy = true;
-  const outcome = cleanupRateLimits({
-    connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "kello_shutdown",
-  }).then(
-    () => undefined,
-    (error) => error,
-  );
-  await vi.waitFor(() => expect(state.events).toContain("owner-end"));
-  state.releaseClose!();
-  expect(await outcome).toMatchObject({ message: "Rate limit cleanup failed", removed: 1, batches: 1 });
-  expect(state.events.filter((event) => event === "owner-end")).toHaveLength(1);
-});
-
 test("a fulfilled late COMMIT is counted but cannot produce success or another batch", async () => {
-  state.events = [];
-  state.stage = "none";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  reset("none");
   const started = performance.now();
   state.hasMore = true;
   state.afterCommit = () => {
@@ -634,13 +541,11 @@ test("a fulfilled late COMMIT is counted but cannot produce success or another b
   state.releaseClose!();
   expect(await outcome).toMatchObject({ message: "Rate limit cleanup failed", removed: 1, batches: 1 });
   expect(state.events.filter((event) => event === "BEGIN")).toHaveLength(1);
-  expect(state.events).not.toContain("cancel-connect");
+  expect(state.events).not.toContain("cancel-send");
 });
 
 test("voluntary time-budget stop succeeds only after close within the deadline", async () => {
-  state.events = [];
-  state.stage = "none";
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  reset("none");
   const started = performance.now();
   state.hasMore = true;
   state.afterCommit = () => {
@@ -660,11 +565,10 @@ test("voluntary time-budget stop succeeds only after close within the deadline",
   state.releaseClose!();
   expect(await outcome).toMatchObject({ removed: 1, batches: 1, hasMore: true, stoppedBy: "time-budget" });
   expect(state.events.filter((event) => event === "BEGIN")).toHaveLength(1);
-  expect(state.events.at(-1)).toBe("closed");
 });
 
-test("client construction failure is redacted before any connection work", async () => {
-  state.events = [];
+test("pool construction failure is redacted before any connection work", async () => {
+  reset("none");
   state.failConstructor = true;
   const error = await cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
@@ -679,123 +583,13 @@ test("client construction failure is redacted before any connection work", async
   expect(state.events).toEqual([]);
 });
 
-test.each([0, -1, NaN, Infinity, -Infinity])(
-  "cancellation rejects nonpositive/nonfinite budget before transport (%s)",
-  async (budget) => {
-    state.events = [];
-    await expect(cancelDatabaseStatement(new pg.Client(), budget)).rejects.toThrow(
-      "PostgreSQL cancellation transport failed",
-    );
-    expect(state.events).toEqual([]);
-  },
-);
-
-test("TLS connect events do not refresh the cancellation deadline", async () => {
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-  state.events = [];
-  state.ssl = { rejectUnauthorized: true };
-  state.negotiation = "postgres";
-  state.failCancellation = false;
-  state.transportConnectDelay = 90;
-  const outcome = cancelDatabaseStatement(new pg.Client(), 100).catch((error) => error.message);
-  await vi.advanceTimersByTimeAsync(90);
-  expect(state.events).toContain("ssl-request");
-  expect(state.events).toContain("cancel-send");
-  await vi.advanceTimersByTimeAsync(10);
-  state.releaseCancellation!(); // A late transport event cannot change failure.
-  expect(await outcome).toBe("PostgreSQL cancellation transport failed");
-  expect(state.events.filter((event) => event === "cancel-close")).toHaveLength(1);
-});
-
-test.each(["timer", "event", "send"] as const)(
-  "throwing cancel destroy settles a fixed rejection on %s and ignores reentry/second events",
-  async (path) => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-    state.events = [];
-    state.ssl = false;
-    state.negotiation = "postgres";
-    state.failCancellation = false;
-    state.throwCancelDestroy = state.reenterCancelDestroy = true;
-    state.throwCancelSend = path === "send";
-    state.releaseCancellation = undefined;
-    let result: "pending" | "success" | Error = "pending";
-    const outcome = cancelDatabaseStatement(new pg.Client(), 100).then(
-      () => {
-        result = "success";
-      },
-      (error) => {
-        if (!(error instanceof Error)) throw new Error("Unexpected non-Error cancellation rejection");
-        result = error;
-      },
-    );
-    let escaped: unknown;
-    try {
-      await vi.advanceTimersByTimeAsync(0);
-      if (path === "event") state.releaseCancellation!();
-      if (path === "timer") await vi.advanceTimersByTimeAsync(100);
-    } catch (error) {
-      escaped = error;
-    }
-    await vi.advanceTimersByTimeAsync(0);
-    expect(escaped).toBeUndefined();
-    expect(result).toMatchObject({ message: "PostgreSQL cancellation transport failed" });
-    repeatCancellationEvent();
-    await outcome;
-    expect(state.events.filter((event) => event === "cancel-close")).toHaveLength(1);
-    expect(JSON.stringify(result)).not.toMatch(/PRIVATE_/);
-  },
-);
-
-test("throwing cancel destroy still joins the owner's query drain and close", async () => {
-  state.events = [];
-  state.stage = "SHOW";
-  state.ssl = false;
-  state.negotiation = "postgres";
-  state.throwCancelDestroy = state.reenterCancelDestroy = true;
-  state.deferDrain = true;
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
-  const entered = Promise.withResolvers<void>();
-  state.entered = entered.resolve;
-  const controller = new AbortController();
-  let settled = false;
-  const outcome = cleanupRateLimits({
-    connectionString: "postgresql://unused.invalid/db",
-    metadataNamespace: "kello_shutdown",
-    signal: controller.signal,
-  }).catch((error) => {
-    settled = true;
-    return error;
-  });
-  await entered.promise;
-  controller.abort();
-  await vi.waitFor(() => expect(state.events).toContain("cancel-send"));
-  let escaped: unknown;
-  try {
-    state.releaseCancellation!();
-  } catch (error) {
-    escaped = error;
-  }
-  expect(escaped).toBeUndefined();
-  await vi.waitFor(() => expect(state.events).toContain("owner-end"));
-  expect(settled).toBe(false);
-  state.releaseClose!();
-  await vi.waitFor(() => expect(state.events).toContain("closed"));
-  expect(settled).toBe(false);
-  state.releaseDrain!();
-  expect(await outcome).toMatchObject({ message: "Rate limit cleanup failed", removed: 0, batches: 0 });
-});
-
 test.each([new Error("PRIVATE_ABORT_INITIATOR"), null, false, 0, ""])(
-  "initiating abort %s stays primary across cancellation, reentrant close and query-drain failures",
+  "initiating abort %s stays primary across cancellation, close and query-drain failures",
   async (reason) => {
     // Observe the existing private WeakMap write, without exporting raw diagnostics.
     const records = recordWeakMapWrites();
-    state.events = [];
-    state.stage = "SHOW";
-    state.ssl = false;
-    state.negotiation = "postgres";
-    state.failCancellation = state.failClose = state.deferDrain = state.reenterOnDestroy = true;
-    state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+    reset("SHOW");
+    state.failCancellation = state.failClose = true;
     const entered = Promise.withResolvers<void>();
     state.entered = entered.resolve;
     const controller = new AbortController();
@@ -803,14 +597,14 @@ test.each([new Error("PRIVATE_ABORT_INITIATOR"), null, false, 0, ""])(
       connectionString: "postgresql://unused.invalid/db",
       metadataNamespace: "kello_shutdown",
       signal: controller.signal,
+      maxDurationMs: 1000,
     }).catch((error) => error);
     await entered.promise;
     controller.abort(reason);
     await vi.waitFor(() => expect(state.events).toContain("cancel-send"));
     state.releaseCancellation!();
-    await vi.waitFor(() => expect(state.events).toContain("owner-end"));
+    await vi.waitFor(() => expect(state.events).toContain("owner-end"), { timeout: 2000 });
     state.releaseClose!();
-    state.releaseDrain!();
     const error = await outcome;
     const details = records.find(([key]) => key === error)?.[1];
     expect(details).toMatchObject({ primary: { error: reason } });
@@ -821,7 +615,6 @@ test.each([new Error("PRIVATE_ABORT_INITIATOR"), null, false, 0, ""])(
           phase: "query-drain",
           error: expect.objectContaining({ message: "connection terminated" }),
         }),
-        expect.objectContaining({ phase: "close", error: expect.objectContaining({ message: "PRIVATE_IDLE_ERROR" }) }),
         expect.objectContaining({
           phase: "close",
           error: expect.objectContaining({ message: "PRIVATE_CLOSE_FAILURE" }),
@@ -836,15 +629,11 @@ test.each([new Error("PRIVATE_ABORT_INITIATOR"), null, false, 0, ""])(
 test.each(["work-cutoff", "absolute-deadline", "late-connect"] as const)(
   "%s keeps its initiating failure before shutdown consequences",
   async (path) => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "performance"] });
     const records = recordWeakMapWrites();
-    state.events = [];
-    state.stage = path === "late-connect" ? "none" : "SHOW";
-    state.ssl = false;
-    state.negotiation = "postgres";
+    reset(path === "late-connect" ? "none" : "SHOW");
     state.lateConnect = state.rejectConnect = path === "late-connect";
-    state.failCancellation = state.failClose = state.reenterOnDestroy = true;
-    state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+    state.failClose = true;
     const entered = Promise.withResolvers<void>();
     state.entered = entered.resolve;
     const controller = new AbortController();
@@ -864,41 +653,38 @@ test.each(["work-cutoff", "absolute-deadline", "late-connect"] as const)(
     } else await vi.advanceTimersByTimeAsync(450);
     await vi.advanceTimersByTimeAsync(0);
     if (path === "late-connect") state.releaseConnect!();
-    else repeatCancellationEvent();
+    else state.releaseCancellation?.();
     await vi.advanceTimersByTimeAsync(0);
-    state.releaseClose!();
+    state.releaseClose?.();
+    await vi.advanceTimersByTimeAsync(0);
     const error = await outcome;
     const details = records.find(([key]) => key === error)?.[1];
     expect(details.primary.error).toEqual(path === "late-connect" ? reason : new Error("Rate limit cleanup failed"));
-    expect(details.cleanup).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ phase: "close", error: expect.objectContaining({ message: "PRIVATE_IDLE_ERROR" }) }),
+    if (path === "late-connect") {
+      expect(details.cleanup).toEqual([
         expect.objectContaining({
-          phase: "close",
-          error: expect.objectContaining({ message: "PRIVATE_CLOSE_FAILURE" }),
+          phase: "connect-drain",
+          error: expect.objectContaining({ message: "PRIVATE_CONNECT_FAILURE" }),
         }),
-        ...(path === "late-connect"
-          ? [
-              expect.objectContaining({
-                phase: "connect-drain",
-                error: expect.objectContaining({ message: "PRIVATE_CONNECT_FAILURE" }),
-              }),
-            ]
-          : []),
-      ]),
-    );
-    expect(state.events.filter((event) => event === "owner-end")).toHaveLength(1);
-    if (path === "late-connect") expect(state.events).not.toContain("SHOW");
+      ]);
+      expect(state.events).not.toContain("SHOW");
+    } else
+      expect(details.cleanup).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            phase: "close",
+            error: expect.objectContaining({ message: "PRIVATE_CLOSE_FAILURE" }),
+          }),
+        ]),
+      );
   },
 );
 
-test("an earlier SQL failure remains primary when abort and reentrant close fail later", async () => {
+test("an earlier SQL failure remains primary when abort and close fail later", async () => {
   const records = recordWeakMapWrites();
-  state.events = [];
-  state.stage = "none";
+  reset("none");
   state.failQuery = "SHOW";
-  state.reenterOnDestroy = state.failClose = true;
-  state.rejectRun = state.releaseClose = state.releaseCancellation = undefined;
+  state.failClose = true;
   const controller = new AbortController();
   const outcome = cleanupRateLimits({
     connectionString: "postgresql://unused.invalid/db",
@@ -911,10 +697,7 @@ test("an earlier SQL failure remains primary when abort and reentrant close fail
   const error = await outcome;
   const details = records.find(([key]) => key === error)?.[1];
   expect(details.primary.error.message).toBe("PRIVATE_OPERATION_FAILURE");
-  expect(details.cleanup).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({ phase: "close", error: expect.objectContaining({ message: "PRIVATE_IDLE_ERROR" }) }),
-      expect.objectContaining({ phase: "close", error: expect.objectContaining({ message: "PRIVATE_CLOSE_FAILURE" }) }),
-    ]),
-  );
+  expect(details.cleanup).toEqual([
+    expect.objectContaining({ phase: "close", error: expect.objectContaining({ message: "PRIVATE_CLOSE_FAILURE" }) }),
+  ]);
 });

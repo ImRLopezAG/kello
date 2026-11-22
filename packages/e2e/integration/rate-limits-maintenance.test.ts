@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { bootstrapDatabase } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 import { registerRateLimitPolicies } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits";
 import { cleanupRateLimits } from "../../../apps/kello-cli/src/tooling/migrations/rate-limits-cleanup";
@@ -144,7 +144,7 @@ async function fixture(
   await withMaintenanceTeardown(async () => {
     await admin.connect();
     await bootstrapDatabase({ connectionString: connectionString!, metadataNamespace, runtimeRole });
-    await registerRateLimitPolicies(admin, {
+    await registerRateLimitPolicies(admin.session, {
       metadataNamespace,
       applicationNamespace: "cleanup_app",
       scopes: [

@@ -1,10 +1,10 @@
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import { systemFieldSql } from "kello/server";
 import { quoteIdentifier } from "./connection";
 
 /** Install the same system-field protections and runtime grants for release and development DDL. */
 export async function protectApplication(
-  client: pg.Client,
+  client: DatabaseSession,
   namespace: string,
   runtimeRole: string,
   tables: readonly string[],

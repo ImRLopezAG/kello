@@ -1,7 +1,7 @@
 import { defineSchema, defineTable, fields } from "kello/server";
 import type { Id, JsonValue } from "kello/server";
 import { defineRelations } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 
 const projects = defineTable({ name: fields.text().notNull(), featured: fields.reference("tasks") });
 const schema = defineSchema((s) => ({

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { defineRelations } from "drizzle-orm";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { bootstrapDatabase } from "kello-cli";

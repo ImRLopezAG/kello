@@ -5,7 +5,7 @@ import { test } from "bun:test";
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { chromium } from "playwright";
 import {
   createKelloNeonApi,

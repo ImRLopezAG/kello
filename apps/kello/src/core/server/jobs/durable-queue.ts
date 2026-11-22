@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import * as v from "valibot";
 import type { JsonValue } from "../../schema/fields";
 import { canonical } from "../../validation/canonical";
@@ -29,7 +29,7 @@ export interface DurableJob<Call> extends JobLease {
   readonly attempt: number;
 }
 export interface DurableQueueOptions<Call extends { readonly version: string }> extends IdempotencyOptions {
-  readonly db: NodePgDatabase;
+  readonly db: Database;
   readonly version: string;
   readonly parseCall: (input: JsonValue) => Call;
   readonly parseClaim?: (input: JsonValue) => Call | Promise<Call>;
@@ -71,7 +71,7 @@ export function createDurableJobQueue<Call extends { readonly version: string }>
 
   return {
     async enqueue(
-      transaction: NodePgDatabase,
+      transaction: Database,
       input: Call,
       identity: InvocationIdentity | null,
       scheduling: JobScheduleOptions,

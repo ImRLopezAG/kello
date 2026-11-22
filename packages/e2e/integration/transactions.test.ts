@@ -247,8 +247,8 @@ test.skipIf(!connectionString)(
       );
       expect(cancelledAttempts).toBe(1);
       expect(metrics).toHaveLength(retriesBeforeCancellation);
-      expect(pool.waitingCount).toBe(0);
-      expect(pool.idleCount).toBe(pool.totalCount);
+      expect(pool.waiting).toBe(0);
+      expect(pool.idleCount).toBe(pool.size);
     } finally {
       metricChannel.unsubscribe(captureMetric);
       await db.execute(sql`DROP TABLE IF EXISTS ${relation}`);

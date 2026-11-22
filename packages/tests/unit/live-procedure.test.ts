@@ -1,8 +1,8 @@
 import { expect, expectTypeOf, test, vi } from "vite-plus/test";
 import { call, implement, ORPCError } from "@orpc/server";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
+import { offlineConnection } from "../fixtures/offline-database";
 import { and, defineRelations, eq, gt, sql } from "drizzle-orm";
-import pg from "pg";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { oc, defineContract, resolveContract } from "../../../apps/kello/src/core/contract";
 import "../../../apps/kello/src/core/server/realtime/procedure";
@@ -144,16 +144,16 @@ test("renamed columns require SQL aliases because Neon does not run Drizzle's re
 test("live declarations force read-only acquisition even when the caller requests mutation intent", async () => {
   const relations = defineRelations({ table });
   const db = drizzle.mock({ relations });
-  const pool = new pg.Pool();
   // Refuse before SQL: this check observes the actual transaction configuration,
   // without opening a connection or pretending to prove PostgreSQL enforcement.
   const transaction = vi.fn(async (..._args: Parameters<typeof db.transaction>): Promise<never> => {
     throw new Error("offline acquisition boundary");
   });
+  const connection = offlineConnection(relations, transaction);
   const base = implement({ list }).$context<ProcedureContext>();
   const leaf = base.list.use(rpcErrorBoundary).live(() => db.select({ id: table.id, title: table.title }).from(table));
   const bound = bindRpcDatabaseProcedure(leaf, {
-    connection: { db, pool, transaction, close: () => pool.end() },
+    connection,
     replay: { deployment: "test", metadataNamespace: "kello_test" },
     authorize: async () => {},
   });
@@ -180,7 +180,7 @@ test("live declarations force read-only acquisition even when the caller request
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(transaction.mock.calls[0]?.[1]).toEqual({ isolationLevel: "repeatable read", accessMode: "read only" });
   } finally {
-    await pool.end();
+    await connection.close();
   }
 });
 

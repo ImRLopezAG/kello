@@ -1,7 +1,7 @@
 import { lockRuntimeActivation } from "../activation";
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import * as v from "valibot";
 import { validateIdempotencyOptions } from "../idempotency";
 import { IngressRetiredError } from "../ingress";
@@ -26,15 +26,15 @@ const deliveryValidator = v.strictObject({
 });
 export type StorageDelivery = v.InferOutput<typeof deliveryValidator>;
 export interface DurableStorageEventOptions {
-  readonly db: NodePgDatabase;
+  readonly db: Database;
   readonly metadataNamespace: string;
   readonly deployment: string;
   readonly projectId: string;
   readonly branchId: string;
   readonly intents: Pick<ReturnType<typeof createStorageIntents>, "finalize">;
   readonly handlers: ReadonlyMap<string, StorageEventEnqueue>;
-  readonly assertActive: (signal: AbortSignal, database?: NodePgDatabase) => Promise<void>;
-  readonly assertIngress?: (signal: AbortSignal, transaction: NodePgDatabase) => Promise<void>;
+  readonly assertActive: (signal: AbortSignal, database?: Database) => Promise<void>;
+  readonly assertIngress?: (signal: AbortSignal, transaction: Database) => Promise<void>;
 }
 const intentRow = v.object({
   id: storageIntentValidator.entries.id,
@@ -62,7 +62,7 @@ function terminal(row: v.InferOutput<typeof receiptRow>): StorageDeliveryResult 
 }
 
 export type StorageEventEnqueue = (
-  transaction: NodePgDatabase,
+  transaction: Database,
   event: StorageObjectCreatedEvent,
   dueAt: Date,
   deduplicationKey: string,
@@ -81,7 +81,7 @@ export function createDurableStorageEventDispatcher(options: DurableStorageEvent
   const receipts = sql`${sql.identifier(options.metadataNamespace)}.${sql.identifier("storage_receipts")}`;
   const scope = sql`deployment = ${deployment} AND project_id = ${projectId} AND branch_id = ${branchId}`;
   const columns = sql`id, upload, owner_identity, state, event_job_id, floor(extract(epoch FROM created_at) * 1000)::float8 AS created_ms`;
-  async function active(signal: AbortSignal, database?: NodePgDatabase) {
+  async function active(signal: AbortSignal, database?: Database) {
     signal.throwIfAborted();
     await assertActive(signal, database);
     signal.throwIfAborted();

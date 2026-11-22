@@ -11,7 +11,7 @@ import { rpcProtocolVersion } from "../../../apps/kello/src/core/server/rpc/seri
 import { rpcTransportSerializer } from "../../../apps/kello/src/core/adapters/neon/rpc-context";
 import { Context } from "effect";
 import { defineRelations, sql } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import { connectDatabase } from "../../../apps/kello/src/core/server/database/connection";

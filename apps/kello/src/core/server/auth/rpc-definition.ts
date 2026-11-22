@@ -1,5 +1,5 @@
 import { ORPCError } from "@orpc/server";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import * as v from "valibot";
 import type { InvocationContext } from "./context";
 import type { DatabasePolicy } from "../rpc/database";
@@ -13,7 +13,7 @@ export interface RpcAuthorization extends InvocationContext {
   readonly input: RpcValue;
   /** Server-owned capability. Automatic never exposes client-selected transaction intent. */
   readonly databasePolicy?: DatabasePolicy | "automatic";
-  readonly db?: NodePgDatabase;
+  readonly db?: Database;
 }
 /** Server-owned authorization policy and optional token verification configuration. Returning from authorize permits the invocation; throw to reject it. */
 export interface RpcAuthDefinition {
