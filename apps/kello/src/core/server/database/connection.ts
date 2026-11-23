@@ -262,10 +262,14 @@ export async function connectDatabase<Relations extends AnyRelations>(
           };
           return await acquired.client.transaction(transactionOptions(config), async () => {
             entered = true;
-            // The statement bound is the first statement in the transaction.
-            await acquired.client.query("SELECT set_config('statement_timeout', $1, true)", [
+            // The statement bound is the first statement in the transaction. It is not awaited here:
+            // the connection keeps statement order, so the callback's first query pipelines behind it
+            // instead of paying a separate round trip. A failed bound aborts the transaction, so later
+            // statements fail too, and it is awaited before the transaction can commit.
+            const bounded = acquired.client.query("SELECT set_config('statement_timeout', $1, true)", [
               `${statementBoundMs(signal)}ms`,
             ]);
+            bounded.catch(() => {});
             signal?.throwIfAborted();
             const tx = new PostgresTransaction(
               dialect,
@@ -280,7 +284,9 @@ export async function connectDatabase<Relations extends AnyRelations>(
             state = "active";
             owner.active = true;
             try {
-              const result = await invocation.run(owner, () => pinnedConnection.run(client, () => operation(tx)));
+              const result = await invocation
+                .run(owner, () => pinnedConnection.run(client, () => operation(tx)))
+                .finally(() => bounded);
               signal?.throwIfAborted();
               return result;
             } finally {

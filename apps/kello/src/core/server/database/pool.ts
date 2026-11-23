@@ -16,23 +16,25 @@ export function isNeonHost(hostname: string): boolean {
 }
 
 /** TLS over TCP keeps node-postgres' reading of sslmode: none or `disable` is plaintext, an explicit
- * `no-verify` encrypts without verifying, and every other mode verifies the certificate and hostname. */
-function tcpTls(address: URL): "verify-full" | "require" | false {
+ * `no-verify` encrypts without verifying, and every other mode verifies the certificate and hostname.
+ * Shared with kello-cli's migration sessions, which add a Neon-only override on top. */
+export function tcpTls(address: URL): "verify-full" | "require" | false {
   const mode = address.searchParams.get("sslmode") ?? address.searchParams.get("ssl");
   if (mode === null || mode === "disable" || mode === "false" || mode === "0") return false;
   return mode === "no-verify" ? "require" : "verify-full";
 }
 
-function bareHostname(address: URL): string {
-  return address.hostname.startsWith("[") ? address.hostname.slice(1, -1) : address.hostname;
+/** A connection string the driver failed to read would fall back to localhost or PGHOST. */
+export function assertResolvableHost(address: URL): void {
+  const host = address.hostname.startsWith("[") ? address.hostname.slice(1, -1) : address.hostname;
+  if (parseConnectionString(address.href).host !== host)
+    throw new Error("Database host could not be resolved from the connection string");
 }
 
 /** One pool per connection. The same type backs both transports, so callers have one code path. */
 export function createRuntimePool({ address, max }: RuntimePoolOptions): RuntimePool {
   const url = address.href;
-  // A connection string the driver failed to read would fall back to localhost or PGHOST.
-  if (parseConnectionString(url).host !== bareHostname(address))
-    throw new Error("Database host could not be resolved from the connection string");
+  assertResolvableHost(address);
   const shared = {
     url,
     max,

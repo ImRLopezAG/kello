@@ -1,7 +1,7 @@
-import { createPool, parseConnectionString } from "drizzle-orm/postgres/client/node";
+import { createPool } from "drizzle-orm/postgres/client/node";
 import type { Connection, Pool, PoolConfig } from "drizzle-orm/postgres/client/node";
 import * as v from "valibot";
-import { isNeonHost } from "kello/internal/tooling";
+import { assertResolvableHost, isNeonHost, tcpTls } from "kello/internal/tooling";
 import { setTimeout } from "node:timers/promises";
 
 /** A decoded column: driver scalars, arrays of them, or JSON documents. */
@@ -64,14 +64,11 @@ const ownedConnections = new WeakSet<DatabaseSession>();
  * or `disable` is plaintext, an explicit `no-verify` encrypts without verifying, and every other mode
  * verifies the certificate and hostname. */
 export function sessionTls(address: URL): "verify-full" | "require" | false {
+  const tls = tcpTls(address);
+  if (!isNeonHost(address.hostname)) return tls;
   const mode = address.searchParams.get("sslmode") ?? address.searchParams.get("ssl");
-  const disabled = mode === "disable" || mode === "false" || mode === "0";
-  if (isNeonHost(address.hostname)) {
-    if (disabled) throw new Error("Neon connections require TLS");
-    return "verify-full";
-  }
-  if (mode === null || disabled) return false;
-  return mode === "no-verify" ? "require" : "verify-full";
+  if (mode !== null && tls === false) throw new Error("Neon connections require TLS");
+  return "verify-full";
 }
 
 export interface SessionPoolOptions {
@@ -85,10 +82,7 @@ export interface SessionPoolOptions {
 export function createSessionPool(connectionString: string, settings: SessionPoolOptions): Pool {
   const url = new URL(connectionString);
   if (!["postgres:", "postgresql:"].includes(url.protocol)) throw new Error("Expected a PostgreSQL migration URL");
-  const host = url.hostname.startsWith("[") ? url.hostname.slice(1, -1) : url.hostname;
-  // A connection string the driver failed to read would fall back to localhost or PGHOST.
-  if (parseConnectionString(url.href).host !== host)
-    throw new Error("Database host could not be resolved from the connection string");
+  assertResolvableHost(url);
   const config: PoolConfig = {
     url: url.href,
     max: 1,

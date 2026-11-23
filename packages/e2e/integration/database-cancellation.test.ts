@@ -241,3 +241,35 @@ for (const [transport, runtimeUrl] of [
     120_000,
   );
 }
+
+test.skipIf(!ownerUrl)(
+  "the statement bound follows the invocation's remaining time, not only the ceiling",
+  async () => {
+    if (!ownerUrl) throw new Error("Missing database URL");
+    // Source imports share the module that records invocation deadlines.
+    const { connectDatabase: connect } = await import("../../../apps/kello/src/core/server/database/connection");
+    const { runFunctionTransaction: run } = await import("../../../apps/kello/src/core/server/transactions");
+    const { timedInvocationSignal } = await import("../../../apps/kello/src/core/server/invocation-deadline");
+    const connection = await connect({
+      connectionString: ownerUrl,
+      schema: defineSchema(() => ({})),
+      relations: {},
+      maxConnections: 1,
+    });
+    try {
+      const remainingMs = 4000;
+      const bound = await run(
+        connection,
+        "query",
+        (tx) => tx.execute<{ value: string }>(sql`SELECT current_setting('statement_timeout') AS value`),
+        { signal: timedInvocationSignal(remainingMs) },
+      );
+      const value = milliseconds(bound.rows[0]?.value ?? "");
+      expect(value).toBeGreaterThan(0);
+      // A bound that ignored the deadline would read the 30s ceiling.
+      expect(value).toBeLessThanOrEqual(remainingMs);
+    } finally {
+      await connection.close();
+    }
+  },
+);
