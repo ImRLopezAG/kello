@@ -3,7 +3,7 @@ import { callExample } from "../fixtures/rpc-call";
 import assert from "node:assert/strict";
 import { test } from "bun:test";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { applyMigrations, loadProject } from "kello-cli";
 import { createRpcRuntime } from "kello/server";

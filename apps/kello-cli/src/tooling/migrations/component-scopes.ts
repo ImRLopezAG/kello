@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import type { loadProject } from "../project/load";
 import { componentNamespace } from "../project/component-namespace";
 import { acquireMigrationLock, assertMigrationConnection, quoteIdentifier } from "./connection";
@@ -46,7 +46,7 @@ export function projectMigrationScopes(project: Awaited<ReturnType<typeof loadPr
 }
 
 export async function reconcileComponentNamespaces(
-  client: pg.Client,
+  client: DatabaseSession,
   metadataNamespace: string,
   scopes: readonly { readonly mountPath: string; readonly namespace: string }[],
 ): Promise<void> {

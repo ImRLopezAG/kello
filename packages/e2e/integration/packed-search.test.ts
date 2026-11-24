@@ -40,7 +40,7 @@ test("packed generated search-shaped contracts expose the native dependent-outpu
           "kello-cli": "file:./kello-cli.tgz",
           "@orpc/tanstack-query": "2.0.0-beta.49",
           "@tanstack/react-query": "5.107.1",
-          "drizzle-orm": "1.0.0-rc.5",
+          "drizzle-orm": "1.0.0-rc.6",
           valibot: "1.5.0",
           react: "19.3.1",
         },

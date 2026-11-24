@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { setTimeout } from "node:timers/promises";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import * as v from "valibot";
 import { defineRateLimits, isRateLimitDefinitions, rateLimitPolicyFingerprint } from "kello/internal/tooling";
 import type { RateLimitDefinitions } from "kello/server";
@@ -40,10 +40,7 @@ function dimension(value: string, allowEmpty = false): boolean {
  * locks acquired here are transaction-scoped, including on standalone pools.
  * Cancellation is checked around each bounded query and during lock polling.
  */
-export async function registerRateLimitPolicies(
-  client: pg.PoolClient | pg.Client,
-  input: RegistrationInput,
-): Promise<void> {
+export async function registerRateLimitPolicies(client: DatabaseSession, input: RegistrationInput): Promise<void> {
   // Capture and validate the entire input before BEGIN or any registry writes.
   let schema: string;
   let scopes: { mountPath: string; definitions: RateLimitDefinitions }[];
@@ -70,7 +67,7 @@ export async function registerRateLimitPolicies(
   } catch {
     throw new Error("Invalid rate limit registration input");
   }
-  if (client.getTransactionStatus() !== "I") throw new Error("Rate limit registration requires an idle connection");
+  if (client.inTransaction) throw new Error("Rate limit registration requires an idle connection");
   const signal = input.signal;
   signal?.throwIfAborted();
   await client.query("BEGIN");

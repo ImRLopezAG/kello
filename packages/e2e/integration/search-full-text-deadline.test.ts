@@ -64,7 +64,7 @@ test("full-text deadlines retain owned read snapshots and restore only on succes
     ).rejects.toMatchObject({ code: "QUERY_BUDGET_EXCEEDED" });
     expect(reachedCount).toBe(true);
     expect(performance.now() - started).toBeLessThan(1500);
-    expect(connection.pool.waitingCount).toBe(0);
+    expect(connection.pool.waiting).toBe(0);
     expect(connection.pool.idleCount).toBe(1);
     for (const phase of [0, 1, 2]) {
       await expect(
@@ -95,7 +95,8 @@ test("full-text deadlines retain owned read snapshots and restore only on succes
       const restored = await tx.execute<{ timeout: string }>(
         sql`select current_setting('statement_timeout') as timeout`,
       );
-      expect(restored.rows[0]?.timeout).toBe("0");
+      // Function transactions carry Kello's statement ceiling; the search deadline restores it.
+      expect(restored.rows[0]?.timeout).toBe("30s");
     });
     // Independent finite calls each enter a fresh owned transaction and deadline.
     for (let event = 0; event < 2; event++) {

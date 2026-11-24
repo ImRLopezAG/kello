@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { rethrowSignalCancellation } from "./observe";
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import type { NeonActivationOptions } from "kello/neon";
 import * as v from "valibot";
 import { quoteIdentifier } from "../../migrations/connection";
@@ -52,10 +52,10 @@ function activationIdentity(options: DeploymentActivationConnectionOptions) {
 }
 
 async function withActivation<T>(
-  client: pg.Client,
+  client: DatabaseSession,
   options: DeploymentActivationConnectionOptions,
   operation: (
-    client: pg.Client,
+    client: DatabaseSession,
     binding: NeonActivationOptions,
     tokenHash: string,
     target: DeploymentTarget,
@@ -82,7 +82,7 @@ async function withActivation<T>(
   return operation(client, binding, tokenHash, target);
 }
 
-async function requireQuarantineCompleted(client: pg.Client, binding: NeonActivationOptions): Promise<void> {
+async function requireQuarantineCompleted(client: DatabaseSession, binding: NeonActivationOptions): Promise<void> {
   const schema = quoteIdentifier(binding.metadataNamespace);
   const result = await client.query<{ blocked: boolean }>(
     `SELECT
@@ -97,7 +97,7 @@ async function requireQuarantineCompleted(client: pg.Client, binding: NeonActiva
 
 /** Internal stage shared by verified deployment and development connection owners. */
 export async function prepareGrant(
-  client: pg.Client,
+  client: DatabaseSession,
   binding: NeonActivationOptions,
   tokenHash: string,
   signal?: AbortSignal,
@@ -127,7 +127,7 @@ export async function prepareGrant(
 }
 
 async function inspectGrant(
-  client: pg.Client,
+  client: DatabaseSession,
   binding: NeonActivationOptions,
   tokenHash: string,
 ): Promise<DeploymentActivationReceipt> {
@@ -142,7 +142,7 @@ async function inspectGrant(
 }
 
 export async function activateGrant(
-  client: pg.Client,
+  client: DatabaseSession,
   binding: NeonActivationOptions,
   tokenHash: string,
   signal?: AbortSignal,
@@ -190,7 +190,7 @@ export interface DeploymentActivationSession {
 /** Holds one deployment lock across ordered stages. Use session methods sequentially; do not nest connection-owning helpers. */
 export async function withDeploymentActivationSession<T>(
   options: DeploymentActivationOptions,
-  operation: (session: DeploymentActivationSession, client: pg.Client) => Promise<T>,
+  operation: (session: DeploymentActivationSession, client: DatabaseSession) => Promise<T>,
   provider?: DeploymentDatabaseProvider,
 ): Promise<T> {
   const activation = activationIdentity(options);
@@ -203,9 +203,9 @@ export async function withDeploymentActivationSession<T>(
 
 /** Borrows an existing verified deployment connection after migrations; never opens or releases its lock. */
 export async function withDeploymentActivationSessionOnConnection<T>(
-  client: pg.Client,
+  client: DatabaseSession,
   options: DeploymentActivationConnectionOptions,
-  operation: (session: DeploymentActivationSession, client: pg.Client) => Promise<T>,
+  operation: (session: DeploymentActivationSession, client: DatabaseSession) => Promise<T>,
 ): Promise<T> {
   const context = deploymentConnectionContext(client);
   const signals = [context.signal, options.signal].filter((value): value is AbortSignal => value !== undefined);

@@ -44,7 +44,7 @@ test.skipIf(!connectionString)("interruption drains PostgreSQL work before relea
     abort.abort();
     expect(connection.pool.idleCount).toBe(0);
     expect(await outcome).toBe("interrupted");
-    expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+    expect(connection.pool.idleCount).toBe(connection.pool.size);
     const escaped = await runtime.promise({ identity: null, requestId: "escaped" }, () =>
       runFunctionTransaction(connection, "query", async (tx) => () => tx.execute(sql`SELECT 1`)),
     );

@@ -21,7 +21,7 @@
     "@tanstack/react-router": "1.170.46",
     "@tanstack/react-router-ssr-query": "1.167.3",
     "@tanstack/react-start": "1.169.5",
-    "drizzle-orm": "1.0.0-rc.5",
+    "drizzle-orm": "1.0.0-rc.6",
     "kello": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -31,14 +31,13 @@
     "@kello/ts-config": "workspace:*",
     "@types/bun": "1.4.4",
     "@types/node": "24.19.2",
-    "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.2.1",
     "kello-cli": "workspace:*",
     "nitro": "3.0.261103-rc",
     "typescript": "7.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
-    "vite-plus": "1.5.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+    "vite-plus": "1.7.0"
   }
 }

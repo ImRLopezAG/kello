@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { createProjectContext } from "kello/server";
 import { oc } from "kello/contract";
 import { eq, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { createSearchFixture } from "../fixtures/search-schema";
 import { compileSearch } from "../../../apps/kello/src/core/search/compiler";
@@ -25,7 +25,7 @@ test.skipIf(!connectionString)(
     const setup = new pg.Pool({ connectionString });
     const queries: string[] = [];
     const db = drizzle({
-      client: setup,
+      client: setup.driver,
       relations,
       logger: {
         logQuery(query) {

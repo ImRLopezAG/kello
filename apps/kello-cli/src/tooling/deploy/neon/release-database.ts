@@ -3,7 +3,7 @@ import { projectMigrationScopes, reconcileComponentNamespaces } from "../../migr
 import { assertExternalAuthTables } from "../../migrations/auth-scopes";
 import { createHmac } from "node:crypto";
 import { prepareReleaseIngress } from "./ingress";
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import * as v from "valibot";
 import { assertGeneratedVersion } from "../../codegen/generate";
 import { createSnapshot, snapshotHash } from "../../migrations/adapter";
@@ -48,7 +48,7 @@ export type NeonReleaseDatabaseOptions = v.InferInput<typeof releaseDatabaseOpti
   readonly expectedTarget?: ExpectedDeploymentTarget;
 };
 export interface NeonReleaseDatabaseSession {
-  readonly client: pg.Client;
+  readonly client: DatabaseSession;
   readonly activation: DeploymentActivationSession;
   readonly journal: NeonReleaseJournal;
   readonly database: ReleaseDatabaseInspection;

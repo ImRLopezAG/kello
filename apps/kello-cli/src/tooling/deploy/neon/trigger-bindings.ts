@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import { neonTriggerBindingValidator } from "kello/neon";
 import type { NeonTriggerBinding, NeonActivationOptions } from "kello/neon";
 import * as v from "valibot";
@@ -6,7 +6,7 @@ import { quoteIdentifier } from "../../migrations/connection";
 
 /** The migration identity publishes immutable bindings before release activation. */
 export async function publishNeonTriggerBindings(
-  client: pg.Client,
+  client: DatabaseSession,
   binding: NeonActivationOptions,
   input: Readonly<Record<string, NeonTriggerBinding>>,
 ): Promise<void> {

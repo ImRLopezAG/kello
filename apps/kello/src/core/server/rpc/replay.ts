@@ -1,4 +1,4 @@
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import * as v from "valibot";
 import type { JsonValue } from "../../schema/fields";
 import { json } from "../../validation/encoding";
@@ -30,7 +30,7 @@ export function prepareRpcReplay(
   input: RpcValue,
 ) {
   const replay = prepareMutationReplay(options, scope, key, serializeReceiptInput(input));
-  return async (db: NodePgDatabase, invoke: () => Promise<RpcValue>): Promise<RpcValue> => {
+  return async (db: Database, invoke: () => Promise<RpcValue>): Promise<RpcValue> => {
     const saved = await replay(db, async () =>
       v.parse(json, {
         protocol: rpcProtocolVersion,

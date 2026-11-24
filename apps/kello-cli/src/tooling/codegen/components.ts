@@ -99,7 +99,7 @@ import { createComponentEnvironmentAccess, createProjectServices } from "kello/s
 import { schema, relations } from "./schema";
 export { tables, validators } from "./schema";
 export const env = createComponentEnvironmentAccess(() => component);
-export const { Database, Tables, Validators, Search } = createProjectServices<typeof schema, typeof relations>();
+export const { Database, EffectDatabase, Tables, Validators, Search } = createProjectServices<typeof schema, typeof relations>();
 `,
       ],
       [

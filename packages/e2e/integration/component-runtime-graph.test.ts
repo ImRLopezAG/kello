@@ -4,8 +4,7 @@ import { call, os, Procedure } from "@orpc/server";
 import type { RouterClient } from "@orpc/server";
 import { Context, Layer } from "effect";
 import * as v from "valibot";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { unusedDatabaseConnection } from "../fixtures/offline-database";
 import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
 import { createEffectRuntime, Invocation } from "kello/server";
 import type { ProcedureContext } from "kello/server";
@@ -30,8 +29,7 @@ test("runtime dispatch gives each scope only its private and explicitly bound na
     .handler(({ input, context }) => context.components.child.rpc.get(input));
   const effects = createEffectRuntime(Layer.empty);
   // These handlers have no database middleware: any connection attempt is a test failure.
-  const pool = new pg.Pool({ connectionString: "postgresql://unused:unused@127.0.0.1:1/unused" });
-  const db = drizzle({ client: pool });
+  const connection = unusedDatabaseConnection();
   const graph = bindRuntimeGraph({
     entries: [
       { path: ["get"], visibility: "public", procedure: publicProcedure },
@@ -48,7 +46,7 @@ test("runtime dispatch gives each scope only its private and explicitly bound na
     activate: async () => {},
     authorize: async () => {},
     database: {
-      connection: { db, pool, transaction: db.transaction.bind(db), close: () => pool.end() },
+      connection,
       replay: { metadataNamespace: "kello", deployment: "test" },
       authorize: async () => {},
     },
@@ -68,6 +66,6 @@ test("runtime dispatch gives each scope only its private and explicitly bound na
   } finally {
     await graph.stop();
     await effects.stop();
-    await pool.end();
+    await connection.close();
   }
 });

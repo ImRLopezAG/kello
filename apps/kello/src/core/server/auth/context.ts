@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import * as v from "valibot";
 
 /** Durable job identity and current attempt number for a scheduled invocation. */
@@ -31,7 +31,7 @@ export interface InvocationContext {
 }
 
 /** Local to the current transaction. Pool reuse must never inherit a previous request's identity. */
-export async function bindDatabaseIdentity(db: NodePgDatabase, identity: InvocationIdentity | null): Promise<void> {
+export async function bindDatabaseIdentity(db: Database, identity: InvocationIdentity | null): Promise<void> {
   const value = JSON.stringify(identity);
   await db.execute(sql`SELECT set_config('kello.identity', ${value}, true)`);
 }

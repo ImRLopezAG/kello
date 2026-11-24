@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import {
   prepareDeploymentActivation,
   activateDeploymentDatabase,
@@ -188,7 +188,9 @@ test.skipIf(!connectionString)(
       const expiredSession = await withDeploymentActivationSession(
         sessionOptions,
         async (session, client) => {
-          expect((await client.query("SELECT current_database() AS name")).rows[0].name).toBe(options.databaseName);
+          expect((await client.query<{ name: string }>("SELECT current_database() AS name")).rows[0]?.name).toBe(
+            options.databaseName,
+          );
           const lock = await admin.query<{ acquired: boolean }>(
             "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS acquired",
             [`kello:deployment:${metadataNamespace}`],

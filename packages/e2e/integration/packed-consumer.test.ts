@@ -100,7 +100,7 @@ test("packed tooling preserves migration and bucket privacy patches without cons
       JSON.stringify({
         private: true,
         type: "module",
-        dependencies: { kello: "file:../kello.tgz", "drizzle-orm": "1.0.0-rc.5" },
+        dependencies: { kello: "file:../kello.tgz", "drizzle-orm": "1.0.0-rc.6" },
       }),
     );
     await run(["bun", "install", "--ignore-scripts", "--linker", "isolated"], runtimeOnly);
@@ -128,8 +128,8 @@ assert.throws(() => import.meta.resolve("kello/tooling"), { code: "ERR_PACKAGE_P
           "kello-cli": "file:./kello-cli.tgz",
           "@orpc/server": "2.0.0-beta.49",
           "@orpc/tanstack-query": "2.0.0-beta.49",
-          "drizzle-orm": "1.0.0-rc.5",
-          effect: "4.1.2",
+          "drizzle-orm": "1.0.0-rc.6",
+          effect: "4.1.5",
           valibot: "1.5.0",
           zod: "4.6.7",
         },
@@ -332,8 +332,8 @@ await import("kello/server");
       "README.md",
       "neon-config.LICENSE",
       "neon-config-runtime.LICENSE",
-      "drizzle-kit@1.0.0-rc.5.patch",
-      "@neon%2Fconfig@1.13.0.patch",
+      "drizzle-kit@1.0.0-rc.6.patch",
+      "@neon%2Fconfig@1.14.6.patch",
     ]) {
       assert((await readFile(join(root, "node_modules/kello-cli/dist/third-party", name), "utf8")).length > 0);
     }

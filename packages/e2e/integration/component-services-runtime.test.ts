@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { call, os, Procedure } from "@orpc/server";
 import { Context, Effect, Layer } from "effect";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { unusedDatabaseConnection } from "../fixtures/offline-database";
 import * as v from "valibot";
 import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
 import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
@@ -61,8 +60,7 @@ test("assembled service contexts preserve SDK objects, mount configuration and a
     .$context<ProcedureContext & { services: { sdk: VendorClient } }>()
     .handler(({ context }) => context.services.sdk.greet());
   const effects = createEffectRuntime(Layer.empty);
-  const pool = new pg.Pool({ connectionString: "postgresql://unused:unused@127.0.0.1:1/unused" });
-  const db = drizzle({ client: pool });
+  const connection = unusedDatabaseConnection();
   const graph = bindRuntimeGraph({
     entries: [
       { path: ["get"], visibility: "public", procedure: parent },
@@ -81,7 +79,7 @@ test("assembled service contexts preserve SDK objects, mount configuration and a
       if (!authorized) throw new Error("Unauthorized");
     },
     database: {
-      connection: { db, pool, transaction: db.transaction.bind(db), close: () => pool.end() },
+      connection,
       replay: { metadataNamespace: "kello_meta", deployment: "test" },
       authorize: async () => {},
     },
@@ -108,7 +106,7 @@ test("assembled service contexts preserve SDK objects, mount configuration and a
   } finally {
     await graph.stop();
     await effects.stop();
-    await pool.end();
+    await connection.close();
   }
   expect(released).toBe(2);
 });
@@ -117,15 +115,14 @@ function serviceHarness(
   configuration: Pick<Parameters<typeof bindRuntimeGraph>[0], "entries" | "scopes" | "application" | "exposures">,
 ) {
   const effects = createEffectRuntime(Layer.empty);
-  const pool = new pg.Pool({ connectionString: "postgresql://unused:unused@127.0.0.1:1/unused" });
-  const db = drizzle({ client: pool });
+  const connection = unusedDatabaseConnection();
   const graph = bindRuntimeGraph({
     ...configuration,
     effects,
     activate: async () => {},
     authorize: async () => {},
     database: {
-      connection: { db, pool, transaction: db.transaction.bind(db), close: () => pool.end() },
+      connection,
       replay: { metadataNamespace: "kello_meta", deployment: "test" },
       authorize: async () => {},
     },
@@ -135,7 +132,7 @@ function serviceHarness(
     async close() {
       await graph.stop();
       await effects.stop();
-      await pool.end();
+      await connection.close();
     },
   };
 }

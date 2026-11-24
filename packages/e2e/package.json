@@ -11,16 +11,15 @@
     "test:browser": "bun test ./browser"
   },
   "dependencies": {
-    "drizzle-kit": "1.0.0-rc.5",
-    "drizzle-orm": "1.0.0-rc.5",
-    "kello": "workspace:*",
-    "pg": "8.23.1"
+    "drizzle-kit": "1.0.0-rc.6",
+    "drizzle-orm": "1.0.0-rc.6",
+    "kello": "workspace:*"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1164.0",
-    "@better-auth/core": "1.7.18",
+    "@better-auth/core": "1.7.27",
     "@kello/ts-config": "workspace:*",
-    "@neon/config-runtime": "1.12.0",
+    "@neon/config-runtime": "1.12.9",
     "@neondatabase/auth": "0.7.0-beta",
     "@orpc/client": "2.0.0-beta.49",
     "@orpc/effect": "2.0.0-beta.49",
@@ -30,13 +29,12 @@
     "@tanstack/react-query": "5.107.1",
     "@types/bun": "1.4.4",
     "@types/node": "24.19.2",
-    "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/ws": "8.18.2",
-    "better-auth": "1.7.18",
+    "better-auth": "1.7.27",
     "better-inbox": "0.6.0",
-    "effect": "4.1.2",
+    "effect": "4.1.5",
     "fflate": "0.8.3",
     "jose": "6.2.15",
     "kello-cli": "workspace:*",

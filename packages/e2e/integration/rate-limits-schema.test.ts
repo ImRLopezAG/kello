@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { bootstrapDatabase, frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;

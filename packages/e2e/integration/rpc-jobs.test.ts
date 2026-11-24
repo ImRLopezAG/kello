@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { call } from "@orpc/server";
 import { Context } from "effect";
 import { defineRelations, sql } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import type { RpcScheduler } from "kello/server";
 import { bootstrapDatabase } from "kello-cli";

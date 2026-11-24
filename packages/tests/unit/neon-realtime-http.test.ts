@@ -9,9 +9,9 @@ import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { generateKeyPair, exportJWK, SignJWT } from "jose";
 import { createHash } from "node:crypto";
-import pg from "pg";
 import { defineRelations } from "drizzle-orm";
-import { drizzle, NodePgSession, NodePgTransaction } from "drizzle-orm/node-postgres";
+import { drizzle, PostgresSession, PostgresTransaction } from "drizzle-orm/postgres";
+import { offlineConnection, poolQueryResult } from "../fixtures/offline-database";
 import { PgDialect, pgTable, text } from "drizzle-orm/pg-core";
 import { createNeonLoginResolver } from "../../../apps/kello/src/core/adapters/neon/neon-login";
 import {
@@ -25,6 +25,7 @@ import { createJwtVerifier } from "../../../apps/kello/src/core/server/auth/veri
 import { captureTrustedLogin, resolveTrustedLogin } from "../../../apps/kello/src/core/server/auth/login";
 import type { TrustedLogin, TrustedLoginResolver } from "../../../apps/kello/src/core/server/auth/login";
 import type { ProcedureContext } from "../../../apps/kello/src/core/server/rpc/procedure";
+import type { DatabaseConnection } from "../../../apps/kello/src/core/server/database/connection";
 import { createTaskRealtimeRouter } from "../fixtures/neon-realtime";
 
 const version = "a".repeat(64);
@@ -124,37 +125,39 @@ test("contract/functions live reads use the native verified HTTP login and confi
 
 test("native verified HTTP mounts typed issuance/update; refresh keeps generation and new login changes owner", async () => {
   const auth = await credentials();
-  const pool = new pg.Pool();
+  const relations = defineRelations({});
+  let transaction: DatabaseConnection<typeof relations>["transaction"] = async () => {
+    throw new Error("transaction is bound below");
+  };
+  const connection = offlineConnection(relations, (operation, config) => transaction(operation, config));
+  const { db, pool } = connection;
   const boundary = vi.spyOn(pool, "query");
   let writes = 0;
   // Only the PG query/transaction boundary is doubled. JWT verification, native
   // HTTP transport, oRPC inference, Drizzle SQL/decoding and sealing are actual.
-  boundary.mockImplementation(async (config) => {
-    const query = v.parse(v.union([v.string(), v.object({ text: v.string() })]), config);
-    const text = v.is(v.string(), query) ? query : query.text;
-    if (text.includes("SELECT fingerprint")) return { rows: [], fields: [], command: "SELECT", oid: 0, rowCount: 0 };
+  boundary.mockImplementation((text) => {
+    if (text.includes("SELECT fingerprint"))
+      return poolQueryResult({ rows: [], columns: [], command: "SELECT", rowCount: 0 });
     if (text.includes("INSERT INTO"))
-      return { rows: [{ scope_hash: "saved" }], fields: [], command: "INSERT", oid: 0, rowCount: 1 };
+      return poolQueryResult({ rows: [{ scope_hash: "saved" }], columns: [], command: "INSERT", rowCount: 1 });
     if (text.includes("pg_current_xact_id"))
-      return { rows: [{ txid: "111" }], fields: [], command: "SELECT", oid: 0, rowCount: 1 };
+      return poolQueryResult({ rows: [{ txid: "111" }], columns: [], command: "SELECT", rowCount: 1 });
     if (text.startsWith("update")) {
       writes++;
-      return { rows: [["1", "next"]], fields: [], command: "UPDATE", oid: 0, rowCount: 1 };
+      return poolQueryResult({ rows: [["1", "next"]], columns: [], command: "UPDATE", rowCount: 1 });
     }
-    return { rows: [["alice"]], fields: [], command: "SELECT", oid: 0, rowCount: 1 };
+    return poolQueryResult({ rows: [["alice"]], columns: [], command: "SELECT", rowCount: 1 });
   });
-  const relations = defineRelations({});
-  const db = drizzle({ client: pool, relations });
-  const tx = new NodePgTransaction(
+  const tx = new PostgresTransaction(
     new PgDialect(),
-    new NodePgSession(pool, new PgDialect(), relations),
+    new PostgresSession(pool, new PgDialect(), relations),
     relations,
     0,
     false,
   );
-  const transaction: typeof db.transaction = async (operation) => operation(tx);
+  transaction = async (operation) => operation(tx);
   const router = createTaskRealtimeRouter({
-    connection: { db, pool, transaction, close: () => pool.end() },
+    connection,
     database: "db",
     deployment: "deployment",
     metadataNamespace: "kello_test",

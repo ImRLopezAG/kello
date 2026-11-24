@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type pg from "pg";
+import type * as pg from "./postgres";
 import type { NeonApi } from "@neon/config-runtime/v1";
 import {
   applyMigrations,

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../database/types";
 import * as v from "valibot";
 import { scheduleOptions } from "./contracts";
 import { validateIdempotencyOptions } from "../idempotency";
@@ -46,12 +46,12 @@ export const cronScheduleValidator = v.pipe(
   v.check(validSchedule, "Invalid five-field UTC cron schedule"),
 );
 export type CronPolicy = Pick<v.InferInput<typeof scheduleOptions>, "maxAttempts" | "retryDelaySeconds">;
-export type CronEnqueue = (transaction: NodePgDatabase, dueAt: Date, deduplicationKey: string) => Promise<string>;
+export type CronEnqueue = (transaction: Database, dueAt: Date, deduplicationKey: string) => Promise<string>;
 export interface DurableCronDispatcherOptions extends IdempotencyOptions {
-  readonly db: NodePgDatabase;
+  readonly db: Database;
   readonly crons: ReadonlyMap<string, CronEnqueue>;
   readonly assertActive: (signal: AbortSignal) => Promise<void>;
-  readonly assertIngress?: (signal: AbortSignal, transaction: NodePgDatabase) => Promise<void>;
+  readonly assertIngress?: (signal: AbortSignal, transaction: Database) => Promise<void>;
   /** When idle, wake-ups are skipped before any database access so serverless Postgres can suspend. */
   readonly idle?: Pick<IdleBackoff, "shouldPoll" | "reset">;
 }
@@ -62,7 +62,7 @@ export function createDurableCronDispatcher(options: DurableCronDispatcherOption
   const { db, assertActive, deployment, idle } = options;
   const receipts = sql`${sql.identifier(options.metadataNamespace)}.${sql.identifier("trigger_receipts")}`;
   async function record(
-    transaction: NodePgDatabase,
+    transaction: Database,
     delivery: TriggerDeliveryReceipt,
     at: Date,
     kind: "cron" | "wake",
@@ -116,7 +116,7 @@ export function createDurableCronDispatcher(options: DurableCronDispatcherOption
         .digest("hex");
       await assertActive(signal);
       signal.throwIfAborted();
-      const enqueue = async (transaction: NodePgDatabase) => {
+      const enqueue = async (transaction: Database) => {
         return configured(transaction, occurrence, `cron:${key}`);
       };
       const jobId =

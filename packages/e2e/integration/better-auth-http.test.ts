@@ -3,7 +3,7 @@ import { test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { betterAuth } from "better-auth";
 import { symmetricDecrypt } from "better-auth/crypto";
 import { inbox } from "better-inbox";

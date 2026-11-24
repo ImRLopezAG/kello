@@ -2,7 +2,8 @@ import { expect, test, vi } from "vite-plus/test";
 import * as v from "valibot";
 import { eq, sql } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
+import { offlineConnection, poolQueryResult } from "../fixtures/offline-database";
 import { createNeonLiveQuery, createNeonQueryIssuer } from "kello/server";
 
 const tasks = pgTable("tasks", { id: text().notNull(), tenant: text().notNull(), title: text().notNull() });
@@ -96,16 +97,17 @@ test("issuance refuses expired sessions and a signed capability extending past v
 });
 
 test("example issuance and renewal require current membership independently of SQL filtering", async () => {
-  const { default: pg } = await import("pg");
   const { createTaskRealtimeExample } = await import("../fixtures/neon-realtime");
-  const pool = new pg.Pool();
+  const connection = offlineConnection();
+  const pool = connection.pool;
   // Native Drizzle builder/decoder, isolated PG query boundary: no connection is
   // acquired. Actual subscribed membership revocation remains a provider gate.
   const query = vi.spyOn(pool, "query");
-  query.mockImplementation(async () => ({ command: "SELECT", rowCount: 1, oid: 0, fields: [], rows: [["user"]] }));
-  const database = drizzle({ client: pool });
+  query.mockImplementation(() =>
+    poolQueryResult({ command: "SELECT", rowCount: 1, columns: ["subject"], rows: [["user"]] }),
+  );
   const example = createTaskRealtimeExample({
-    connection: { db: database, pool, transaction: database.transaction.bind(database), close: () => pool.end() },
+    connection,
     secret: "nrt_live_1" + Buffer.alloc(32, 1).toString("base64url"),
     database: "test",
     deployment: "test",
@@ -117,7 +119,7 @@ test("example issuance and renewal require current membership independently of S
     expect((await example.issue({ tenant: "tenant" }, verified, login, authority.signal)).query.capability).toEqual(
       expect.any(String),
     );
-    query.mockImplementation(async () => ({ command: "SELECT", rowCount: 0, oid: 0, fields: [], rows: [] }));
+    query.mockImplementation(() => poolQueryResult({ command: "SELECT", rowCount: 0, columns: ["subject"], rows: [] }));
     await expect(example.issue({ tenant: "tenant" }, verified, login, authority.signal)).rejects.toThrow("Forbidden");
     expect(query).toHaveBeenCalledTimes(2);
     const sql = query.mock.calls[0]?.[0];

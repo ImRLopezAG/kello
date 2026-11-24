@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readMigrations } from "kello-cli";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;

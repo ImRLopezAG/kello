@@ -5,8 +5,7 @@ import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { writeFile } from "node:fs/promises";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import * as v from "valibot";
 import { bootstrapDatabase, createKelloNeonApi } from "kello-cli";
@@ -38,7 +37,7 @@ test.skipIf(process.env.KELLO_CLOUD_STORAGE_BRANCH !== "1")(
     const owned: string[] = [];
     const intendedBranches: Array<{ name: string; parentId: string }> = [];
     const credentials: Array<{ branch: string; id: string }> = [];
-    const connections: pg.Pool[] = [];
+    const connections: { end(): Promise<void> }[] = [];
     const adapters: ReturnType<typeof createNeonObjectStorage>[] = [];
     const clients: S3Client[] = [];
     const checks: string[] = [];
@@ -145,9 +144,9 @@ test.skipIf(process.env.KELLO_CLOUD_STORAGE_BRANCH !== "1")(
           { timeout: 30000 },
         )
       ).stdout.trim();
-      const pool = new pg.Pool({ connectionString, connectionTimeoutMillis: 15000 });
-      connections.push(pool);
-      return { branchId, connectionString, pool, s3, storage };
+      const db = drizzle({ connection: { url: connectionString, connectTimeout: 15000 } });
+      connections.push(db.$client);
+      return { branchId, connectionString, db, s3, storage };
     }
     const metadataNamespace = `kello_files_${crypto.randomUUID().replaceAll("-", "")}`;
     const identity = { issuer: "https://acceptance.test", subject: "alice" };
@@ -161,7 +160,7 @@ test.skipIf(process.env.KELLO_CLOUD_STORAGE_BRANCH !== "1")(
     };
     const intents = (connection: Awaited<ReturnType<typeof setup>>) =>
       createStorageIntents({
-        db: drizzle({ client: connection.pool }),
+        db: connection.db,
         metadataNamespace,
         deployment: `storage-${connection.branchId}`,
         applicationNamespace: "acceptance_app",

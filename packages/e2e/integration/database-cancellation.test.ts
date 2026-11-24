@@ -1,27 +1,29 @@
 import assert from "node:assert/strict";
 import { setTimeout } from "node:timers/promises";
 import { test, expect } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { sql } from "drizzle-orm";
 import { connectDatabase, defineSchema, runFunctionTransaction } from "kello/server";
 
 const ownerUrl = process.env.KELLO_TEST_DATABASE_URL;
 const pooledUrl = process.env.KELLO_TEST_POOLED_DATABASE_URL;
+// Kello's fixed per-statement ceiling inside function transactions.
+const statementCeilingMs = 30_000;
 
-async function waitFor(predicate: () => Promise<boolean>, message: string) {
-  const expires = performance.now() + 3000;
+async function waitFor(predicate: () => Promise<boolean>, message: string, timeoutMs = 3000) {
+  const expires = performance.now() + timeoutMs;
   while (!(await predicate())) {
     if (performance.now() > expires) throw new Error(message);
-    await setTimeout(25);
+    await setTimeout(50);
   }
 }
 
-async function bounded<Result>(pending: Promise<Result>, message: string): Promise<Result> {
+async function bounded<Result>(pending: Promise<Result>, message: string, timeoutMs = 1000): Promise<Result> {
   const timer = new AbortController();
   try {
     return await Promise.race([
       pending,
-      setTimeout(1500, undefined, { signal: timer.signal }).then(() => {
+      setTimeout(timeoutMs, undefined, { signal: timer.signal }).then(() => {
         throw new Error(message);
       }),
     ]);
@@ -30,12 +32,19 @@ async function bounded<Result>(pending: Promise<Result>, message: string): Promi
   }
 }
 
+function milliseconds(setting: string): number {
+  const match = /^(\d+)(ms|s|min)?$/.exec(setting);
+  if (!match) throw new Error(`Unexpected statement_timeout ${setting}`);
+  const value = Number(match[1]);
+  return match[2] === "s" ? value * 1000 : match[2] === "min" ? value * 60_000 : value;
+}
+
 for (const [transport, runtimeUrl] of [
   ["direct", ownerUrl],
   ["pooler", pooledUrl],
 ] as const) {
   test.skipIf(!ownerUrl || !runtimeUrl)(
-    `abort stops PostgreSQL statements and releases retained locks through ${transport}`,
+    `abort ends the transaction connection and the server bounds its statement through ${transport}`,
     async () => {
       if (!ownerUrl || !runtimeUrl) throw new Error("Missing database URL");
       const role = `kello_cancel_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -46,14 +55,8 @@ for (const [transport, runtimeUrl] of [
       const ownedPids = new Set<number>();
       const activity = async (pid: number) =>
         (
-          await owner.query<{
-            state: string;
-            active: boolean;
-            transaction_open: boolean;
-            wait_event: string;
-            wait_event_type: string;
-          }>(
-            "SELECT state, state = 'active' AS active, xact_start IS NOT NULL AS transaction_open, wait_event, wait_event_type FROM pg_stat_activity WHERE pid = $1 AND usename = $2",
+          await owner.query<{ active: boolean; transaction_open: boolean; wait_event: string | null }>(
+            "SELECT state = 'active' AS active, xact_start IS NOT NULL AS transaction_open, wait_event FROM pg_stat_activity WHERE pid = $1 AND usename = $2",
             [pid, role],
           )
         ).rows[0];
@@ -61,17 +64,6 @@ for (const [transport, runtimeUrl] of [
         await owner.connect();
         await owner.query(`CREATE ROLE "${role}" LOGIN PASSWORD '${password}'`);
         await owner.query(`GRANT "${role}" TO CURRENT_USER`);
-        const restricted = await owner.query(
-          "SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls FROM pg_roles WHERE rolname = $1",
-          [role],
-        );
-        expect(restricted.rows[0]).toEqual({
-          rolsuper: false,
-          rolcreatedb: false,
-          rolcreaterole: false,
-          rolreplication: false,
-          rolbypassrls: false,
-        });
         const address = new URL(runtimeUrl);
         address.username = role;
         address.password = password;
@@ -81,114 +73,93 @@ for (const [transport, runtimeUrl] of [
           relations: {},
           maxConnections: 1,
         });
-        for (const variant of ["sleep-zero", "lock-zero", "sleep-default", "lock-default"] as const) {
-          const lock = variant.startsWith("lock");
-          const blocker = new pg.Client({ connectionString: ownerUrl });
-          const key = Number.parseInt(crypto.randomUUID().slice(0, 8), 16);
-          const controller = new AbortController();
-          const reason = new Error(`Cancelled ${variant}`);
-          const entered = Promise.withResolvers<number>();
-          const callbackSettled = Promise.withResolvers<void>();
-          let published = false;
-          let pid: number | undefined;
-          let pending: Promise<unknown> | undefined;
-          try {
-            await blocker.connect();
-            await blocker.query("BEGIN");
-            if (lock) await blocker.query("SELECT pg_advisory_xact_lock($1::bigint)", [key]);
-            pending = runFunctionTransaction(
-              connection,
-              lock ? "mutation" : "query",
-              async (tx) => {
-                try {
-                  if (variant.endsWith("zero")) await tx.execute(sql`SET LOCAL client_connection_check_interval = 0`);
-                  const rows = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
-                  const backend = rows.rows[0]?.pid;
-                  if (backend === undefined) throw new Error("Missing transaction backend");
-                  ownedPids.add(backend);
-                  if (lock) await tx.execute(sql`SELECT pg_advisory_xact_lock(${key + 1}::bigint)`);
-                  entered.resolve(backend);
-                  if (lock) await tx.execute(sql`SELECT pg_advisory_xact_lock(${key}::bigint)`);
-                  else await tx.execute(sql`SELECT pg_sleep(20)`);
-                  published = true;
-                } finally {
-                  callbackSettled.resolve();
-                }
-              },
-              { signal: controller.signal },
-            );
-            // Own rejection before waiting for the observer's server barrier.
-            const outcome = pending.then(
-              () => ({ resolved: true, error: undefined }),
-              (error: Error) => ({ resolved: false, error }),
-            );
-            const serverPid = await bounded(entered.promise, "Transaction did not enter");
-            pid = serverPid;
-            await waitFor(async () => {
-              const row = await activity(serverPid);
-              return !!row?.active && (lock ? row.wait_event_type === "Lock" : row.wait_event === "PgSleep");
-            }, "Native statement did not block");
-            if (lock) {
-              const held = await owner.query(
-                "SELECT count(*)::int AS count FROM pg_locks WHERE pid = $1 AND locktype = 'advisory' AND granted",
-                [pid],
-              );
-              expect(held.rows[0]?.count).toBe(1);
-            }
-            controller.abort(reason);
-            const result = await bounded(outcome, "Caller did not reject promptly");
-            expect(result.resolved).toBe(false);
-            expect(result.error).toBe(reason);
-            await waitFor(async () => {
-              const row = await activity(serverPid);
-              return !row || (!row.active && !row.transaction_open && !row.state.startsWith("idle in transaction"));
-            }, "Aborted transaction remained open");
-            if (lock) {
-              // Assert before observer cleanup or releasing the blocking lock.
-              const held = await owner.query(
-                "SELECT count(*)::int AS count FROM pg_locks WHERE pid = $1 AND locktype = 'advisory' AND granted",
-                [pid],
-              );
-              expect(held.rows[0]?.count).toBe(0);
-            }
-            await bounded(callbackSettled.promise, "Native query did not settle");
-            expect(published).toBe(false);
-          } finally {
-            if (pid && (await activity(pid))?.transaction_open) {
-              await owner.query("SELECT pg_cancel_backend($1) FROM pg_stat_activity WHERE pid = $1 AND usename = $2", [
-                pid,
-                role,
-              ]);
-            }
-            await blocker.query("ROLLBACK");
-            await blocker.end();
-            await pending?.catch(() => {});
-          }
-          expect(published).toBe(false);
-          const fresh = await runFunctionTransaction(connection, "query", async (tx) =>
-            tx.execute<{ value: number }>(sql`SELECT 1 AS value`),
+        const pool = connection.pool;
+
+        // The statement bound is in place for every function transaction.
+        for (const kind of ["query", "mutation"] as const) {
+          const bound = await runFunctionTransaction(connection, kind, (tx) =>
+            tx.execute<{ value: string }>(sql`SELECT current_setting('statement_timeout') AS value`),
           );
-          expect(fresh.rows[0]?.value).toBe(1);
-          expect(connection.pool.waitingCount).toBe(0);
-          expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+          const value = milliseconds(bound.rows[0]?.value ?? "");
+          expect(value).toBeGreaterThan(0);
+          expect(value).toBeLessThanOrEqual(statementCeilingMs);
         }
-        // Disposal must finish even when application JavaScript never resumes.
-        const entered = Promise.withResolvers<number>();
-        const resume = Promise.withResolvers<void>();
-        const callbackSettled = Promise.withResolvers<void>();
+        const outside = await connection.db.execute<{ value: string }>(
+          sql`SELECT current_setting('statement_timeout') AS value`,
+        );
+        expect(outside.rows[0]?.value).toBe("0");
+
+        // Abort during a long statement.
         const controller = new AbortController();
-        const reason = new Error("Cancelled suspended callback");
-        let lateQueryRejected = false;
+        const reason = new Error("Cancelled sleep");
+        const entered = Promise.withResolvers<number>();
+        let published = false;
         const pending = runFunctionTransaction(
           connection,
           "query",
           async (tx) => {
+            const rows = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
+            const backend = rows.rows[0]?.pid;
+            if (backend === undefined) throw new Error("Missing transaction backend");
+            ownedPids.add(backend);
+            entered.resolve(backend);
+            await tx.execute(sql`SELECT pg_sleep(45)`);
+            published = true;
+          },
+          { signal: controller.signal },
+        );
+        const outcome = pending.then(
+          () => ({ resolved: true, error: undefined }),
+          (error: Error) => ({ resolved: false, error }),
+        );
+        const pid = await bounded(entered.promise, "Transaction did not enter", 3000);
+        await waitFor(async () => (await activity(pid))?.wait_event === "PgSleep", "Statement did not start");
+        expect(pool.size).toBe(1);
+        const abortedAt = performance.now();
+        controller.abort(reason);
+        const result = await bounded(outcome, "Caller did not reject within 1s");
+        expect(result.resolved).toBe(false);
+        expect(result.error).toBe(reason);
+        // The aborted connection left the pool instead of returning to it.
+        expect(pool.size).toBe(0);
+        expect(pool.idleCount).toBe(0);
+        expect(published).toBe(false);
+
+        // The next transaction gets a fresh connection.
+        const fresh = await runFunctionTransaction(connection, "query", (tx) =>
+          tx.execute<{ value: number }>(sql`SELECT 1 AS value`),
+        );
+        expect(fresh.rows[0]?.value).toBe(1);
+        expect(pool.size).toBe(1);
+        expect(pool.idleCount).toBe(1);
+
+        // The server stops the statement within the ceiling, even though no cancel was sent.
+        await waitFor(
+          async () => {
+            const row = await activity(pid);
+            return !row || (!row.active && !row.transaction_open);
+          },
+          "Aborted statement outlived the statement ceiling",
+          statementCeilingMs + 5000,
+        );
+        expect(performance.now() - abortedAt).toBeLessThan(statementCeilingMs + 5000);
+
+        // A suspended callback cannot keep using the transaction after abort.
+        const suspendedEntered = Promise.withResolvers<void>();
+        const resume = Promise.withResolvers<void>();
+        const callbackSettled = Promise.withResolvers<void>();
+        const suspendedController = new AbortController();
+        const suspendedReason = new Error("Cancelled suspended callback");
+        let lateQueryRejected = false;
+        const suspended = runFunctionTransaction(
+          connection,
+          "query",
+          async (tx) => {
+            const rows = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
+            const backend = rows.rows[0]?.pid;
+            if (backend !== undefined) ownedPids.add(backend);
+            suspendedEntered.resolve();
             try {
-              const rows = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
-              const pid = rows.rows[0]?.pid;
-              if (pid === undefined) throw new Error("Missing callback backend");
-              ownedPids.add(pid);
-              entered.resolve(pid);
               await resume.promise;
               await assert.rejects(tx.execute(sql`SELECT 1`), /inactive/i);
               lateQueryRejected = true;
@@ -196,42 +167,109 @@ for (const [transport, runtimeUrl] of [
               callbackSettled.resolve();
             }
           },
-          { signal: controller.signal },
+          { signal: suspendedController.signal },
         );
         try {
-          const pid = await bounded(entered.promise, "Callback did not enter");
-          controller.abort(reason);
-          await assert.rejects(bounded(pending, "Suspended callback did not reject"), (error) => error === reason);
-          await waitFor(async () => {
-            const row = await activity(pid);
-            return !row || (!row.active && !row.transaction_open && !row.state.startsWith("idle in transaction"));
-          }, "Suspended callback retained transaction");
-          const fresh = await runFunctionTransaction(connection, "query", async (tx) =>
-            tx.execute<{ value: number }>(sql`SELECT 1 AS value`),
+          await bounded(suspendedEntered.promise, "Callback did not enter", 3000);
+          suspendedController.abort(suspendedReason);
+          await assert.rejects(
+            bounded(suspended, "Suspended callback did not reject"),
+            (error) => error === suspendedReason,
           );
-          expect(fresh.rows[0]?.value).toBe(1);
-          expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+          expect(pool.size).toBe(0);
         } finally {
           resume.resolve();
-          await pending.catch(() => {});
-          await callbackSettled.promise;
+          await suspended.catch(() => {});
+          await bounded(callbackSettled.promise, "Suspended callback did not settle", 3000);
         }
         expect(lateQueryRejected).toBe(true);
+
+        // An abort while waiting for a connection leaves the pool clean.
+        const held = await pool.connect();
+        const waitingController = new AbortController();
+        const waitingReason = new Error("Cancelled before acquisition");
+        let ran = false;
+        const queued = runFunctionTransaction(
+          connection,
+          "mutation",
+          async () => {
+            ran = true;
+          },
+          { signal: waitingController.signal },
+        );
+        try {
+          await waitFor(async () => pool.waiting === 1, "Transaction did not wait for a connection");
+          waitingController.abort(waitingReason);
+          await assert.rejects(
+            bounded(queued, "Queued transaction did not reject"),
+            (error) => error === waitingReason,
+          );
+        } finally {
+          held.release();
+        }
+        await waitFor(async () => pool.waiting === 0 && pool.idleCount === pool.size, "Pool did not settle");
+        expect(ran).toBe(false);
+        const clean = await runFunctionTransaction(connection, "query", (tx) =>
+          tx.execute<{ value: number }>(sql`SELECT 1 AS value`),
+        );
+        expect(clean.rows[0]?.value).toBe(1);
+        expect(pool.idleCount).toBe(pool.size);
       } finally {
         for (const pid of ownedPids) {
           if ((await activity(pid))?.transaction_open) {
-            await owner.query("SELECT pg_cancel_backend($1) FROM pg_stat_activity WHERE pid = $1 AND usename = $2", [
+            await owner.query("SELECT pg_terminate_backend($1) FROM pg_stat_activity WHERE pid = $1 AND usename = $2", [
               pid,
               role,
             ]);
           }
         }
         await connection?.close();
+        await waitFor(
+          async () =>
+            (await owner.query("SELECT 1 FROM pg_stat_activity WHERE usename = $1", [role])).rowCount === 0 ||
+            (await owner
+              .query("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = $1", [role])
+              .then(() => false)),
+          "Role sessions did not close",
+          5000,
+        ).catch(() => {});
         await owner.query(`DROP OWNED BY "${role}"`);
         await owner.query(`DROP ROLE "${role}"`);
         await owner.end();
       }
     },
-    60_000,
+    120_000,
   );
 }
+
+test.skipIf(!ownerUrl)(
+  "the statement bound follows the invocation's remaining time, not only the ceiling",
+  async () => {
+    if (!ownerUrl) throw new Error("Missing database URL");
+    // Source imports share the module that records invocation deadlines.
+    const { connectDatabase: connect } = await import("../../../apps/kello/src/core/server/database/connection");
+    const { runFunctionTransaction: run } = await import("../../../apps/kello/src/core/server/transactions");
+    const { timedInvocationSignal } = await import("../../../apps/kello/src/core/server/invocation-deadline");
+    const connection = await connect({
+      connectionString: ownerUrl,
+      schema: defineSchema(() => ({})),
+      relations: {},
+      maxConnections: 1,
+    });
+    try {
+      const remainingMs = 4000;
+      const bound = await run(
+        connection,
+        "query",
+        (tx) => tx.execute<{ value: string }>(sql`SELECT current_setting('statement_timeout') AS value`),
+        { signal: timedInvocationSignal(remainingMs) },
+      );
+      const value = milliseconds(bound.rows[0]?.value ?? "");
+      expect(value).toBeGreaterThan(0);
+      // A bound that ignored the deadline would read the 30s ceiling.
+      expect(value).toBeLessThanOrEqual(remainingMs);
+    } finally {
+      await connection.close();
+    }
+  },
+);

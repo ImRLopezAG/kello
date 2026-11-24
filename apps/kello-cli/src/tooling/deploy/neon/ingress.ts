@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import { neonIngressLockKey } from "kello/neon";
 import type { NeonApi } from "@neon/config-runtime/v1";
 import type { KelloConfig } from "../../config/define-config";
@@ -17,7 +17,7 @@ export class SupersededReleaseError extends Error {
     super("Release ingress was superseded; use a new release declaration for an explicit rollback");
   }
 }
-export async function assertReleaseIngress(client: pg.Client, options: ReleaseIngress): Promise<void> {
+export async function assertReleaseIngress(client: DatabaseSession, options: ReleaseIngress): Promise<void> {
   const { target, metadataNamespace } = deploymentConnectionContext(client);
   const result = await client.query<{ version: string; state: string }>(
     `SELECT version,state FROM ${quoteIdentifier(metadataNamespace)}.release_ingress
@@ -27,7 +27,7 @@ export async function assertReleaseIngress(client: pg.Client, options: ReleaseIn
   const row = result.rows[0];
   if (row && (row.state === "retired" || row.version !== options.version)) throw new SupersededReleaseError();
 }
-export async function prepareReleaseIngress(client: pg.Client, options: ReleaseIngress): Promise<void> {
+export async function prepareReleaseIngress(client: DatabaseSession, options: ReleaseIngress): Promise<void> {
   await assertReleaseIngress(client, options);
   const { target, metadataNamespace } = deploymentConnectionContext(client);
   await client.query(
@@ -38,7 +38,7 @@ export async function prepareReleaseIngress(client: pg.Client, options: ReleaseI
 }
 
 export async function retainedWorkerSlugs(
-  client: pg.Client,
+  client: DatabaseSession,
   options: { readonly deployment: string; readonly workerSlug: string },
 ): Promise<string[]> {
   const { target, metadataNamespace } = deploymentConnectionContext(client);
@@ -54,7 +54,7 @@ export async function retainedWorkerSlugs(
 
 /** Holds deployment ownership across the durable claim and provider disablement; retries preserve old job wakeups. */
 export async function handoffNeonIngress(
-  client: pg.Client,
+  client: DatabaseSession,
   options: ReleaseIngress & {
     readonly config: KelloConfig;
     readonly environment: DeploymentEnvironment;

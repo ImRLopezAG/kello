@@ -2,7 +2,7 @@ import { expectTypeOf } from "vite-plus/test";
 import { implement } from "@orpc/server";
 import { createORPCClient } from "@orpc/client";
 import type { RouterClient } from "@orpc/server";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { pgTable, text, integer } from "drizzle-orm/pg-core";
 import * as v from "valibot";
 import { oc } from "../../../apps/kello/src/core/contract";

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { bootstrapSession, frameworkMigrations } from "../../../apps/kello-cli/src/tooling/migrations/bootstrap";
 
 // The integration runner supplies an admitted disposable PG18 target. Never create a local server.
@@ -49,8 +49,8 @@ test("upgrade and fresh bootstrap retire only the selected metadata live engine"
       [job, "a".repeat(64)],
     );
 
-    await bootstrapSession(client, metadata, role);
-    await bootstrapSession(client, metadata, role);
+    await bootstrapSession(client.session, metadata, role);
+    await bootstrapSession(client.session, metadata, role);
     expect(
       (
         await client.query(`SELECT version,hash FROM "${metadata}".framework_migrations
@@ -75,7 +75,7 @@ test("upgrade and fresh bootstrap retire only the selected metadata live engine"
     expect((await client.query(`SELECT id,state FROM "${metadata}".jobs WHERE id=$1`, [job])).rows).toEqual([
       { id: job, state: "pending" },
     ]);
-    await bootstrapSession(client, fresh, role);
+    await bootstrapSession(client.session, fresh, role);
     expect((await client.query("SELECT to_regclass($1) AS object", [`${fresh}.table_revisions`])).rows).toEqual([
       { object: null },
     ]);

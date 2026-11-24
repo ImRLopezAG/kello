@@ -16,7 +16,7 @@ import {
 import { defineRelations } from "drizzle-orm";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(

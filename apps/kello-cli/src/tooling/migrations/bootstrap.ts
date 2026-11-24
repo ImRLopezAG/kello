@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import * as v from "valibot";
 import { databaseIdentifier, quoteIdentifier, withMigrationConnection } from "./connection";
 import { classifyFrameworkHistory } from "./framework-history";
@@ -378,7 +378,7 @@ export function frameworkMigrations(namespace: string) {
 
 /** Caller owns the session; this function owns one transaction and its bootstrap lock. */
 export async function bootstrapSession(
-  client: pg.Client,
+  client: DatabaseSession,
   metadataNamespace: string,
   runtimeRole: string,
   options: { readonly requireManagedRole?: boolean } = {},
@@ -456,9 +456,11 @@ export async function bootstrapSession(
     }
     const pending = migrations.slice(versions.length);
     if (pending.length) {
-      // Framework-owned DDL already runs atomically. Batch its round trips so another
-      // bootstrap does not exhaust the lock timeout while waiting on network latency.
-      await client.query(pending.flatMap((migration) => migration.statements).join(";\n"));
+      // Framework-owned DDL already runs atomically. Pipeline its statements on the session so
+      // another bootstrap does not exhaust the lock timeout while waiting on network latency.
+      await Promise.all(
+        pending.flatMap((migration) => migration.statements).map((statement) => client.query(statement)),
+      );
       await client.query(
         `INSERT INTO ${schema}.framework_migrations (version, hash)
          SELECT version, hash FROM jsonb_to_recordset($1::jsonb) AS records(version integer, hash text)`,

@@ -51,3 +51,28 @@ export function verifyNativeContracts(context: ProcedureContext) {
   void wrong;
   return { result, computed, request };
 }
+
+import { expectTypeOf } from "vite-plus/test";
+import { sql } from "drizzle-orm";
+import { createDatabaseMiddleware } from "kello/server";
+import type { Database as KelloDatabase, EffectDatabase as KelloEffectDatabase } from "kello/server";
+
+const relations = defineRelations(schema.tables);
+const services = createProjectServices<typeof schema, typeof relations>();
+// The Effect database is a separate service from the Promise database.
+procedure.use(createDatabaseMiddleware(relations, "read", schema)).effect(function* () {
+  const db = yield* services.EffectDatabase;
+  expectTypeOf(db).toEqualTypeOf<KelloEffectDatabase<typeof relations>>();
+  const promiseDb = yield* services.Database;
+  expectTypeOf(promiseDb).toEqualTypeOf<KelloDatabase<typeof relations>>();
+  const rows = yield* db.select({ title: schema.tables.tasks.title }).from(schema.tables.tasks);
+  expectTypeOf(rows).toEqualTypeOf<{ title: string }[]>();
+  yield* db.execute(sql`SELECT 1`);
+  // @ts-expect-error Effect queries are Effects, not Promises.
+  void db.execute(sql`SELECT 1`).then;
+  return rows.length;
+});
+// @ts-expect-error Without database middleware a procedure cannot resolve the Effect database.
+procedure.effect(function* () {
+  return yield* services.EffectDatabase;
+});

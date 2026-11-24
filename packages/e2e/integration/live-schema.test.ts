@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { defineSchema, defineTable } from "kello/server";
 import { emptySnapshot, inspectSnapshot, planMigration } from "kello-cli";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -13,7 +13,7 @@ test.skipIf(!connectionString)(
     await client.connect();
     try {
       await client.query("SET search_path = pg_catalog");
-      const db = drizzle({ client });
+      const db = drizzle({ client: client.connection });
       const schema = defineSchema(
         (f) => ({
           tasks: defineTable(

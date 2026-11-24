@@ -1,6 +1,6 @@
 import { Context } from "effect";
 import type { AnyRelations } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database, EffectDatabase } from "../database/types";
 import type { DatabaseSchema } from "../database/connection";
 import type { SearchValidators } from "../../search/contract";
 import type { SearchContext } from "../../search/executor";
@@ -19,16 +19,20 @@ export interface ProjectService<Key extends string, Value> {
   readonly value: Value;
 }
 
-/** Schema-bound keys are created once by generated server bindings. Database is
- * provided with the invocation's guarded transaction, never the shared raw pool. */
+/** Schema-bound keys are created once by generated server bindings. Database and
+ * EffectDatabase are provided with the invocation's guarded transaction, never the
+ * shared raw pool. Outside a function, use the connection's own Effect layer. */
 export function createProjectServices<
   Schema extends DatabaseSchema & { readonly validators: object },
   Relations extends AnyRelations,
 >() {
-  const Database = Context.Service<
-    ProjectService<"kello/Database", NodePgDatabase<Relations>>,
-    NodePgDatabase<Relations>
-  >("kello/Database");
+  const Database = Context.Service<ProjectService<"kello/Database", Database<Relations>>, Database<Relations>>(
+    "kello/Database",
+  );
+  const EffectDatabase = Context.Service<
+    ProjectService<"kello/EffectDatabase", EffectDatabase<Relations>>,
+    EffectDatabase<Relations>
+  >("kello/EffectDatabase");
   const Tables = Context.Service<ProjectService<"kello/Tables", Schema["tables"]>, Schema["tables"]>("kello/Tables");
   const Validators = Context.Service<
     ProjectService<"kello/Validators", SearchValidators<Schema, Relations>>,
@@ -37,5 +41,5 @@ export function createProjectServices<
   const Search = Context.Service<ProjectService<"kello/Search", SearchContext<Relations>>, SearchContext<Relations>>(
     "kello/Search",
   );
-  return Object.freeze({ Database, Tables, Validators, Search });
+  return Object.freeze({ Database, EffectDatabase, Tables, Validators, Search });
 }

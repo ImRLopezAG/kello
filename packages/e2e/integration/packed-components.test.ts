@@ -1,6 +1,6 @@
 import { buildNeonFunctionBundle } from "kello-cli";
 import { bootstrapDatabase } from "kello-cli";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { unzipSync } from "fflate";
 import assert from "node:assert/strict";
 import { test } from "bun:test";
@@ -88,7 +88,7 @@ test("packed components preserve typed per-instance bindings and transitive defi
           "kello-cli": "file:./kello-cli.tgz",
           valibot: "1.5.0",
           "@orpc/client": "2.0.0-beta.49",
-          "drizzle-orm": "1.0.0-rc.5",
+          "drizzle-orm": "1.0.0-rc.6",
         },
         devDependencies: { "@types/node": "24.13.6" },
       }),
@@ -250,7 +250,8 @@ test("packed components preserve typed per-instance bindings and transitive defi
     const browserError = await new Response(browser.stderr).text();
     await new Response(browser.stdout).text();
     assert.notEqual(await browser.exited, 0);
-    assert.match(browserError, /node:|browser|server/i);
+    // The database driver publishes server-only export conditions, so a browser build cannot resolve it.
+    assert.match(browserError, /node:|browser|server|Could not resolve: "drizzle-orm\/postgres\//i);
     await write(
       join(consumer, "kello/types.ts"),
       `import { os } from "./_generated/rpc"; os.use(({ context, next }) => { const result: Promise<string> = context.components.first.rpc.products.title(); void result; // @ts-expect-error unknown component method\n context.components.second.rpc.products.missing(); return next(); });`,

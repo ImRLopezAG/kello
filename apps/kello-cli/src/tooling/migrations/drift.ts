@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import { quoteIdentifier } from "./connection";
 
 /** Evidence of catalog state, not a schema diff engine. Row data and sequence counters are excluded. */
 export async function catalogFingerprint(
-  client: pg.Client,
+  client: DatabaseSession,
   namespace: string,
   excludedIndexes: readonly string[] = [],
   mode: "exact" | "schema-copy" = "exact",

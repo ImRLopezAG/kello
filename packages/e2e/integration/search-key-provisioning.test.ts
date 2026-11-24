@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test, expect } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { bootstrapDatabase } from "kello-cli";
 import { provisionSearchCursorKey } from "../../../apps/kello-cli/src/tooling/deploy/neon/search-key";
 
@@ -19,14 +19,16 @@ test.skipIf(!connectionString)(
     try {
       await bootstrapDatabase({ connectionString, metadataNamespace, runtimeRole });
       const options = { metadataNamespace, projectId: "project", branchId: "br-one" };
-      const [first, concurrent] = await Promise.all(clients.map((client) => provisionSearchCursorKey(client, options)));
+      const [first, concurrent] = await Promise.all(
+        clients.map((client) => provisionSearchCursorKey(client.session, options)),
+      );
       assert(first);
       expect(first).toMatch(/^[a-f0-9]{64}$/);
       expect(concurrent).toBe(first);
-      expect(await provisionSearchCursorKey(owner, options)).toBe(first);
-      const otherBranch = await provisionSearchCursorKey(owner, { ...options, branchId: "br-two" });
+      expect(await provisionSearchCursorKey(owner.session, options)).toBe(first);
+      const otherBranch = await provisionSearchCursorKey(owner.session, { ...options, branchId: "br-two" });
       expect(otherBranch).not.toBe(first);
-      expect(await provisionSearchCursorKey(owner, { ...options, projectId: "another" })).not.toBe(first);
+      expect(await provisionSearchCursorKey(owner.session, { ...options, projectId: "another" })).not.toBe(first);
       const password = crypto.randomUUID().replaceAll("-", "");
       await owner.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD '${password}'`);
       const address = new URL(connectionString);
@@ -38,12 +40,12 @@ test.skipIf(!connectionString)(
         runtime.query(`SELECT * FROM "${metadataNamespace}".search_cursor_keys`),
         /permission denied/,
       );
-      await assert.rejects(provisionSearchCursorKey(runtime, options), /metadata owner/);
+      await assert.rejects(provisionSearchCursorKey(runtime.session, options), /metadata owner/);
       await owner.query(
         `UPDATE "${metadataNamespace}".search_cursor_keys SET key=$1 WHERE project_id=$2 AND branch_id=$3`,
         ["09".repeat(32), options.projectId, options.branchId],
       );
-      expect(await provisionSearchCursorKey(owner, options)).toBe("09".repeat(32));
+      expect(await provisionSearchCursorKey(owner.session, options)).toBe("09".repeat(32));
     } finally {
       await runtime?.end();
       await owner.query(`DROP SCHEMA IF EXISTS "${metadataNamespace}" CASCADE`);

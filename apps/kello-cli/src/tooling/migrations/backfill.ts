@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import { parse } from "libpg-query";
 import * as v from "valibot";
 import { acquireMigrationLock, databaseIdentifier, quoteIdentifier, withMigrationConnection } from "./connection";
@@ -91,7 +91,7 @@ function receipt(plan: BackfillPlan, checkpoint: Checkpoint): BackfillReceipt {
   };
 }
 
-async function readCheckpoint(client: pg.Client, metadata: string, plan: BackfillPlan) {
+async function readCheckpoint(client: DatabaseSession, metadata: string, plan: BackfillPlan) {
   return (
     await client.query<Checkpoint>(
       `SELECT hash, catalog_hash, state, total, processed, deleted, last_key FROM ${metadata}.backfills WHERE namespace=$1 AND name=$2`,

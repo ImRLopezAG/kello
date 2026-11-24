@@ -157,7 +157,7 @@ nativeTest(
           await activation.assertActive();
           assert.equal(
             (
-              await client.query(
+              await client.query<{ version: number }>(
                 `SELECT max(version) AS version FROM ${quoteIdentifier(fixture.metadataNamespace)}.framework_migrations`,
               )
             ).rows[0]?.version,

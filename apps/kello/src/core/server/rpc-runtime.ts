@@ -9,7 +9,7 @@ import { prepareApplicationEnvironment } from "./application/definition";
 import type { ApplicationEnvironmentDefinition } from "./application/definition";
 import { createEffectRuntime } from "./effect/runtime";
 import type { InvocationIdentity } from "./auth/context";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "./database/types";
 import { lockRuntimeActivation } from "./activation";
 import type { AnyRelations } from "drizzle-orm";
 import * as v from "valibot";
@@ -138,7 +138,7 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
   const shutdown = new AbortController();
   const assertActive = options.assertActive;
   const assertIngress = options.assertIngress;
-  async function ingress(signal: AbortSignal, db: NodePgDatabase): Promise<void> {
+  async function ingress(signal: AbortSignal, db: Database): Promise<void> {
     if (!activationDatabase) throw new Error("Runtime ingress denied");
     if (assertIngress) await assertIngress(signal, { ...activationDatabase, db });
     else await activate(signal, db);
@@ -148,7 +148,7 @@ export async function createRpcRuntime<Relations extends AnyRelations>(options: 
   const effects = createEffectRuntime(Layer.empty);
   let stopped = false;
   let stopping: Promise<void> | undefined;
-  async function activate(signal: AbortSignal, db?: NodePgDatabase): Promise<void> {
+  async function activate(signal: AbortSignal, db?: Database): Promise<void> {
     signal.throwIfAborted();
     try {
       await assertActive(signal, db && activationDatabase ? { ...activationDatabase, db } : activationDatabase);

@@ -4,7 +4,7 @@ import { call, Procedure } from "@orpc/server";
 import type { RouterClient } from "@orpc/server";
 import { Context, Layer } from "effect";
 import { defineRelations, sql } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { bootstrapDatabase } from "kello-cli";
 // The graph is an internal module; use its source dependencies so middleware

@@ -1,5 +1,5 @@
 import { defineRelations } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { pgTable, text, uuid } from "drizzle-orm/pg-core";
 
 const projects = pgTable("projects", { _id: uuid().primaryKey(), name: text().notNull() });

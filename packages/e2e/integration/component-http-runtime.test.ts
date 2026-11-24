@@ -3,7 +3,7 @@ import { test } from "bun:test";
 import { createHmac } from "node:crypto";
 import { Effect } from "effect";
 import { defineRelations } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 import { bootstrapDatabase } from "kello-cli";
 import { defineComponent } from "../../../apps/kello/src/core/server/components/definition";

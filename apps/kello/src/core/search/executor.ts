@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { sql, is } from "drizzle-orm";
 import type { AnyRelations } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../server/database/types";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 import { acceptsSearchPage, acceptsSearchOutput, validSearchSelection } from "./public";
@@ -24,7 +24,7 @@ interface SearchInvocation {
   readonly input: SearchPublicSelection;
   readonly context: SearchCursorContext;
   readonly key: string;
-  readonly db: NodePgDatabase;
+  readonly db: Database;
   readonly signal: AbortSignal;
   readonly assertCurrent: () => void;
   readonly pending: Set<Promise<void>>;

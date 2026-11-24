@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { defineSchema, systemFieldSql } from "kello/server";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import { drizzle } from "drizzle-orm/postgres";
+import * as pg from "../fixtures/postgres";
 import { pgSchema } from "drizzle-orm/pg-core";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
@@ -23,7 +23,7 @@ test.skipIf(!connectionString)(
       { namespace },
     );
     const pool = new pg.Pool({ connectionString });
-    const db = drizzle({ client: pool });
+    const db = drizzle({ client: pool.driver });
     try {
       const empty = await generateDrizzleJson({}, undefined, [namespace]);
       const snapshot = await generateDrizzleJson({ namespace: pgSchema(namespace), ...schema.tables }, empty.id, [
@@ -51,7 +51,10 @@ test.skipIf(!connectionString)(
       await pool.query(`UPDATE "${namespace}".tasks SET title = 'Updated'`);
       expect((await db.select().from(schema.tables.tasks))[0]?.title).toBe("Updated");
       await pool.query(`INSERT INTO "${namespace}".projects(name, "_createdAt") VALUES ('Overflow', 9007199254740992)`);
-      await assert.rejects(db.select().from(schema.tables.projects).execute(), /safe integer/);
+      // The bundled driver decodes rows inside the query, so Drizzle reports the decode failure as its cause.
+      await assert.rejects(db.select().from(schema.tables.projects).execute(), (error: Error) =>
+        /safe integer/.test(error.cause instanceof Error ? error.cause.message : error.message),
+      );
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS "${namespace}" CASCADE`);
       await pool.end();

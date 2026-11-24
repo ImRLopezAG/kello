@@ -32,8 +32,8 @@
   "devDependencies": {
     "turbo": "2.11.10",
     "typescript": "7.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
-    "vite-plus": "1.5.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+    "vite-plus": "1.7.0"
   },
   "overrides": {
     "neon": {
@@ -44,9 +44,9 @@
   },
   "packageManager": "bun@1.4.4",
   "patchedDependencies": {
-    "drizzle-kit@1.0.0-rc.5": "patches/drizzle-kit@1.0.0-rc.5.patch",
     "@orpc/effect@2.0.0-beta.49": "patches/@orpc%2Feffect@2.0.0-beta.49.patch",
-    "@neon/config@1.13.0": "patches/@neon%2Fconfig@1.13.0.patch",
-    "@neon/realtime-drizzle@0.2.0": "patches/@neon%2Frealtime-drizzle@0.2.0.patch"
+    "@neon/config@1.14.6": "patches/@neon%2Fconfig@1.14.6.patch",
+    "@neon/realtime-drizzle@0.2.0": "patches/@neon%2Frealtime-drizzle@0.2.0.patch",
+    "drizzle-kit@1.0.0-rc.6": "patches/drizzle-kit@1.0.0-rc.6.patch"
   }
 }

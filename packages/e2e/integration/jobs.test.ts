@@ -12,7 +12,7 @@ import {
 import { bootstrapDatabase, defineConfig } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
 import * as v from "valibot";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
@@ -312,11 +312,11 @@ test.skipIf(!connectionString)(
           await createRpcJobQueue({ ...options, deployment: "other" }).replay(failed, replayLast.token, new Date(0)),
         ).toBe(false);
         await assert.rejects(
-          connection.pool.query(`DELETE FROM "${metadataNamespace}".job_replays`),
+          connection.pool.execute(`DELETE FROM "${metadataNamespace}".job_replays`),
           /permission denied/,
         );
         expect(await queue.inspect(crypto.randomUUID())).toBeNull();
-        await assert.rejects(connection.pool.query(`DELETE FROM "${metadataNamespace}".jobs`), /permission denied/);
+        await assert.rejects(connection.pool.execute(`DELETE FROM "${metadataNamespace}".jobs`), /permission denied/);
         const config = defineConfig({ project: "tasks", jobs: { maxAttempts: 2, retryBaseMs: 7000 } });
         const configuredOptions = {
           ...options,

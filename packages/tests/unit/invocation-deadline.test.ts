@@ -2,9 +2,10 @@ import { afterEach, expect, test, vi } from "vite-plus/test";
 import { call, os, Procedure } from "@orpc/server";
 import { Context, Effect, Layer } from "effect";
 import { defineRelations } from "drizzle-orm";
-import { drizzle, NodePgTransaction } from "drizzle-orm/node-postgres";
+import { drizzle, PostgresTransaction } from "drizzle-orm/postgres";
+import type { EffectDatabase } from "../../../apps/kello/src/core/server/database/types";
 import { PgDialect } from "drizzle-orm/pg-core";
-import type { Pool } from "pg";
+import type { Pool } from "drizzle-orm/postgres/client/node";
 import { createRpcHttpApp } from "../../../apps/kello/src/core/adapters/neon/rpc-http";
 import { createEffectRuntime, Invocation } from "../../../apps/kello/src/core/server/effect/runtime";
 import { createProjectProcedures } from "../../../apps/kello/src/core/server/rpc/procedure";
@@ -12,7 +13,7 @@ import type { ProcedureContext } from "../../../apps/kello/src/core/server/rpc/p
 import { createDatabaseMiddleware } from "../../../apps/kello/src/core/server/rpc/database";
 import { bindRuntimeGraph } from "../../../apps/kello/src/core/server/rpc/runtime-graph";
 import * as databaseConnection from "../../../apps/kello/src/core/server/database/connection";
-import { rememberDatabaseAdapter } from "../../../apps/kello/src/core/server/database/context";
+import { rememberDatabaseAdapter, rememberEffectDatabase } from "../../../apps/kello/src/core/server/database/context";
 import { defineSchema } from "../../../apps/kello/src/core/schema/define-schema";
 import {
   composeInvocationSignals,
@@ -246,11 +247,13 @@ function middlewareFixture(kind: MiddlewareKind, observe: (value: MiddlewareObse
   const effects = createEffectRuntime(Layer.empty);
   // Offline SQL/transaction boundary only. No native database lifetime proof.
   const db = drizzle.mock({ relations });
-  const tx = new NodePgTransaction(new PgDialect(), db._.session, relations, undefined, false);
-  vi.spyOn(tx, "execute").mockResolvedValue({ rows: [], rowCount: 0, command: "SELECT", oid: 0, fields: [] });
+  const tx = new PostgresTransaction(new PgDialect(), db._.session, relations, undefined, false);
+  vi.spyOn(tx, "execute").mockResolvedValue({ rows: [], columns: [], rowCount: 0, command: "SELECT" });
   rememberDatabaseAdapter(tx, relations, () => {
     throw new Error("Fixture must use its original relations");
   });
+  // SAFETY: these fixture procedures never query through the Effect database.
+  rememberEffectDatabase(tx, () => ({}) as EffectDatabase<never>);
   const transaction = vi.fn(() => {});
   // SAFETY: these read-only fixture procedures use connection.transaction, never pool operations.
   const pool = {} as Pool;

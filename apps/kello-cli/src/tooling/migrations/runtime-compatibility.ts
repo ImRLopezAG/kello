@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import * as v from "valibot";
 import { assertMigrationConnection, quoteIdentifier } from "./connection";
 import type { ReleaseSchemaInspection } from "../deploy/compatibility";
@@ -21,7 +21,10 @@ export class RuntimeCompatibilityError extends Error {
 }
 
 /** Called only after the release source and declared range have been validated under deployment ownership. */
-export async function recordRuntimeCompatibility(client: pg.Client, options: RuntimeCompatibility): Promise<void> {
+export async function recordRuntimeCompatibility(
+  client: DatabaseSession,
+  options: RuntimeCompatibility,
+): Promise<void> {
   assertMigrationConnection(client);
   if (!options.inspection.schemas.includes(options.sourceSchema))
     throw new Error("Runtime schema range excludes its source");
@@ -73,7 +76,7 @@ export async function recordRuntimeCompatibility(client: pg.Client, options: Run
 
 /** Check declared dependencies from active grants, queued/running jobs and unexpired client sessions. */
 export async function assertRuntimeCompatibility(
-  client: pg.Client,
+  client: DatabaseSession,
   scope: Scope,
   migrationHashes: readonly string[],
   appliedCount: number,

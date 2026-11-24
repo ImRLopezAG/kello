@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import { quoteIdentifier } from "../../migrations/connection";
 import { deploymentConnectionContext } from "./connection";
 
@@ -14,7 +14,7 @@ export class FunctionOwnershipError extends Error {
 }
 
 /** Metadata ownership survives checkout loss and keeps releases from replacing another version's endpoints. */
-export async function inspectFunctionOwnership(client: pg.Client, owner: FunctionOwner): Promise<void> {
+export async function inspectFunctionOwnership(client: DatabaseSession, owner: FunctionOwner): Promise<void> {
   const { target, metadataNamespace } = deploymentConnectionContext(client);
   const rows = await client.query<{ slug: string; deployment: string; version: string; role: string }>(
     `SELECT slug,deployment,version,role FROM ${quoteIdentifier(metadataNamespace)}.function_ownership
@@ -31,7 +31,7 @@ export async function inspectFunctionOwnership(client: pg.Client, owner: Functio
 }
 
 /** Called under the database deployment lock before any function or trigger mutation. Reservations are never recycled. */
-export async function reserveFunctionOwnership(client: pg.Client, owner: FunctionOwner): Promise<void> {
+export async function reserveFunctionOwnership(client: DatabaseSession, owner: FunctionOwner): Promise<void> {
   const { target, metadataNamespace } = deploymentConnectionContext(client);
   await inspectFunctionOwnership(client, owner);
   await client.query(

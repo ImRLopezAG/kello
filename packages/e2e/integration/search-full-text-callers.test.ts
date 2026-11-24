@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, realpath, symlink, rm, writeFile } from "node:fs/promis
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { fullTextLocalTarget } from "./full-text-local-target";
 import * as v from "valibot";
 // This fixture is an external consumer throughout; never mix source helper identities with package exports.

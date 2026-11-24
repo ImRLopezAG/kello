@@ -1,4 +1,4 @@
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Database } from "../server/database/types";
 import type { ApplicationEnvironmentDefinition, prepareApplicationEnvironment } from "../server/application/definition";
 import { sealComponentGraph } from "../server/components/graph";
 import { readComponentEnvironment } from "../server/components/environment";
@@ -20,7 +20,7 @@ export async function initializeBetterAuth(options: {
   readonly definition: ApplicationEnvironmentDefinition;
   readonly application: Awaited<ReturnType<typeof prepareApplicationEnvironment>>;
   readonly scopes: readonly RuntimeAuthScope[];
-  readonly database: NodePgDatabase;
+  readonly database: Database;
   readonly activate: (signal: AbortSignal) => Promise<void>;
   readonly trust?: AuthConfigInput;
 }) {

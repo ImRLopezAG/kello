@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type pg from "pg";
+import type * as pg from "./postgres";
 import type { JsonValue } from "kello/server";
 import * as v from "valibot";
 

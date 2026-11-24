@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { setTimeout } from "node:timers/promises";
 import { test, expect } from "bun:test";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import * as pg from "../fixtures/postgres";
+import type { Connection } from "drizzle-orm/postgres/client/node";
+import { observeConnections } from "../fixtures/observe-connections";
+import { drizzle } from "drizzle-orm/postgres";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
 import { eq, sql, getTableName } from "drizzle-orm";
@@ -37,7 +39,7 @@ test.skipIf(!connectionString)(
     const role = `kello_search_reader_${suffix}`;
     const { schema, relations } = createSearchFixture(namespace);
     const owner = new pg.Pool({ connectionString });
-    const seed = drizzle({ client: owner, relations });
+    const seed = drizzle({ client: owner.driver, relations });
     try {
       const empty = await generateDrizzleJson({}, undefined, [namespace]);
       const snapshot = await generateDrizzleJson({ namespace: pgSchema(namespace), ...schema.tables }, empty.id, [
@@ -81,8 +83,8 @@ test.skipIf(!connectionString)(
       const statements: string[] = [];
       let beforeCount: (() => Promise<void>) | undefined;
       let countLock: number | undefined;
-      const observed = new WeakSet<pg.PoolClient>();
-      connection.pool.on("acquire", (client) => {
+      const observed = new WeakSet<Connection>();
+      observeConnections(connection.pool, (client) => {
         if (observed.has(client)) return;
         observed.add(client);
         client.query = new Proxy(client.query, {
@@ -93,10 +95,7 @@ test.skipIf(!connectionString)(
             if (text.includes("count(*)::text") && countLock !== undefined) {
               // Keep the native count running inside PostgreSQL, after its root
               // query has finished, until the independent session releases it.
-              args[0] = {
-                ...args[0],
-                text: text.replace("count(*)::text", `count(*)::text, pg_advisory_xact_lock(${countLock}::bigint)`),
-              };
+              args[0] = text.replace("count(*)::text", `count(*)::text, pg_advisory_xact_lock(${countLock}::bigint)`);
             }
             if (text.includes("count(*)::text") && beforeCount) {
               const barrier = beforeCount;
@@ -349,8 +348,8 @@ test.skipIf(!connectionString)(
           const signal = controller.signal;
           let published = false;
           let pending: Promise<unknown> | undefined;
-          const waitFor = async (predicate: () => Promise<boolean>) => {
-            const expires = performance.now() + 3000;
+          const waitFor = async (predicate: () => Promise<boolean>, timeoutMs = 3000) => {
+            const expires = performance.now() + timeoutMs;
             while (!(await predicate())) {
               if (performance.now() > expires) throw new Error(`Database barrier timed out: ${scenario}`);
               await setTimeout(10);
@@ -395,16 +394,18 @@ test.skipIf(!connectionString)(
             expect(signal.aborted).toBe(true);
             if (scenario === "count-deadline") expect(signal.reason.name).toBe("TimeoutError");
             expect(published).toBe(false);
+            // An aborted connection is closed, not cancelled. A statement still
+            // blocked on the server stops at the transaction's statement bound.
             await waitFor(async () => {
               const activity = await owner.query(
                 "SELECT 1 FROM pg_stat_activity WHERE usename = $1 AND (state = 'active' OR state LIKE 'idle in transaction%')",
                 [role],
               );
               return activity.rowCount === 0;
-            });
-            await waitFor(async () => connection.pool.idleCount === connection.pool.totalCount);
-            expect(connection.pool.waitingCount).toBe(0);
-            expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+            }, 35_000);
+            await waitFor(async () => connection.pool.idleCount === connection.pool.size);
+            expect(connection.pool.waiting).toBe(0);
+            expect(connection.pool.idleCount).toBe(connection.pool.size);
           } finally {
             countLock = undefined;
             await blocker.query("ROLLBACK");
@@ -446,20 +447,16 @@ test.skipIf(!connectionString)(
           // Abort rejects promptly while its TLS cancellation transport retains
           // the original pooler mapping until PostgreSQL accepts the request.
           expect((await request()).count).toBe("6");
-          expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+          expect(connection.pool.idleCount).toBe(connection.pool.size);
         } finally {
           operationRelease.resolve();
           await suspended.catch(() => {});
           await lateOperation.promise;
         }
         const heldClient = await connection.pool.connect();
-        const heldBackend = await heldClient.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
-        const heldPid = heldBackend.rows[0]?.pid;
-        let removedClients = 0;
-        const removed = () => {
-          removedClients++;
-        };
-        connection.pool.on("remove", removed);
+        const heldBackend = await heldClient.client.query("SELECT pg_backend_pid() AS pid", [], { mode: "object" });
+        const heldPid = v.parse(v.object({ pid: v.number() }), heldBackend.rows[0]).pid;
+        const heldPoolSize = connection.pool.size;
         const queuedCancelled = new AbortController();
         const queuedReason = new Error("Cancelled queued acquisition");
         let queuedStarted = false;
@@ -473,7 +470,7 @@ test.skipIf(!connectionString)(
         );
         try {
           const expires = performance.now() + 3000;
-          while (connection.pool.waitingCount !== 1) {
+          while (connection.pool.waiting !== 1) {
             if (performance.now() > expires) throw new Error("Acquisition did not queue");
             await setTimeout(10);
           }
@@ -489,14 +486,13 @@ test.skipIf(!connectionString)(
         }
         try {
           expect((await request()).count).toBe("6");
-          const reusedBackend = await connection.pool.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
-          expect(reusedBackend.rows[0]?.pid).toBe(heldPid);
-          expect(removedClients).toBe(0);
+          const reusedBackend = await connection.pool.execute("SELECT pg_backend_pid() AS pid", [], { mode: "object" });
+          expect(v.parse(v.object({ pid: v.number() }), reusedBackend.rows[0]).pid).toBe(heldPid);
+          expect(connection.pool.size).toBe(heldPoolSize);
           expect(queuedStarted).toBe(false);
-          expect(connection.pool.waitingCount).toBe(0);
-          expect(connection.pool.idleCount).toBe(connection.pool.totalCount);
+          expect(connection.pool.waiting).toBe(0);
+          expect(connection.pool.idleCount).toBe(connection.pool.size);
         } finally {
-          connection.pool.off("remove", removed);
         }
         const manual = bindRpcDatabaseProcedure(
           procedure
@@ -581,5 +577,5 @@ test.skipIf(!connectionString)(
       await owner.end();
     }
   },
-  120_000,
+  180_000,
 );

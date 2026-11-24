@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "bun:test";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
+import { createPool } from "drizzle-orm/postgres/client/node";
+import type { Database } from "kello/server";
 import { bootstrapDatabase } from "kello-cli";
 import { createStorageIntents, createStorageCleanup } from "kello/server";
 import { storageProviderFixture } from "../fixtures/storage-provider";
@@ -19,7 +20,7 @@ test.skipIf(!connectionString)(
     const admin = new pg.Client({ connectionString });
     const provider = storageProviderFixture();
     await admin.connect();
-    let pool: pg.Pool | undefined;
+    let pool: ReturnType<typeof createPool> | undefined;
     const sealStarted = Promise.withResolvers<void>();
     const sealRelease = Promise.withResolvers<void>();
     const removeStarted = Promise.withResolvers<void>();
@@ -30,7 +31,7 @@ test.skipIf(!connectionString)(
       const address = new URL(connectionString);
       address.username = runtimeRole;
       address.password = "kello-test-only";
-      pool = new pg.Pool({ connectionString: address.href });
+      pool = createPool({ url: address.href });
       let active = true;
       let failDelete = false;
       let blockSeal = false;
@@ -175,7 +176,7 @@ test.skipIf(!connectionString)(
       await removeStarted.promise;
       await requireRetirementBlocked();
       const contenderName = `cleanup-race-${suffix}`;
-      const contender = new pg.Pool({ connectionString: address.href, application_name: contenderName, max: 1 });
+      const contender = createPool({ url: address.href, applicationName: contenderName, max: 1 });
       try {
         const contenderIntents = createStorageIntents({ ...options, db: drizzle({ client: contender }) });
         const rejected = assert.rejects(contenderIntents.finalize(owner, expiring.id));
@@ -202,13 +203,13 @@ test.skipIf(!connectionString)(
       blockRemove = false;
       assert.equal((await intents.status(owner, expiring.id)).errorCode, "EXPIRED");
       assert.ok(![...provider.objects.keys()].some((key) => key.includes(expiring.id)));
-      const single = new pg.Pool({ connectionString: address.href, max: 1, connectionTimeoutMillis: 250 });
+      const single = createPool({ url: address.href, max: 1, acquireTimeoutMillis: 250 });
       try {
         const db = drizzle({ client: single });
         const serialOptions = {
           ...options,
           db,
-          assertActive: async (_signal: AbortSignal, current: NodePgDatabase = db) => {
+          assertActive: async (_signal: AbortSignal, current: Database = db) => {
             await current.execute(sql`SELECT 1`);
           },
         };

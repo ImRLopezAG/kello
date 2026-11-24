@@ -74,8 +74,8 @@ const connectionString = process.env.KELLO_TEST_DATABASE_URL;
 test.skipIf(!connectionString)(
   "migration runner grants native auth DML without entity triggers and preserves plugin records",
   async () => {
-    const { Client } = await import("pg");
-    const { drizzle } = await import("drizzle-orm/node-postgres");
+    const { Client } = await import("../fixtures/postgres");
+    const { drizzle } = await import("drizzle-orm/postgres");
     const { betterAuth } = await import("better-auth");
     const { organization } = await import("better-auth/plugins");
     const { compileBetterAuthSchema, createBetterAuthDatabase } = await import("kello/better-auth");
@@ -95,6 +95,7 @@ test.skipIf(!connectionString)(
     const root = await mkdtemp(join(tmpdir(), "kello-auth-runner-"));
     const admin = new Client({ connectionString });
     await admin.connect();
+    let runtimeDb: ReturnType<typeof drizzle> | undefined;
     const migrations = "kello/_generated/migrations";
     try {
       const options = { advanced: { database: { generateId: "serial" as const } }, plugins: [organization()] };
@@ -119,10 +120,15 @@ test.skipIf(!connectionString)(
       );
       expect(triggers.rows).toEqual([]);
       await admin.query(`GRANT "${runtimeRole}" TO CURRENT_USER`);
+      await admin.query(`ALTER ROLE "${runtimeRole}" LOGIN PASSWORD 'kello-test-only'`);
       await admin.query(`SET ROLE "${runtimeRole}"`);
+      const runtimeAddress = new URL(connectionString!);
+      runtimeAddress.username = runtimeRole;
+      runtimeAddress.password = "kello-test-only";
+      runtimeDb = drizzle(runtimeAddress.href);
       const auth = betterAuth({
         ...options,
-        database: createBetterAuthDatabase(drizzle({ client: admin }), namespace),
+        database: createBetterAuthDatabase(runtimeDb, namespace),
         secret: "test-only-auth-migration-secret-at-least-32-chars",
         baseURL: "https://auth.example.test",
         emailAndPassword: { enabled: true },
@@ -171,6 +177,7 @@ test.skipIf(!connectionString)(
         { count: 1 },
       ]);
     } finally {
+      await runtimeDb?.$client.end();
       await admin.query("RESET ROLE");
       await admin.query(`DROP SCHEMA IF EXISTS "${namespace}" CASCADE`);
       await admin.query(`DROP SCHEMA IF EXISTS "${metadataNamespace}" CASCADE`);

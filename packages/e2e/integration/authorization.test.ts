@@ -13,7 +13,7 @@ import { call } from "@orpc/server";
 import { Context } from "effect";
 import { bootstrapDatabase } from "kello-cli";
 import { defineRelations, sql } from "drizzle-orm";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import * as v from "valibot";
 
 const connectionString = process.env.KELLO_TEST_DATABASE_URL;
@@ -125,10 +125,12 @@ test.skipIf(!connectionString)(
         expect((await admin.query(`SELECT tenant FROM "${metadataNamespace}".documents WHERE id = 'a'`)).rows).toEqual([
           { tenant: "one" },
         ]);
-        const outside = await connection.pool.query<{ identity: string | null }>(
+        const outside = await connection.pool.execute(
           "SELECT nullif(current_setting('kello.identity', true), '') AS identity",
+          [],
+          { mode: "object" },
         );
-        expect(outside.rows[0]?.identity).toBeNull();
+        expect(Array.from<unknown>(outside.rows)).toEqual([{ identity: null }]);
         expect((await connection.db.execute<{ id: string; tenant: string }>(sql`SELECT * FROM ${table}`)).rows).toEqual(
           [],
         );
@@ -139,7 +141,7 @@ test.skipIf(!connectionString)(
         );
         expect(await call(read, "a", { context: contextFor(alice) })).toMatchObject({ titles: ["Alice"] });
         expect(await call(who, undefined, { context: contextFor(bob) })).toBe("bob");
-        expect(connection.pool.totalCount).toBe(1);
+        expect(connection.pool.size).toBe(1);
         expect(connection.pool.idleCount).toBe(1);
       } finally {
         await connection.close();

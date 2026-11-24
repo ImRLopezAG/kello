@@ -5,13 +5,12 @@ import type { EntityDeclaration, EntityFields, TableDefinition, TableOptions } f
 
 type FieldInput<F> =
   F extends Field<infer B, infer V>
-    ?
-        | (V extends StandardSchemaV1
-            ? StandardSchemaV1.InferInput<V>
-            : B["_"] extends { $type: infer Data }
-              ? Data
-              : B["_"]["data"])
-        | (B["_"]["notNull"] extends true ? never : null)
+    ? | (V extends StandardSchemaV1
+          ? StandardSchemaV1.InferInput<V>
+          : B["_"] extends { $type: infer Data }
+            ? Data
+            : B["_"]["data"])
+      | (B["_"]["notNull"] extends true ? never : null)
     : never;
 type RequiredKeys<E extends EntityDeclaration> = {
   [Key in keyof EntityFields<E>]: EntityFields<E>[Key] extends Field<infer B, infer _V>

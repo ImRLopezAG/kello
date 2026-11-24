@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { get } from "node:https";
 import { buildNeonFunctionBundle } from "kello-cli";
 import { createKelloNeonApi, bootstrapDatabase, inspectDeploymentTarget, defineConfig } from "kello-cli";

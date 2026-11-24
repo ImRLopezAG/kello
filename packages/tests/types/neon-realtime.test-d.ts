@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { pgTable, text } from "drizzle-orm/pg-core";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { createNeonLiveQuery, createNeonQueryIssuer } from "kello/server";
 import type { NeonAuthority } from "kello/server";
 import type { IssuedNeonQuery } from "kello/client";

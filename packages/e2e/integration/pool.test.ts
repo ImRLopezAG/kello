@@ -51,22 +51,20 @@ test.skipIf(!connectionString)("pool measures acquisition separately from query 
     } finally {
       acquired.release();
     }
+    // A standalone query pipelines on an idle connection without checking one out.
     await connection.db.execute(sql`SELECT 1`);
-    expect(metrics).toHaveLength(3);
+    expect(metrics).toHaveLength(2);
     await runFunctionTransaction(connection, "query", async (tx) => {
-      expect(metrics).toHaveLength(4);
+      expect(metrics).toHaveLength(3);
       await tx.execute(sql`SELECT pg_sleep(0.025)`);
-      expect(metrics).toHaveLength(4);
+      expect(metrics).toHaveLength(3);
     });
     await connection.close();
-    await assert.rejects(connection.pool.connect(), /end/);
-    expect(metrics).toHaveLength(5);
-    expect(metrics.at(-1)?.status).toBe("error");
-    await assert.rejects(connection.pool.query("SELECT 1"), /end/);
-    expect(metrics).toHaveLength(6);
+    await assert.rejects(connection.pool.connect(), /closed/);
+    expect(metrics).toHaveLength(4);
     expect(metrics.at(-1)?.status).toBe("error");
   } finally {
     events.unsubscribe(capture);
-    if (!connection.pool.ending) await connection.close();
+    await connection.close();
   }
 });

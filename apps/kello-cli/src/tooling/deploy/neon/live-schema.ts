@@ -1,4 +1,4 @@
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import { migrationStatusOnConnection } from "../../migrations/status";
 import { inspectReleaseSchema } from "../compatibility";
 import type { ReleaseSchemaOptions, ReleaseSchemaInspection } from "../compatibility";
@@ -16,7 +16,7 @@ export interface ReleaseDatabaseInspection extends ReleaseSchemaInspection {
 
 /** Observes the live target under the caller's deployment lock without changing its schema or grants. */
 export async function inspectReleaseDatabase(
-  client: pg.Client,
+  client: DatabaseSession,
   root: string,
   input: ReleaseSchemaOptions,
 ): Promise<ReleaseDatabaseInspection> {

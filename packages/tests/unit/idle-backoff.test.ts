@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vite-plus/test";
-import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { createNeonTriggers } from "../../../apps/kello/src/core/adapters/neon/triggers";
 import { createIdleBackoff } from "../../../apps/kello/src/core/server/jobs/idle-backoff";
 import { createDurableJobWorker } from "../../../apps/kello/src/core/server/jobs/durable-worker";
@@ -106,8 +106,8 @@ function dispatcher(idle: ReturnType<typeof createIdleBackoff>) {
   });
   const enqueue = vi.fn(async () => "job-one");
   const options: Parameters<typeof createDurableCronDispatcher>[0] = {
-    // SAFETY: idle wakes and undelivered cron dispatch use only the stubbed transaction method.
-    db: Object.assign(Object.create(NodePgDatabase.prototype) as NodePgDatabase, { transaction }),
+    // Idle wakes and undelivered cron dispatch use only the stubbed transaction method.
+    db: Object.assign(drizzle.mock(), { transaction }),
     crons: new Map([["reports", enqueue]]),
     assertActive: async () => {},
     deployment: "deployment",

@@ -429,7 +429,7 @@ test("packed public full-text consumer executes under independently pinned Node 
         dependencies: {
           kello: "file:./kello.tgz",
           "kello-cli": "file:./kello-cli.tgz",
-          "drizzle-orm": "1.0.0-rc.5",
+          "drizzle-orm": "1.0.0-rc.6",
           "@orpc/client": "2.0.0-beta.49",
           "@orpc/server": "2.0.0-beta.49",
           "@orpc/tanstack-query": "2.0.0-beta.49",
@@ -437,7 +437,7 @@ test("packed public full-text consumer executes under independently pinned Node 
           react: "19.3.1",
           "react-dom": "19.3.1",
           valibot: "1.5.0",
-          effect: "4.1.2",
+          effect: "4.1.5",
         },
       }),
       { flag: "wx" },

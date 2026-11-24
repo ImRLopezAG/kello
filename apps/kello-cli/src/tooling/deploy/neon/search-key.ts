@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type pg from "pg";
+import type { DatabaseSession } from "../../migrations/connection";
 import * as v from "valibot";
 import { databaseIdentifier, quoteIdentifier } from "../../migrations/connection";
 
@@ -10,7 +10,7 @@ const optionsSchema = v.strictObject({
 });
 
 /** Only the metadata owner provisions secrets; release versions and auth keys are independent. */
-export async function provisionSearchCursorKey(client: pg.Client, input: v.InferInput<typeof optionsSchema>) {
+export async function provisionSearchCursorKey(client: DatabaseSession, input: v.InferInput<typeof optionsSchema>) {
   const options = v.parse(optionsSchema, input);
   const ownership = await client.query<{ owned: boolean }>(
     "SELECT nspowner = (SELECT oid FROM pg_roles WHERE rolname = current_user) AS owned FROM pg_namespace WHERE nspname=$1",

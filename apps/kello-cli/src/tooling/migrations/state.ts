@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 import type { MigrationArtifact } from "./history";
 import { quoteIdentifier } from "./connection";
 import { catalogFingerprint } from "./drift";
@@ -39,13 +39,13 @@ export interface HistoryState {
 export function ormHistoryTable(namespace: string): string {
   return `drizzle_${createHash("sha256").update(namespace).digest("hex").slice(0, 48)}`;
 }
-async function relationExists(client: pg.Client, name: string): Promise<boolean> {
+async function relationExists(client: DatabaseSession, name: string): Promise<boolean> {
   const result = await client.query<{ relation: string | null }>("SELECT to_regclass($1)::text AS relation", [name]);
   return result.rows[0]?.relation != null;
 }
 
 export async function inspectHistory(
-  client: pg.Client,
+  client: DatabaseSession,
   scope: HistoryScope,
   artifacts: readonly MigrationArtifact[],
 ): Promise<HistoryState> {

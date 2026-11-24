@@ -67,6 +67,7 @@ export type { ActivationDatabase, RuntimeStorageBackend } from "./runtime-contra
 export { runtimeConfigValidator } from "./config";
 export type { RuntimeConfigInput } from "./config";
 export type { DatabaseOptions, DatabaseSchema, DatabaseConnection } from "./database/connection";
+export type { Database, DatabaseTransaction, EffectDatabase } from "./database/types";
 export { runFunctionTransaction, TransactionConflictError } from "./transactions";
 export type { TransactionOptions } from "./transactions";
 export type { RuntimeMetric } from "./observability";

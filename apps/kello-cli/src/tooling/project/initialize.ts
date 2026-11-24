@@ -38,7 +38,7 @@ export function projectTemplates(name: string) {
           dependencies: {
             kello: version,
             valibot: "1.5.0",
-            "drizzle-orm": "1.0.0-rc.5",
+            "drizzle-orm": "1.0.0-rc.6",
           },
           devDependencies: { "kello-cli": version, "vite-plus": "1.0.0", typescript: "7.0.2" },
         },

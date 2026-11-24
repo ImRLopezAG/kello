@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { fullTextLocalTarget } from "./full-text-local-target";
 import {
   applyMigrations,

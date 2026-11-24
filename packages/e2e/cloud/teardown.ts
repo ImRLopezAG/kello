@@ -1,4 +1,4 @@
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { planTeardown, teardownStatements, type TeardownPlan } from "./lifecycle";
 
 /**

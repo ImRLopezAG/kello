@@ -63,14 +63,24 @@ export const snapshotValidator = v.strictObject({
   ),
 });
 
-/** RC5 emits v9 states. Kello keeps its persisted v8 storage contract and hash domain.
- * Its restricted entity vocabulary is unchanged; validate the native envelope before
- * conversion. This leaves committed plans, SQL, lineage and deployed ledger IDs intact.
+/** RC6 emits v10 states, whose indexes no longer carry `concurrently`. Kello keeps its
+ * persisted v8 storage contract and hash domain, so the field is restored as `false`:
+ * native index builds always run inside the migration transaction, and Kello's own
+ * nontransactional artifacts remain the only route to concurrent builds. The restricted
+ * entity vocabulary is unchanged; validate the native envelope before conversion. This
+ * leaves committed plans, SQL, lineage and deployed ledger IDs intact.
  */
+const [schemas, tables, columns, indexes, ...constraints] = snapshotValidator.entries.ddl.item.options;
+const { concurrently: _concurrently, ...nativeIndex } = indexes.entries;
+const nativeEntity = v.variant("entityType", [schemas, tables, columns, v.strictObject(nativeIndex), ...constraints]);
+
 // This function is the schema-validation boundary for untrusted Kit output.
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
 export function fromDrizzleSnapshot(input: unknown): v.InferOutput<typeof snapshotValidator> {
-  const { renames: _renames, ...entries } = snapshotValidator.entries;
-  const snapshot = v.parse(v.strictObject({ ...entries, version: v.literal("9") }), input);
-  return { ...snapshot, version: "8", renames: [] };
+  const { renames: _renames, ddl: _ddl, ...entries } = snapshotValidator.entries;
+  const snapshot = v.parse(v.strictObject({ ...entries, version: v.literal("10"), ddl: v.array(nativeEntity) }), input);
+  const ddl = snapshot.ddl.map((entity) =>
+    entity.entityType === "indexes" ? { ...entity, concurrently: false } : entity,
+  );
+  return v.parse(snapshotValidator, { ...snapshot, version: "8", renames: [], ddl });
 }

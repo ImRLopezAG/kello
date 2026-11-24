@@ -12,7 +12,7 @@ import { inspectHistory } from "./state";
 import type { HistoryIssue } from "./state";
 import type { FrameworkReadiness } from "./framework-history";
 import type { MigrationSafety } from "./classifier";
-import type pg from "pg";
+import type { DatabaseSession } from "./connection";
 
 const statusOptions = v.strictObject({
   connectionString: v.string(),
@@ -30,7 +30,7 @@ export interface DatabaseIdentity {
   address: string | null;
   port: number | null;
 }
-export async function databaseIdentity(client: pg.Client): Promise<DatabaseIdentity> {
+export async function databaseIdentity(client: DatabaseSession): Promise<DatabaseIdentity> {
   const result = await client.query<DatabaseIdentity>(
     "SELECT current_database() AS database, current_user AS role, inet_server_addr()::text AS address, inet_server_port() AS port",
   );
@@ -66,7 +66,7 @@ export async function migrationStatus(options: MigrationStatusOptions): Promise<
 
 /** Uses an owned dedicated connection; its shared migration lock lasts until that connection closes. */
 export async function migrationStatusOnConnection(
-  client: pg.Client,
+  client: DatabaseSession,
   options: MigrationStatusOnConnectionOptions,
 ): Promise<MigrationStatus> {
   assertMigrationConnection(client);

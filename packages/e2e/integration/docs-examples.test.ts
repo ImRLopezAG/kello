@@ -39,9 +39,9 @@ test("documented authoring examples compile and validate through a packed public
         dependencies: {
           kello: "file:./kello.tgz",
           "kello-cli": "file:./kello-cli.tgz",
-          "drizzle-orm": "1.0.0-rc.5",
+          "drizzle-orm": "1.0.0-rc.6",
           "@orpc/server": "2.0.0-beta.49",
-          effect: "4.1.2",
+          effect: "4.1.5",
           valibot: "1.5.0",
           typescript: "7.0.2",
           "@types/node": "24.13.6",

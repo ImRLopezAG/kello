@@ -6,7 +6,7 @@ import { mkdtemp, mkdir, symlink, realpath, readFile, writeFile, rm } from "node
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import pg from "pg";
+import * as pg from "../fixtures/postgres";
 import { unzipSync } from "fflate";
 import { buildNeonFunctionBundle } from "kello-cli";
 import { generateProject, prepareNeonEntrypoints, bootstrapDatabase } from "kello-cli";

@@ -4,8 +4,8 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import * as pg from "../fixtures/postgres";
+import { drizzle } from "drizzle-orm/postgres";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { generateDrizzleJson, generateMigration } from "drizzle-kit/api-postgres";
 import * as v from "valibot";
@@ -97,7 +97,7 @@ export default app;`,
         await owner.query(
           `GRANT USAGE ON SCHEMA "${namespace}" TO "${runtimeRole}"; GRANT SELECT ON ALL TABLES IN SCHEMA "${namespace}" TO "${runtimeRole}"`,
         );
-        const db = drizzle({ client: owner, relations: scope.relations });
+        const db = drizzle({ client: owner.driver, relations: scope.relations });
         const tasks = scope.schema.tables.tasks;
         const labels = scope.schema.tables.labels;
         const taskLabels = scope.schema.tables.taskLabels;

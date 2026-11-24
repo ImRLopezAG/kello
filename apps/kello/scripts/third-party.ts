@@ -12,13 +12,13 @@ const manifest = v.object({ name: v.string(), version: v.string(), license: v.st
 const packages = [
   {
     name: "drizzle-kit",
-    version: "1.0.0-rc.5",
+    version: "1.0.0-rc.6",
     entry: "drizzle-kit/api-postgres",
     levels: 0,
-    patch: "drizzle-kit@1.0.0-rc.5.patch",
+    patch: "drizzle-kit@1.0.0-rc.6.patch",
   },
-  { name: "@neon/config-runtime", version: "1.12.0", entry: "@neon/config-runtime", levels: 1 },
-  { name: "@neon/config", version: "1.13.0", entry: "@neon/config", levels: 1, patch: "@neon%2Fconfig@1.13.0.patch" },
+  { name: "@neon/config-runtime", version: "1.12.9", entry: "@neon/config-runtime", levels: 1 },
+  { name: "@neon/config", version: "1.14.6", entry: "@neon/config", levels: 1, patch: "@neon%2Fconfig@1.14.6.patch" },
   {
     name: "@neon/realtime-drizzle",
     version: "0.2.0",
@@ -61,7 +61,7 @@ await writeFile(
   tooling
     ? `# Bundled dependencies
 
-Kello tooling bundles the PostgreSQL API from drizzle-kit 1.0.0-rc.5 (published package license: MIT), @neon/config-runtime 1.12.0 and @neon/config 1.13.0 (Apache-2.0), and their Zod 4.6.7 dependency (MIT). Their package metadata, available upstream license files and Kello's modifications are included here. Published JavaScript is minified without source maps; license notices remain in the emitted JavaScript.
+Kello tooling bundles the PostgreSQL API from drizzle-kit 1.0.0-rc.6 (published package license: MIT), @neon/config-runtime 1.12.9 and @neon/config 1.14.6 (Apache-2.0), and their Zod 4.6.7 dependency (MIT). Their package metadata, available upstream license files and Kello's modifications are included here. Published JavaScript is minified without source maps; license notices remain in the emitted JavaScript.
 
 The Drizzle patch adds schema-scoped read-only introspection; rename hints use the upstream API. The Neon config patch rejects unknown or missing bucket access levels. The runtime kello package separately bundles the patched @neon/realtime-drizzle adapter. These changes are pinned and tested; consumers do not apply installation patches. Only the tooling dependencies described above are bundled in kello-cli. The official Realtime SDK remains an external runtime dependency. Kello deploys functions with the application's development-only Vite+ toolchain and fflate ZIP creation, rather than the bundled Neon config runtime's default esbuild/native-package tracing path. Bundling tooling's Zod keeps it independent of the application's Standard Schema choice and avoids splitting Drizzle's type identity through incompatible peer resolutions.
 
@@ -69,6 +69,6 @@ The published drizzle-kit archive contains no standalone LICENSE file. Its metad
 `
     : `# Bundled dependencies
 
-Kello bundles @neon/realtime-drizzle 0.2.0 (Apache-2.0), with the reviewed Drizzle RC5 and parameter-encoding patch, and @orpc/effect 2.0.0-beta.49 (MIT), with the declaration patch that restores its missing DecoratedProcedure import so published \`.effect()\` procedures keep their types. Its oRPC and Effect dependencies stay external, so the extension augments the application's single @orpc/server. Metadata, licenses and patches are retained here. The official Realtime SDK remains external. JavaScript is minified without source maps; license notices remain inline. Deployment, migration, Neon config and Zod tooling are distributed separately in kello-cli.
+Kello bundles @neon/realtime-drizzle 0.2.0 (Apache-2.0), with the reviewed Drizzle RC6 and parameter-encoding patch, and @orpc/effect 2.0.0-beta.49 (MIT), with the declaration patch that restores its missing DecoratedProcedure import so published \`.effect()\` procedures keep their types. Its oRPC and Effect dependencies stay external, so the extension augments the application's single @orpc/server. Metadata, licenses and patches are retained here. The official Realtime SDK remains external. JavaScript is minified without source maps; license notices remain inline. Deployment, migration, Neon config and Zod tooling are distributed separately in kello-cli.
 `,
 );
